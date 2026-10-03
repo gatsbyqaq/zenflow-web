@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#5b8def" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="ZenFlow" />
+  <title>ZenFlow · 戒色 · 自律 · 平静</title>
+  <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app" class="app">
+
+  <main class="content" id="content">
+
+    <!-- ========== 首页：打卡计时 ========== -->
+    <section class="screen active" id="screen-home" data-screen="home">
+      <header class="page-head">
+        <div>
+          <p class="brand"><img src="icon.svg" alt="" class="brand-logo" />ZenFlow<span class="brand-tag">戒色 · 自律 · 平静</span></p>
+          <p class="eyebrow" id="greeting">你好</p>
+          <h1>今天也在变好 🌱</h1>
+        </div>
+        <span class="privacy-pill" title="所有数据只保存在本机浏览器中">🔒 仅本机</span>
+      </header>
+
+      <div class="card hero-card">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+            <defs>
+              <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7fb2ff" />
+                <stop offset="100%" stop-color="#6fd3b5" />
+              </linearGradient>
+            </defs>
+            <circle class="ring-bg" cx="100" cy="100" r="86" />
+            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" />
+          </svg>
+          <div class="ring-center">
+            <div class="days-num" id="daysNum">0</div>
+            <div class="days-label">天</div>
+          </div>
+        </div>
+        <div class="time-chips">
+          <div class="chip-t"><b id="hNum">00</b><span>小时</span></div>
+          <div class="chip-t"><b id="mNum">00</b><span>分钟</span></div>
+          <div class="chip-t"><b id="sNum">00</b><span>秒</span></div>
+        </div>
+        <p class="next-ms" id="nextMs">距离下一个里程碑还有 …</p>
+        <div class="progress"><div class="progress-bar" id="msBar"></div></div>
+        <div class="hero-foot">
+          <span class="muted small" id="startText">开始于 —</span>
+          <button class="btn-link" id="btnAdjustStart">调整开始时间</button>
+        </div>
+      </div>
+
+      <div class="mini-stats">
+        <div class="mini"><span class="mini-v" id="bestStreak">0天</span><span class="mini-l">最佳纪录</span></div>
+        <div class="mini"><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
+        <div class="mini"><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <h2>今日打卡</h2>
+          <span class="muted small" id="todayDate"></span>
+        </div>
+        <div id="checkinArea">
+          <p class="muted small">此刻的心情如何？</p>
+          <div class="moods" id="moodPicker"></div>
+          <button class="btn btn-primary btn-block" id="btnCheckin" disabled>选择心情后打卡</button>
+        </div>
+        <div id="checkinDone" class="checkin-done hidden"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <h2>打卡日历</h2>
+          <div class="cal-nav">
+            <button class="icon-btn" id="calPrev" aria-label="上个月">‹</button>
+            <span id="calTitle"></span>
+            <button class="icon-btn" id="calNext" aria-label="下个月">›</button>
+          </div>
+        </div>
+        <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+          <span><i class="lg lg-1"></i>低落</span>
+          <span><i class="lg lg-3"></i>一般</span>
+          <span><i class="lg lg-5"></i>很好</span>
+          <span><i class="lg lg-r"></i>破戒</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><h2>里程碑徽章</h2><span class="muted small" id="badgeCount"></span></div>
+        <div class="badges" id="badges"></div>
+      </div>
+
+      <div class="card tip-card">
+        <div class="card-title"><h2>💡 今日小知识</h2></div>
+        <p id="dailyTip"></p>
+      </div>
+
+      <button class="sos-banner" data-goto="sos">
+        <span>🆘</span>
+        <div><b>感到冲动？</b><small>点这里，陪你度过这几分钟</small></div>
+        <span class="arrow">›</span>
+      </button>
+    </section>
+
+    <!-- ========== 急救 SOS ========== -->
+    <section class="screen" id="screen-sos" data-screen="sos">
+      <!-- step 0 -->
+      <div class="sos-step active" id="sosStart">
+        <header class="page-head center">
+          <div>
+            <h1>急救时刻</h1>
+            <p class="muted">冲动像海浪，会升起，也会退去。</p>
+          </div>
+        </header>
+        <div class="sos-btn-wrap">
+          <button class="sos-big" id="btnSosStart">
+            <span class="sos-pulse"></span>
+            <span class="sos-pulse p2"></span>
+            <span class="sos-inner">SOS<small>我现在有冲动</small></span>
+          </button>
+        </div>
+        <div class="card">
+          <h3>🌊 冲浪式应对（Urge Surfing）</h3>
+          <p class="small">不去压抑、也不去跟随，而是像观察海浪一样观察这股冲动。多数冲动在几分钟到二十分钟左右会达到顶点然后自然减弱。接下来我们先一起呼吸，让身体平静下来。</p>
+        </div>
+        <div class="card">
+          <h3>选择呼吸方式</h3>
+          <div class="seg" id="breathMode">
+            <button class="seg-btn active" data-mode="box">箱式呼吸 4-4-4-4</button>
+            <button class="seg-btn" data-mode="478">4-7-8 呼吸</button>
+          </div>
+          <p class="muted small" id="breathDesc">吸气 4 秒 · 屏息 4 秒 · 呼气 4 秒 · 屏息 4 秒，共 4 轮（约 64 秒）</p>
+        </div>
+        <p class="muted small center">已经陪你度过了 <b id="urgeCountSos">0</b> 次冲动 💙</p>
+      </div>
+
+      <!-- step 1: breathing -->
+      <div class="sos-step" id="sosBreath">
+        <div class="sos-top">
+          <button class="icon-btn" id="btnSosClose1" aria-label="关闭">✕</button>
+          <span class="muted small">第 1 步 · 呼吸</span>
+          <button class="btn-link" id="btnSkipBreath">跳过</button>
+        </div>
+        <div class="breath-stage">
+          <div class="breath-halo"></div>
+          <div class="breath-circle" id="breathCircle">
+            <div class="breath-phase" id="breathPhase">准备</div>
+            <div class="breath-count" id="breathCount">3</div>
+          </div>
+        </div>
+        <p class="center muted" id="breathHint">跟着圆圈的节奏，慢慢地呼吸</p>
+        <div class="progress thin"><div class="progress-bar" id="breathBar"></div></div>
+        <p class="center muted small" id="breathRound"></p>
+      </div>
+
+      <!-- step 2: actions -->
+      <div class="sos-step" id="sosActions">
+        <div class="sos-top">
+          <button class="icon-btn" id="btnSosClose2" aria-label="关闭">✕</button>
+          <span class="muted small">第 2 步 · 转移注意力</span>
+          <span></span>
+        </div>
+        <div class="card soft-blue">
+          <p class="small">做得很好。现在，用一个小行动打断这股冲动 —— 选一个马上就能做的：</p>
+          <div class="actions" id="actionList"></div>
+          <button class="btn btn-ghost btn-block" id="btnShuffle">🔄 换一批建议</button>
+        </div>
+        <div class="card quote-card">
+          <p class="quote" id="quoteText"></p>
+          <p class="quote-src" id="quoteSrc"></p>
+        </div>
+        <div class="card">
+          <h3>💙 记住你为什么出发</h3>
+          <ul class="reasons-view" id="reasonsView"></ul>
+        </div>
+        <button class="btn btn-success btn-block btn-lg" id="btnMadeIt">💪 我挺过来了</button>
+        <button class="btn-link center-block" id="btnRebreath">再做一次呼吸练习</button>
+        <button class="btn-link center-block muted" id="btnSosRelapse">我没能忍住…（去记录，没关系）</button>
+      </div>
+
+      <!-- step 3: success -->
+      <div class="sos-step" id="sosDone">
+        <div class="done-wrap">
+          <div class="done-emoji">🎉</div>
+          <h1>你做到了！</h1>
+          <p class="muted">这是你第 <b id="urgeCountDone">1</b> 次成功抵御冲动。<br/>每一次坚持，都在让大脑的新习惯更牢固一点。</p>
+          <button class="btn btn-primary btn-block" data-goto="home">回到首页</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 记录 ========== -->
+    <section class="screen" id="screen-log" data-screen="log">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">记录与复盘</p>
+          <h1>诚实面对，温柔前行</h1>
+        </div>
+      </header>
+      <div class="card soft-warm">
+        <p class="small">一次失误不等于失败。记录下来，是为了看清规律、找到更好的应对方法 —— 不是为了责备自己。</p>
+      </div>
+      <div class="card">
+        <h2>记录一次破戒</h2>
+        <label class="field">
+          <span>发生时间</span>
+          <input type="datetime-local" id="relapseTime" />
+        </label>
+        <div class="field">
+          <span>触发因素（可多选）</span>
+          <div class="tags" id="triggerTags"></div>
+          <input type="text" id="otherTrigger" class="hidden" maxlength="20" placeholder="其他触发因素，例如：看到某类内容" />
+        </div>
+        <label class="field">
+          <span>备注 / 复盘（可选）</span>
+          <textarea id="relapseNote" rows="3" maxlength="500" placeholder="当时发生了什么？下次可以怎么提前应对？"></textarea>
+        </label>
+        <button class="btn btn-warm btn-block" id="btnLogRelapse">记录并重新开始</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><h2>历史记录</h2><span class="muted small" id="historyCount"></span></div>
+        <div id="historyList" class="history"></div>
+      </div>
+    </section>
+
+    <!-- ========== 统计 ========== -->
+    <section class="screen" id="screen-stats" data-screen="stats">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">数据统计</p>
+          <h1>看见自己的进步 📈</h1>
+        </div>
+      </header>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-v" id="stUrges">0</span><span class="stat-l">抵御冲动</span></div>
+        <div class="stat"><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
+        <div class="stat"><span class="stat-v" id="stBest">0</span><span class="stat-l">最长连续（天）</span></div>
+        <div class="stat"><span class="stat-v" id="stCurrent">0</span><span class="stat-l">当前连续（天）</span></div>
+        <div class="stat"><span class="stat-v" id="stCheckins">0</span><span class="stat-l">累计打卡</span></div>
+        <div class="stat"><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
+      </div>
+
+      <div class="card">
+        <h2>常见触发因素</h2>
+        <div id="triggerChart" class="hbars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <h2>时段分布</h2>
+          <div class="legend-inline"><span><i class="dot dot-warm"></i>破戒</span><span><i class="dot dot-mint"></i>抵御冲动</span></div>
+        </div>
+        <div id="timeChart"></div>
+      </div>
+
+      <div class="card">
+        <h2>心情分布</h2>
+        <div id="moodChart" class="hbars"></div>
+      </div>
+
+      <div class="card tip-card">
+        <h2>🧭 个性化建议</h2>
+        <div id="insights"></div>
+      </div>
+    </section>
+
+    <!-- ========== 设置 ========== -->
+    <section class="screen" id="screen-settings" data-screen="settings">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">设置</p>
+          <h1>属于你的空间</h1>
+        </div>
+      </header>
+
+      <div class="card">
+        <h2>💙 我坚持的理由</h2>
+        <p class="muted small">写下对你真正重要的理由。冲动来临时，急救页面会提醒你。</p>
+        <ul class="reasons-edit" id="reasonsEdit"></ul>
+        <div class="add-row">
+          <input type="text" id="reasonInput" maxlength="60" placeholder="例如：把精力留给学习和健身" />
+          <button class="btn btn-primary" id="btnAddReason">添加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🔒 隐私说明</h2>
+        <p class="small">所有数据（打卡、记录、理由等）<b>只保存在你这台设备的浏览器本地存储（localStorage）中</b>，不会上传到任何服务器，也没有账号和统计追踪。清除浏览器数据会删除这些记录，建议定期导出备份。</p>
+      </div>
+
+      <div class="card">
+        <h2>💾 数据管理</h2>
+        <div class="setting-row">
+          <div><b>导出数据</b><p class="muted small">下载 JSON 备份文件</p></div>
+          <button class="btn btn-ghost" id="btnExport">导出</button>
+        </div>
+        <div class="setting-row">
+          <div><b>导入数据</b><p class="muted small">从 JSON 备份恢复（会覆盖当前数据）</p></div>
+          <button class="btn btn-ghost" id="btnImport">导入</button>
+          <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
+        </div>
+        <div class="setting-row">
+          <div><b class="danger-text">重置所有数据</b><p class="muted small">清空全部记录，无法撤销</p></div>
+          <button class="btn btn-danger" id="btnReset">重置</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>ℹ️ 关于</h2>
+        <p class="small">ZenFlow v1.0 · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
+        <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- 底部导航 -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-tab="home"><span class="ti">🏠</span><span>打卡</span></button>
+    <button class="tab" data-tab="log"><span class="ti">📝</span><span>记录</span></button>
+    <button class="tab tab-sos" data-tab="sos" aria-label="急救"><span class="sos-dot">SOS</span><span>急救</span></button>
+    <button class="tab" data-tab="stats"><span class="ti">📊</span><span>统计</span></button>
+    <button class="tab" data-tab="settings"><span class="ti">⚙️</span><span>设置</span></button>
+  </nav>
+
+  <!-- 弹窗 -->
+  <div class="modal-mask hidden" id="modalMask">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modalTitle"></h3>
+      <div id="modalBody"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modalCancel">取消</button>
+        <button class="btn btn-primary" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

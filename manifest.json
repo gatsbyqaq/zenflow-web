@@ -1,0 +1,14 @@
+{
+  "name": "ZenFlow · 戒色 · 自律 · 平静",
+  "short_name": "ZenFlow",
+  "description": "温和、基于科学的自律与专注小助手，数据仅保存在本机。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef2f8",
+  "theme_color": "#5b8def",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
