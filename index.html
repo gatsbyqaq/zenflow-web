@@ -14,6 +14,9 @@
         if (t !== 'light' && t !== 'dark') return;
         document.documentElement.setAttribute('data-theme', t);
         var c = t === 'dark' ? '#0b1020' : '#e9eefb';
+        // iOS 26 Safari 会根据页面背景为状态栏/工具栏着色：首帧前就把根背景设为当前主题色
+        document.documentElement.style.backgroundColor = c;
+        document.documentElement.style.colorScheme = t;
         document.getElementById('metaThemeLight').setAttribute('content', c);
         document.getElementById('metaThemeDark').setAttribute('content', c);
         document.getElementById('metaColorScheme').setAttribute('content', t);
@@ -114,6 +117,9 @@
   <div class="bg-blobs" aria-hidden="true">
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
   </div>
+  <!-- 顶/底边缘的纯色主题色渐隐层：给 Safari 提供统一的边缘颜色用于状态栏/工具栏着色 -->
+  <div class="edge edge-top" aria-hidden="true"></div>
+  <div class="edge edge-bottom" aria-hidden="true"></div>
 
   <main class="content" id="content">
 

@@ -580,6 +580,9 @@
     }
     if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
     else root.removeAttribute('data-theme');
+    // 根背景内联色（与首帧脚本一致）：手动主题时固定为主题色，跟随系统时交给 CSS
+    root.style.backgroundColor = t === 'system' ? '' : THEME_COLOR[t];
+    root.style.colorScheme = t === 'system' ? '' : t;
     // 让 Safari 工具栏/状态栏与表单控件配色一致
     var ml = document.getElementById('metaThemeLight'), md = document.getElementById('metaThemeDark'), mc = document.getElementById('metaColorScheme');
     if (ml) ml.setAttribute('content', t === 'system' ? THEME_COLOR.light : THEME_COLOR[t]);

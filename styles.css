@@ -148,20 +148,35 @@ b{font-weight:650}
 
 /* 弹窗打开时锁定页面滚动（JS 记录并恢复滚动位置） */
 body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
-/* 独立模式（添加到主屏幕）下状态栏区域的玻璃遮罩；Safari 浏览器中高度为 0 */
-body::before{content:"";position:fixed;left:0;right:0;top:0;height:var(--safe-t);z-index:30;pointer-events:none;background:var(--glass-strong);-webkit-backdrop-filter:var(--blur-sm);backdrop-filter:var(--blur-sm)}
+/* 根背景显式设为主题色：iOS 26 Safari 用它（以及贴边的 fixed 元素）为状态栏、底部工具栏和回弹区域着色 */
+html,body{background-color:#e9eefb}
+:root[data-theme="dark"],:root[data-theme="dark"] body{background-color:#0b1020}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]),:root:not([data-theme="light"]) body{background-color:#0b1020}
+}
+
+/* 顶部/底部边缘：纯主题色、向内渐隐的 fixed 层。
+   - 让最贴边的像素是统一的主题色（Safari 采样边缘颜色时可得到确定结果）
+   - 作为贴边的 fixed 元素，其 background-color 即主题色
+   - 顶部高度包含安全区，在"添加到主屏幕"模式下充当状态栏底色 */
+.edge{position:fixed;left:50%;width:min(100%,420px);transform:translateX(-50%);z-index:15;pointer-events:none;background-color:var(--bg)}
+.edge-top{top:0;height:calc(var(--safe-t) + 14px);
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(var(--safe-t) + 3px),transparent);mask-image:linear-gradient(to bottom,#000 calc(var(--safe-t) + 3px),transparent)}
+/* 底部：位于浮动 Tab 栏下方（Tab 栏底边在 safe-b + 12px），层级高于 Tab 栏阴影，保证最底部像素是纯主题色 */
+.edge-bottom{bottom:0;z-index:21;height:calc(var(--safe-b) + 10px);
+  -webkit-mask-image:linear-gradient(to top,#000 calc(var(--safe-b) + 4px),transparent);mask-image:linear-gradient(to top,#000 calc(var(--safe-b) + 4px),transparent)}
 
 /* ---------- 外壳 + 背景光斑 ---------- */
 .app{
   position:relative;width:100%;max-width:420px;margin:0 auto;
   min-height:100vh;min-height:100svh;min-height:100dvh;isolation:isolate;
 }
-.bg-blobs{position:fixed;top:0;bottom:0;left:50%;width:min(100%,420px);transform:translateX(-50%);z-index:0;pointer-events:none;overflow:hidden;overflow:clip;background:var(--bg)}
+.bg-blobs{position:fixed;top:-15vh;bottom:-15vh;left:50%;width:min(100%,420px);transform:translateX(-50%);z-index:0;pointer-events:none;overflow:hidden;overflow:clip;background:var(--bg)}
 .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:var(--blob-op);will-change:transform}
-.b1{width:340px;height:340px;background:var(--blob1);top:-60px;left:-90px;animation:drift1 22s ease-in-out infinite alternate}
-.b2{width:300px;height:300px;background:var(--blob2);top:28%;right:-120px;animation:drift2 26s ease-in-out infinite alternate}
-.b3{width:320px;height:320px;background:var(--blob3);bottom:12%;left:-110px;animation:drift3 30s ease-in-out infinite alternate}
-.b4{width:260px;height:260px;background:var(--blob4);bottom:-60px;right:-40px;animation:drift4 24s ease-in-out infinite alternate}
+.b1{width:340px;height:340px;background:var(--blob1);top:calc(15vh - 60px);left:-90px;animation:drift1 22s ease-in-out infinite alternate}
+.b2{width:300px;height:300px;background:var(--blob2);top:calc(15vh + 28vh);right:-120px;animation:drift2 26s ease-in-out infinite alternate}
+.b3{width:320px;height:320px;background:var(--blob3);bottom:calc(15vh + 12vh);left:-110px;animation:drift3 30s ease-in-out infinite alternate}
+.b4{width:260px;height:260px;background:var(--blob4);bottom:calc(15vh - 60px);right:-40px;animation:drift4 24s ease-in-out infinite alternate}
 @keyframes drift1{to{transform:translate(90px,120px) scale(1.15)}}
 @keyframes drift2{to{transform:translate(-110px,80px) scale(.9)}}
 @keyframes drift3{to{transform:translate(100px,-90px) scale(1.1)}}
@@ -489,8 +504,8 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:var(--safe-t)
 .modal input{margin-top:8px}
 .modal-actions{display:flex;gap:10px;margin-top:18px}
 .modal-actions .btn{flex:1}
-.toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 98px);transform:translateX(-50%) translateY(20px) scale(.95);background:var(--glass-strong);color:var(--text);font-weight:600;padding:11px 20px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s,transform .45s var(--spring);z-index:60;white-space:nowrap;max-width:90%}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+.toast{position:fixed;left:50%;bottom:calc(var(--safe-b) + 98px);transform:translateX(-50%) translateY(20px) scale(.95);background:var(--glass-strong);color:var(--text);font-weight:600;padding:11px 20px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s,transform .45s var(--spring),visibility 0s linear .3s;z-index:60;white-space:nowrap;max-width:90%;visibility:hidden}
+.toast.show{visibility:visible;transition-delay:0s;opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 
 /* =========================================================
    图标系统（Lucide，内联 SVG sprite，SF Symbols 风格）
