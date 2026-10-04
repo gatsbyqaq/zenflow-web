@@ -563,6 +563,55 @@
     $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + ic(x[0]) + '</span><div>' + x[1] + '</div></div>'; }).join('');
   }
 
+  /* ---------------- 外观（浅色 / 深色 / 跟随系统） ---------------- */
+  var THEME_KEY = 'zenflow_theme';
+  var THEME_COLOR = { light: '#e9eefb', dark: '#0b1020' };
+  var sysDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function getTheme() {
+    try { var t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch (e) { return 'system'; }
+  }
+  function applyTheme(t, animate) {
+    var root = document.documentElement;
+    if (animate && !(reduceMotion && reduceMotion.matches)) {
+      root.classList.add('theme-anim');
+      clearTimeout(applyTheme._t);
+      applyTheme._t = setTimeout(function () { root.classList.remove('theme-anim'); }, 450);
+    }
+    if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+    else root.removeAttribute('data-theme');
+    // 让 Safari 工具栏/状态栏与表单控件配色一致
+    var ml = document.getElementById('metaThemeLight'), md = document.getElementById('metaThemeDark'), mc = document.getElementById('metaColorScheme');
+    if (ml) ml.setAttribute('content', t === 'system' ? THEME_COLOR.light : THEME_COLOR[t]);
+    if (md) md.setAttribute('content', t === 'system' ? THEME_COLOR.dark : THEME_COLOR[t]);
+    if (mc) mc.setAttribute('content', t === 'system' ? 'light dark' : t);
+    renderThemeControl();
+  }
+  function setTheme(t, animate) {
+    if (t !== 'light' && t !== 'dark') t = 'system';
+    try { if (t === 'system') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch (e) {}
+    applyTheme(t, animate);
+  }
+  function renderThemeControl() {
+    var t = getTheme();
+    document.querySelectorAll('#themeSeg .seg-btn').forEach(function (b) {
+      var on = b.dataset.themeOpt === t;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    var isDark = t === 'dark' || (t === 'system' && sysDark && sysDark.matches);
+    $('themeHint').textContent = t === 'system' ? ('当前系统：' + (isDark ? '深色' : '浅色')) : '';
+  }
+  $('themeSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn'); if (!b) return;
+    setTheme(b.dataset.themeOpt, true);
+  });
+  // 跟随系统时实时响应系统外观变化（CSS 自动切换，这里更新提示文字）
+  if (sysDark) {
+    var onSys = function () { if (getTheme() === 'system') applyTheme('system', true); };
+    if (sysDark.addEventListener) sysDark.addEventListener('change', onSys); else if (sysDark.addListener) sysDark.addListener(onSys);
+  }
+
   /* ---------------- 设置 ---------------- */
   function renderSettings() {
     $('reasonsEdit').innerHTML = state.reasons.length
@@ -583,7 +632,7 @@
   });
 
   $('btnExport').addEventListener('click', function () {
-    var data = JSON.stringify({ app: 'ZenFlow', exportedAt: new Date().toISOString(), data: state }, null, 2);
+    var data = JSON.stringify({ app: 'ZenFlow', exportedAt: new Date().toISOString(), data: state, settings: { theme: getTheme() } }, null, 2);
     var blob = new Blob([data], { type: 'application/json' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -598,16 +647,18 @@
     if (!f) return;
     var reader = new FileReader();
     reader.onload = function () {
-      var parsed;
+      var parsed, importedTheme = null;
       try {
         var obj = JSON.parse(reader.result);
         parsed = sanitize(obj && obj.data ? obj.data : obj);
+        // 新版备份附带外观设置；旧备份没有该字段，保持当前外观不变
+        if (obj && obj.settings && /^(system|light|dark)$/.test(obj.settings.theme)) importedTheme = obj.settings.theme;
       } catch (e) { toast('导入失败：' + (e.message || '文件无法解析')); return; }
       openModal({
         title: '导入备份？',
         html: '<p>备份包含 ' + Object.keys(parsed.checkins).length + ' 次打卡、' + parsed.urges.length + ' 次抵御冲动、' + parsed.relapses.length + ' 条破戒记录。</p><p>导入将<b>覆盖</b>当前所有数据。</p>',
         ok: '覆盖导入',
-        onOk: function () { state = parsed; save(); renderSettings(); toast('导入成功'); }
+        onOk: function () { state = parsed; save(); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
     };
     reader.readAsText(f);
@@ -627,6 +678,7 @@
 
   /* ---------------- 启动 ---------------- */
   load();
+  applyTheme(getTheme(), false);
   var lastDay = dateKey(Date.now());
   setInterval(function () {
     if (current === 'home') {
@@ -650,5 +702,5 @@
   }
 
   // 便于测试
-  window.ZenFlow = { go: go, state: function () { return state; } };
+  window.ZenFlow = { go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme };
 })();

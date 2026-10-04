@@ -1,5 +1,5 @@
 /* ZenFlow service worker：缓存静态资源，支持离线使用（仅 http/https 下注册） */
-var CACHE = 'zenflow-v4-scroll';
+var CACHE = 'zenflow-v5-theme';
 var ASSETS = ['./', './index.html', './styles.css', './data.js', './app.js', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './manifest.json'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));

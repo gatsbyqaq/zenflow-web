@@ -52,8 +52,37 @@
   --safe-l:env(safe-area-inset-left,0px);
   --safe-r:env(safe-area-inset-right,0px);
 }
+:root[data-theme="dark"]{
+    --bg:#0b1020;
+    --blob1:#127a72; --blob2:#2a4fb0; --blob3:#5b3fa8; --blob4:#9a3d6a;
+    --blob-op:.55;
+    --text:#f1f4fb;
+    --text2:#c9d0de;
+    --muted:#a3acc0;
+    --glass:rgba(32,38,58,.48);
+    --glass-strong:rgba(40,46,70,.78);
+    --glass-soft:rgba(255,255,255,.07);
+    --glass-tint:rgba(255,255,255,.08);
+    --glass-line:rgba(255,255,255,.14);
+    --sheen-a:rgba(255,255,255,.38);
+    --sheen-b:rgba(255,255,255,.03);
+    --sheen-c:rgba(255,255,255,.16);
+    --hl:inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 1px rgba(0,0,0,.25),inset 0 0 0 .5px rgba(255,255,255,.08);
+    --depth:0 12px 32px rgba(0,0,0,.40),0 2px 8px rgba(0,0,0,.25);
+    --depth-lg:0 24px 60px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.3);
+    --primary:#8db4ff;
+    --primary-tint:rgba(141,180,255,.16);
+    --mint:#62dbb6;
+    --mint-tint:rgba(98,219,182,.16);
+    --warm:#ff9d8f;
+    --warm-tint:rgba(255,157,143,.16);
+    --field:rgba(255,255,255,.07);
+    --amber:#ffc65c; --pink:#ff8fb0; --blue:#8db4ff; --lav:#b9a8ff;
+    --m5:#62dbb6; --m4:#7cc4f5; --m3:#ffcc66; --m2:#b9a8ff; --m1:#ff9d8f;
+    --track:rgba(255,255,255,.10);
+  }
 @media (prefers-color-scheme:dark){
-  :root{
+  :root:not([data-theme="light"]){
     --bg:#0b1020;
     --blob1:#127a72; --blob2:#2a4fb0; --blob3:#5b3fa8; --blob4:#9a3d6a;
     --blob-op:.55;
@@ -83,6 +112,14 @@
     --track:rgba(255,255,255,.10);
   }
 }
+
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark}}
+
+/* 手动切换外观时的平滑过渡（JS 仅在未开启"减少动态效果"时添加该类） */
+html.theme-anim,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::after{
+  transition:background-color .4s ease,color .4s ease,border-color .4s ease,box-shadow .4s ease,fill .4s ease,stroke .4s ease!important}
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* 文档本身就是滚动容器（让 iOS Safari 工具栏可随滚动收起），不要给 html/body/.app 设固定高度或 overflow 滚动 */
@@ -204,7 +241,10 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:var(--safe-t)
 .ring-fg{fill:none;stroke:url(#ringGrad);stroke-width:12;stroke-linecap:round;stroke-dasharray:540.35;stroke-dashoffset:540.35;transition:stroke-dashoffset .8s ease}
 .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1}
 .days-num{font-size:62px;font-weight:800;line-height:1;letter-spacing:-2px;background:linear-gradient(135deg,#4a86f5,#2fb995);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
-@media (prefers-color-scheme:dark){.days-num{background-image:linear-gradient(135deg,#9cc0ff,#6fe3c0)}}
+:root[data-theme="dark"] .days-num{background-image:linear-gradient(135deg,#9cc0ff,#6fe3c0)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .days-num{background-image:linear-gradient(135deg,#9cc0ff,#6fe3c0)}
+}
 .days-label{color:var(--muted);font-size:14px;margin-top:4px;font-weight:500}
 .time-chips{display:flex;justify-content:center;gap:10px;margin:16px 0 8px}
 .chip-t{background:var(--glass-tint);box-shadow:var(--hl);border-radius:var(--r-md);padding:9px 0;width:78px;display:flex;flex-direction:column}
@@ -245,12 +285,17 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:var(--safe-t)
 .cal-cell.m3{background:rgba(95,205,175,.45);color:#11604a}
 .cal-cell.m4{background:rgba(60,190,150,.75);color:#fff}
 .cal-cell.m5{background:rgba(31,165,125,.88);color:#fff}
+:root[data-theme="dark"] .cal-cell.m1{background:rgba(110,150,255,.30);color:#cfe0ff}
+:root[data-theme="dark"] .cal-cell.m2{background:rgba(90,170,220,.35);color:#d2efff}
+:root[data-theme="dark"] .cal-cell.m3{background:rgba(80,200,165,.35);color:#d6fff2}
+:root[data-theme="dark"] .cal-cell.m4{background:rgba(70,200,160,.6);color:#fff}
+:root[data-theme="dark"] .cal-cell.m5{background:rgba(60,210,165,.8);color:#062b20}
 @media (prefers-color-scheme:dark){
-  .cal-cell.m1{background:rgba(110,150,255,.30);color:#cfe0ff}
-  .cal-cell.m2{background:rgba(90,170,220,.35);color:#d2efff}
-  .cal-cell.m3{background:rgba(80,200,165,.35);color:#d6fff2}
-  .cal-cell.m4{background:rgba(70,200,160,.6);color:#fff}
-  .cal-cell.m5{background:rgba(60,210,165,.8);color:#062b20}
+  :root:not([data-theme="light"]) .cal-cell.m1{background:rgba(110,150,255,.30);color:#cfe0ff}
+  :root:not([data-theme="light"]) .cal-cell.m2{background:rgba(90,170,220,.35);color:#d2efff}
+  :root:not([data-theme="light"]) .cal-cell.m3{background:rgba(80,200,165,.35);color:#d6fff2}
+  :root:not([data-theme="light"]) .cal-cell.m4{background:rgba(70,200,160,.6);color:#fff}
+  :root:not([data-theme="light"]) .cal-cell.m5{background:rgba(60,210,165,.8);color:#062b20}
 }
 .cal-cell[class*=" m"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
 .cal-cell.today[class*=" m"]{box-shadow:inset 0 0 0 2px var(--primary)}
@@ -292,7 +337,10 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:var(--safe-t)
   box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 .5px rgba(255,255,255,.4),0 4px 12px rgba(47,111,228,.12);
   transition:transform .5s var(--spring),opacity .25s;z-index:0;pointer-events:none;
 }
-@media (prefers-color-scheme:dark){.tab-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 .5px rgba(255,255,255,.1)}}
+:root[data-theme="dark"] .tab-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 .5px rgba(255,255,255,.1)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .tab-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 .5px rgba(255,255,255,.1)}
+}
 .tabbar[data-active="log"] .tab-pill{transform:translateX(100%)}
 .tabbar[data-active="sos"] .tab-pill{transform:translateX(200%) scale(.6);opacity:0}
 .tabbar[data-active="stats"] .tab-pill{transform:translateX(300%)}
@@ -537,6 +585,17 @@ h2,h3{display:flex;align-items:center}
 .ri-teal{background:linear-gradient(180deg,#5fd6b1,#1f9e78)}
 .ri-warm{background:linear-gradient(180deg,#ff9b8a,#e0564a)}
 
+:root[data-theme="dark"] .badge.on .b-ico{background:radial-gradient(circle at 35% 25%,rgba(255,246,220,.98),rgba(255,214,130,.95) 48%,rgba(226,160,52,.95));color:#7a4800;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 18px rgba(245,182,66,.35)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .badge.on .b-ico{background:radial-gradient(circle at 35% 25%,rgba(255,246,220,.98),rgba(255,214,130,.95) 48%,rgba(226,160,52,.95));color:#7a4800;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 18px rgba(245,182,66,.35)}
+}
+
+/* 外观分段控件 */
+.theme-seg{margin-top:4px}
+.theme-seg .seg-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:10px 4px}
+.theme-seg .seg-btn .ic{width:16px;height:16px;stroke-width:1.9}
+.theme-seg .seg-btn.active .ic{stroke-width:2.1}
+
 /* ---------- 不支持 backdrop-filter 时的降级 ---------- */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root{--glass:rgba(255,255,255,.86);--glass-strong:rgba(255,255,255,.95);--glass-tint:rgba(255,255,255,.7);--glass-soft:rgba(240,244,252,.85)}
@@ -544,8 +603,9 @@ h2,h3{display:flex;align-items:center}
   .sos-big,.breath-circle{background-color:#ff7f8f}
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root[data-theme="dark"]{--glass:rgba(30,36,54,.92);--glass-strong:rgba(38,44,66,.97);--glass-tint:rgba(255,255,255,.08);--glass-soft:rgba(255,255,255,.05)}
   @media (prefers-color-scheme:dark){
-    :root{--glass:rgba(30,36,54,.92);--glass-strong:rgba(38,44,66,.97);--glass-tint:rgba(255,255,255,.08);--glass-soft:rgba(255,255,255,.05)}
+    :root:not([data-theme="light"]){--glass:rgba(30,36,54,.92);--glass-strong:rgba(38,44,66,.97);--glass-tint:rgba(255,255,255,.08);--glass-soft:rgba(255,255,255,.05)}
   }
 }
 
