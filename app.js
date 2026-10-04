@@ -565,7 +565,7 @@
 
   /* ---------------- 外观（浅色 / 深色 / 跟随系统） ---------------- */
   var THEME_KEY = 'zenflow_theme';
-  var THEME_COLOR = { light: '#e9eefb', dark: '#0b1020' };
+  var THEME_COLOR = { light: '#f0f2f7', dark: '#0c111d' };
   var sysDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function getTheme() {

@@ -6,9 +6,7 @@
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro","PingFang SC","Hiragino Sans GB","Helvetica Neue","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
 
   /* 背景 */
-  --bg:#e9eefb;
-  --blob1:#7fd6c8; --blob2:#8fb4ff; --blob3:#c6b3ff; --blob4:#ffc2d6;
-  --blob-op:.75;
+  --bg:#f0f2f7;
 
   /* 文字 */
   --text:#141a2a;
@@ -16,16 +14,17 @@
   --muted:#5f6880;
 
   /* 玻璃 */
-  --glass:rgba(255,255,255,.50);
-  --glass-strong:rgba(255,255,255,.74);
-  --glass-soft:rgba(255,255,255,.34);
-  --glass-tint:rgba(255,255,255,.42);
-  --glass-line:rgba(255,255,255,.70);
+  --glass:rgba(255,255,255,.74);
+  --glass-strong:rgba(255,255,255,.84);
+  --glass-soft:rgba(118,136,178,.075);
+  --glass-tint:rgba(118,136,178,.09);
+  --glass-line:rgba(110,128,170,.20);
   --sheen-a:rgba(255,255,255,.95);
   --sheen-b:rgba(255,255,255,.12);
   --sheen-c:rgba(255,255,255,.55);
   --hl:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 1px rgba(255,255,255,.25),inset 0 0 0 .5px rgba(255,255,255,.35);
-  --depth:0 12px 32px rgba(38,56,110,.14),0 2px 8px rgba(38,56,110,.07);
+  --depth:0 0 0 .5px rgba(60,80,130,.10),0 10px 28px rgba(38,56,110,.10),0 2px 6px rgba(38,56,110,.06);
+  --card-sheen:rgba(255,255,255,.55);
   --depth-lg:0 24px 60px rgba(38,56,110,.20),0 4px 14px rgba(38,56,110,.08);
   --blur:blur(26px) saturate(185%);
   --blur-sm:blur(14px) saturate(170%);
@@ -39,7 +38,7 @@
   --warm-tint:rgba(224,104,90,.14);
   --sos1:#ff9b7f; --sos2:#ff5f8f;
   --gold:#f5b642;
-  --field:rgba(255,255,255,.55);
+  --field:rgba(118,136,178,.07);
   --track:rgba(120,135,170,.16);
 
   --check-svg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
@@ -53,14 +52,12 @@
   --safe-r:env(safe-area-inset-right,0px);
 }
 :root[data-theme="dark"]{
-    --bg:#0b1020;
-    --blob1:#127a72; --blob2:#2a4fb0; --blob3:#5b3fa8; --blob4:#9a3d6a;
-    --blob-op:.55;
+    --bg:#0c111d;
     --text:#f1f4fb;
     --text2:#c9d0de;
     --muted:#a3acc0;
-    --glass:rgba(32,38,58,.48);
-    --glass-strong:rgba(40,46,70,.78);
+    --glass:rgba(38,46,72,.62);
+    --glass-strong:rgba(46,54,84,.86);
     --glass-soft:rgba(255,255,255,.07);
     --glass-tint:rgba(255,255,255,.08);
     --glass-line:rgba(255,255,255,.14);
@@ -68,7 +65,8 @@
     --sheen-b:rgba(255,255,255,.03);
     --sheen-c:rgba(255,255,255,.16);
     --hl:inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 1px rgba(0,0,0,.25),inset 0 0 0 .5px rgba(255,255,255,.08);
-    --depth:0 12px 32px rgba(0,0,0,.40),0 2px 8px rgba(0,0,0,.25);
+    --depth:0 0 0 .5px rgba(255,255,255,.06),0 12px 32px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.3);
+    --card-sheen:rgba(255,255,255,.035);
     --depth-lg:0 24px 60px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.3);
     --primary:#8db4ff;
     --primary-tint:rgba(141,180,255,.16);
@@ -83,14 +81,12 @@
   }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg:#0b1020;
-    --blob1:#127a72; --blob2:#2a4fb0; --blob3:#5b3fa8; --blob4:#9a3d6a;
-    --blob-op:.55;
+    --bg:#0c111d;
     --text:#f1f4fb;
     --text2:#c9d0de;
     --muted:#a3acc0;
-    --glass:rgba(32,38,58,.48);
-    --glass-strong:rgba(40,46,70,.78);
+    --glass:rgba(38,46,72,.62);
+    --glass-strong:rgba(46,54,84,.86);
     --glass-soft:rgba(255,255,255,.07);
     --glass-tint:rgba(255,255,255,.08);
     --glass-line:rgba(255,255,255,.14);
@@ -98,7 +94,8 @@
     --sheen-b:rgba(255,255,255,.03);
     --sheen-c:rgba(255,255,255,.16);
     --hl:inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 1px rgba(0,0,0,.25),inset 0 0 0 .5px rgba(255,255,255,.08);
-    --depth:0 12px 32px rgba(0,0,0,.40),0 2px 8px rgba(0,0,0,.25);
+    --depth:0 0 0 .5px rgba(255,255,255,.06),0 12px 32px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.3);
+    --card-sheen:rgba(255,255,255,.035);
     --depth-lg:0 24px 60px rgba(0,0,0,.55),0 4px 14px rgba(0,0,0,.3);
     --primary:#8db4ff;
     --primary-tint:rgba(141,180,255,.16);
@@ -149,10 +146,10 @@ b{font-weight:650}
 /* 弹窗打开时锁定页面滚动（JS 记录并恢复滚动位置） */
 body.scroll-locked{position:fixed;left:0;right:0;width:100%;overflow:hidden}
 /* 根背景显式设为主题色：iOS 26 Safari 用它（以及贴边的 fixed 元素）为状态栏、底部工具栏和回弹区域着色 */
-html,body{background-color:#e9eefb}
-:root[data-theme="dark"],:root[data-theme="dark"] body{background-color:#0b1020}
+html,body{background-color:#f0f2f7}
+:root[data-theme="dark"],:root[data-theme="dark"] body{background-color:#0c111d}
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]),:root:not([data-theme="light"]) body{background-color:#0b1020}
+  :root:not([data-theme="light"]),:root:not([data-theme="light"]) body{background-color:#0c111d}
 }
 
 /* 顶部/底部边缘：纯主题色、向内渐隐的 fixed 层。
@@ -171,25 +168,7 @@ html,body{background-color:#e9eefb}
   position:relative;width:100%;max-width:420px;margin:0 auto;
   min-height:100vh;min-height:100svh;min-height:100dvh;isolation:isolate;
 }
-.bg-blobs{position:fixed;top:-15vh;bottom:-15vh;left:50%;width:min(100%,420px);transform:translateX(-50%);z-index:0;pointer-events:none;overflow:hidden;overflow:clip;background:var(--bg)}
-.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:var(--blob-op);will-change:transform}
-.b1{width:340px;height:340px;background:var(--blob1);top:calc(15vh - 60px);left:-90px;animation:drift1 22s ease-in-out infinite alternate}
-.b2{width:300px;height:300px;background:var(--blob2);top:calc(15vh + 28vh);right:-120px;animation:drift2 26s ease-in-out infinite alternate}
-.b3{width:320px;height:320px;background:var(--blob3);bottom:calc(15vh + 12vh);left:-110px;animation:drift3 30s ease-in-out infinite alternate}
-.b4{width:260px;height:260px;background:var(--blob4);bottom:calc(15vh - 60px);right:-40px;animation:drift4 24s ease-in-out infinite alternate}
-@keyframes drift1{to{transform:translate(90px,120px) scale(1.15)}}
-@keyframes drift2{to{transform:translate(-110px,80px) scale(.9)}}
-@keyframes drift3{to{transform:translate(100px,-90px) scale(1.1)}}
-@keyframes drift4{to{transform:translate(-90px,-120px) scale(1.2)}}
 
-@media (min-width:480px){
-  body{background:
-    radial-gradient(40vw 40vw at 15% 20%,color-mix(in srgb,var(--blob2) 45%,transparent),transparent 70%),
-    radial-gradient(40vw 40vw at 85% 80%,color-mix(in srgb,var(--blob1) 40%,transparent),transparent 70%),
-    radial-gradient(30vw 30vw at 80% 15%,color-mix(in srgb,var(--blob4) 35%,transparent),transparent 70%),
-    var(--bg);background-attachment:fixed}
-  .bg-blobs{box-shadow:0 0 0 1px var(--glass-line),0 0 80px rgba(38,56,110,.18)}
-}
 
 .content{
   position:relative;z-index:1;
@@ -206,6 +185,8 @@ html,body{background-color:#e9eefb}
   -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   box-shadow:var(--hl),var(--depth);
 }
+/* 平面背景上的玻璃层次：顶部微弱高光（.soft-blue 等变体会覆盖） */
+.card,.mini,.stat{background-image:linear-gradient(180deg,var(--card-sheen),transparent 55%)}
 /* 渐变高光描边（specular rim） */
 .card::before,.mini::before,.stat::before,.modal::before,.tabbar::before,.sos-banner::before,.sos-big::before,.breath-circle::before{
   content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
@@ -613,7 +594,7 @@ h2,h3{display:flex;align-items:center}
 
 /* ---------- 不支持 backdrop-filter 时的降级 ---------- */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  :root{--glass:rgba(255,255,255,.86);--glass-strong:rgba(255,255,255,.95);--glass-tint:rgba(255,255,255,.7);--glass-soft:rgba(240,244,252,.85)}
+  :root{--glass:rgba(255,255,255,.92);--glass-strong:rgba(255,255,255,.96);--glass-tint:rgba(118,136,178,.10);--glass-soft:rgba(118,136,178,.08)}
   .modal-mask{background:rgba(15,22,40,.5)}
   .sos-big,.breath-circle{background-color:#ff7f8f}
 }
@@ -627,5 +608,4 @@ h2,h3{display:flex;align-items:center}
 /* ---------- 减少动态效果 ---------- */
 @media (prefers-reduced-motion:reduce){
   *:not(.breath-circle),*::before,*::after{animation:none!important;transition-duration:.01ms!important}
-  .blob{animation:none!important}
 }

@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" id="metaColorScheme" />
-  <meta name="theme-color" content="#e9eefb" media="(prefers-color-scheme: light)" id="metaThemeLight" />
-  <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" id="metaThemeDark" />
+  <meta name="theme-color" content="#f0f2f7" media="(prefers-color-scheme: light)" id="metaThemeLight" />
+  <meta name="theme-color" content="#0c111d" media="(prefers-color-scheme: dark)" id="metaThemeDark" />
   <script>
     /* 首帧前应用外观设置，避免闪烁（'light' | 'dark'；无属性 = 跟随系统） */
     (function () {
@@ -13,7 +13,7 @@
         var t = localStorage.getItem('zenflow_theme');
         if (t !== 'light' && t !== 'dark') return;
         document.documentElement.setAttribute('data-theme', t);
-        var c = t === 'dark' ? '#0b1020' : '#e9eefb';
+        var c = t === 'dark' ? '#0c111d' : '#f0f2f7';
         // iOS 26 Safari 会根据页面背景为状态栏/工具栏着色：首帧前就把根背景设为当前主题色
         document.documentElement.style.backgroundColor = c;
         document.documentElement.style.colorScheme = t;
@@ -114,10 +114,7 @@
 </svg>
 <!-- ICONS:END -->
 <div id="app" class="app">
-  <div class="bg-blobs" aria-hidden="true">
-    <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
-  </div>
-  <!-- 顶/底边缘的纯色主题色渐隐层：给 Safari 提供统一的边缘颜色用于状态栏/工具栏着色 -->
+  <!-- 顶/底边缘：与页面背景完全相同的纯色层（内容滚到边缘时渐隐），保证 Safari 采样到的边缘颜色始终是主题背景色 -->
   <div class="edge edge-top" aria-hidden="true"></div>
   <div class="edge edge-bottom" aria-hidden="true"></div>
 
