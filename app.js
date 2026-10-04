@@ -123,6 +123,7 @@
     current = tab;
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
     document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
+    $('tabbar').dataset.active = tab;
     $('content').scrollTop = 0;
     render(tab);
   }
@@ -505,16 +506,16 @@
     var max = Math.max.apply(null, rb.concat(ub).concat([1]));
     var W = 340, H = 170, top = 16, bottom = 40, chartH = H - top - bottom, gw = W / 6, bw = 16;
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="时段分布图">';
-    for (var g = 0; g <= 2; g++) { var gy = top + chartH * g / 2; svg += '<line x1="0" x2="' + W + '" y1="' + gy + '" y2="' + gy + '" stroke="#eef1f6" stroke-dasharray="3 4"/>'; }
+    for (var g = 0; g <= 2; g++) { var gy = top + chartH * g / 2; svg += '<line x1="0" x2="' + W + '" y1="' + gy + '" y2="' + gy + '" class="grid" stroke-dasharray="3 4"/>'; }
     BUCKETS.forEach(function (b, i) {
       var cx = gw * i + gw / 2;
       [[rb[i], '#ee8a7d', cx - bw - 2], [ub[i], '#4fbf9f', cx + 2]].forEach(function (bar) {
         var h = bar[0] / max * chartH, y = top + chartH - h;
         svg += '<rect x="' + bar[2] + '" y="' + (bar[0] ? y : top + chartH - 2) + '" width="' + bw + '" height="' + (bar[0] ? h : 2) + '" rx="4" fill="' + bar[1] + '" opacity="' + (bar[0] ? 1 : .25) + '"/>';
-        if (bar[0]) svg += '<text x="' + (bar[2] + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" fill="#8a94a6">' + bar[0] + '</text>';
+        if (bar[0]) svg += '<text x="' + (bar[2] + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" class="val">' + bar[0] + '</text>';
       });
-      svg += '<text x="' + cx + '" y="' + (H - 22) + '" text-anchor="middle" font-size="12" fill="#55607a">' + b[0] + '</text>';
-      svg += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" fill="#a3abba">' + b[1] + '-' + (b[1] + 4) + '点</text>';
+      svg += '<text x="' + cx + '" y="' + (H - 22) + '" text-anchor="middle" font-size="12" class="lbl">' + b[0] + '</text>';
+      svg += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" class="sub">' + b[1] + '-' + (b[1] + 4) + '点</text>';
     });
     svg += '</svg>';
     $('timeChart').innerHTML = svg;
