@@ -95,6 +95,22 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
   }
 
+  // 弹窗打开时锁定文档滚动，关闭后恢复原位置（文档是唯一的滚动容器）
+  var lockedY = null;
+  function lockScroll() {
+    if (lockedY !== null) return;
+    lockedY = window.scrollY || 0;
+    document.body.style.top = -lockedY + 'px';
+    document.body.classList.add('scroll-locked');
+  }
+  function unlockScroll() {
+    if (lockedY === null) return;
+    document.body.classList.remove('scroll-locked');
+    document.body.style.top = '';
+    window.scrollTo(0, lockedY);
+    lockedY = null;
+  }
+
   var modalOk = null;
   function openModal(o) {
     $('modalTitle').textContent = o.title || '';
@@ -106,10 +122,11 @@
     cancel.classList.toggle('hidden', o.cancel === null);
     modalOk = o.onOk || null;
     $('modalMask').classList.remove('hidden');
+    lockScroll();
     var inp = $('modalBody').querySelector('input');
     if (inp) setTimeout(function () { inp.focus(); }, 50);
   }
-  function closeModal() { $('modalMask').classList.add('hidden'); modalOk = null; }
+  function closeModal() { $('modalMask').classList.add('hidden'); modalOk = null; unlockScroll(); }
   $('modalCancel').addEventListener('click', closeModal);
   $('modalMask').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
   $('modalOk').addEventListener('click', function () {
@@ -125,7 +142,7 @@
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
     document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
     $('tabbar').dataset.active = tab;
-    $('content').scrollTop = 0;
+    window.scrollTo(0, 0);
     render(tab);
   }
   document.querySelectorAll('.tab').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.tab); }); });
@@ -297,7 +314,7 @@
 
   function showSosStep(id) {
     document.querySelectorAll('.sos-step').forEach(function (s) { s.classList.toggle('active', s.id === id); });
-    $('content').scrollTop = 0;
+    window.scrollTo(0, 0);
   }
   function renderSosStart() { $('urgeCountSos').textContent = state.urges.length; }
   function resetSos() { stopBreath(); showSosStep('sosStart'); }
