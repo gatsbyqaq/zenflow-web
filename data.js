@@ -1,41 +1,42 @@
-/* ZenFlow 静态内容数据（全局变量，兼容 file:// 直接打开） */
+/* ZenFlow 静态内容数据（全局变量，兼容 file:// 直接打开）
+ * icon 字段为内联 SVG 图标名（Lucide，ISC 许可，见 LICENSE-icons） */
 window.ZF_DATA = {
   milestones: [
-    { days: 1,  icon: '🌱', name: '起步' },
-    { days: 3,  icon: '🌿', name: '三日' },
-    { days: 7,  icon: '🍀', name: '一周' },
-    { days: 14, icon: '🌳', name: '两周' },
-    { days: 30, icon: '🏔️', name: '一个月' },
-    { days: 60, icon: '🌄', name: '两个月' },
-    { days: 90, icon: '👑', name: '九十天' }
+    { days: 1,  icon: 'sprout', name: '起步' },
+    { days: 3,  icon: 'leaf', name: '三日' },
+    { days: 7,  icon: 'clover', name: '一周' },
+    { days: 14, icon: 'trees', name: '两周' },
+    { days: 30, icon: 'mountain', name: '一个月' },
+    { days: 60, icon: 'mountain-snow', name: '两个月' },
+    { days: 90, icon: 'crown', name: '九十天' }
   ],
   moods: [
-    { v: 5, e: '😄', t: '很好' },
-    { v: 4, e: '🙂', t: '不错' },
-    { v: 3, e: '😐', t: '一般' },
-    { v: 2, e: '😔', t: '低落' },
-    { v: 1, e: '😣', t: '挣扎' }
+    { v: 5, icon: 'laugh', t: '很好' },
+    { v: 4, icon: 'smile', t: '不错' },
+    { v: 3, icon: 'meh', t: '一般' },
+    { v: 2, icon: 'frown', t: '低落' },
+    { v: 1, icon: 'annoyed', t: '挣扎' }
   ],
   triggers: ['无聊', '压力', '熬夜', '独处', '刷手机', '情绪低落', '其他'],
   actions: [
-    { e: '🚿', t: '用冷水洗把脸，感受水的温度' },
-    { e: '💪', t: '做 20 个俯卧撑' },
-    { e: '🏃', t: '做 30 个开合跳' },
-    { e: '🚶', t: '出门散步 10 分钟' },
-    { e: '💧', t: '慢慢喝一整杯水' },
-    { e: '💬', t: '给朋友或家人发条消息' },
-    { e: '📖', t: '读 5 页书' },
-    { e: '🧹', t: '花 5 分钟整理桌面或房间' },
-    { e: '🎧', t: '听一首让你振奋的歌' },
-    { e: '📝', t: '写下此刻的感受和想法' },
-    { e: '🧘', t: '站起来伸展身体 2 分钟' },
-    { e: '📵', t: '把手机放到另一个房间' },
-    { e: '🌿', t: '走到窗边，看看远处 1 分钟' },
-    { e: '🛁', t: '去洗个澡' },
-    { e: '🍎', t: '吃点水果或健康零食' },
-    { e: '🏢', t: '换到有人的公共空间待一会儿' },
-    { e: '🎯', t: '打开待办清单，完成一件小事' },
-    { e: '🦵', t: '做 20 个深蹲' }
+    { icon: 'droplets', t: '用冷水洗把脸，感受水的温度' },
+    { icon: 'dumbbell', t: '做 20 个俯卧撑' },
+    { icon: 'activity', t: '做 30 个开合跳' },
+    { icon: 'footprints', t: '出门散步 10 分钟' },
+    { icon: 'glass-water', t: '慢慢喝一整杯水' },
+    { icon: 'message-circle', t: '给朋友或家人发条消息' },
+    { icon: 'book-open', t: '读 5 页书' },
+    { icon: 'brush-cleaning', t: '花 5 分钟整理桌面或房间' },
+    { icon: 'headphones', t: '听一首让你振奋的歌' },
+    { icon: 'pen-line', t: '写下此刻的感受和想法' },
+    { icon: 'person-standing', t: '站起来伸展身体 2 分钟' },
+    { icon: 'smartphone', t: '把手机放到另一个房间' },
+    { icon: 'eye', t: '走到窗边，看看远处 1 分钟' },
+    { icon: 'shower-head', t: '去洗个澡' },
+    { icon: 'apple', t: '吃点水果或健康零食' },
+    { icon: 'users', t: '换到有人的公共空间待一会儿' },
+    { icon: 'list-checks', t: '打开待办清单，完成一件小事' },
+    { icon: 'arrow-down-up', t: '做 20 个深蹲' }
   ],
   quotes: [
     { q: '胜人者有力，自胜者强。', s: '老子《道德经》' },

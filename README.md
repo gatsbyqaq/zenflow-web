@@ -19,6 +19,11 @@
 - 悬浮胶囊式 Tab 栏 + 跟随切换的玻璃指示器；发光玻璃球 SOS 按钮；按压弹性缩放动画
 - 自动跟随系统深色模式；适配刘海/安全区域；"添加到主屏幕"后全屏显示
 - 不支持毛玻璃的浏览器自动降级为不透明卡片；尊重"减少动态效果"设置
+- 图标：SF Symbols 风格的线性图标（[Lucide](https://lucide.dev)），以内联 SVG sprite 形式嵌在 `index.html` 中，无需联网、支持 `file://`；心情使用带色调的线条表情，界面不使用 emoji
+
+## 图标许可
+
+图标来自 [Lucide](https://lucide.dev)（lucide-static v1.51.0），遵循 ISC 许可；其中源自 Feather 的图标另遵循 MIT 许可。完整许可文本见 [`LICENSE-icons`](LICENSE-icons)。（Apple SF Symbols 的许可不允许用于网页，因此未使用。）
 
 ## 隐私
 
@@ -32,7 +37,11 @@
 
 | 打卡 | 急救 | 统计 | 设置 |
 |---|---|---|---|
-| ![](screenshots/01-home.png) | ![](screenshots/02-sos.png) | ![](screenshots/04-stats.png) | ![](screenshots/05-settings.png) |
+| ![](screenshots/01-home.png) | ![](screenshots/02c-sos-actions.png) | ![](screenshots/04-stats.png) | ![](screenshots/05-settings.png) |
+
+心情打卡：
+
+![](screenshots/01c-home-moods.png)
 
 深色模式：
 

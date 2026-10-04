@@ -20,6 +20,7 @@
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
   function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
   function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
 
   /* ---------------- 数据层 ---------------- */
@@ -165,24 +166,25 @@
     var left = w.next * DAY - ms;
     var lh = Math.ceil(left / 3600000);
     var leftTxt = left >= DAY ? (Math.floor(left / DAY) + ' 天 ' + Math.floor(left % DAY / 3600000) + ' 小时') : (lh + ' 小时');
-    var beyond = dFloat >= 90 ? '（已完成全部里程碑，继续前行 ✨）' : '';
+    var beyond = dFloat >= 90 ? '（已完成全部里程碑，继续前行）' : '';
     $('nextMs').textContent = '距离 ' + w.next + ' 天里程碑还有 ' + leftTxt + ' · ' + Math.floor(p * 100) + '%' + beyond;
     $('bestStreak').textContent = fmtDays(bestMs()) + '天';
   }
 
   function greeting() {
     var h = new Date().getHours();
-    if (h < 5) return '夜深了，早点休息 🌙';
-    if (h < 11) return '早上好 ☀️';
-    if (h < 14) return '中午好 🌤️';
-    if (h < 18) return '下午好 🍃';
-    if (h < 23) return '晚上好 🌆';
-    return '夜深了，放下手机早点睡 🌙';
+    if (h < 5) return ['夜深了，早点休息', 'moon-star'];
+    if (h < 11) return ['早上好', 'sunrise'];
+    if (h < 14) return ['中午好', 'sun'];
+    if (h < 18) return ['下午好', 'cloud-sun'];
+    if (h < 23) return ['晚上好', 'sunset'];
+    return ['夜深了，放下手机早点睡', 'moon'];
   }
 
   var selMood = null;
   function renderHome() {
-    $('greeting').textContent = greeting();
+    var g = greeting();
+    $('greeting').innerHTML = ic(g[1], 'tint-amber') + ' ' + g[0];
     $('startText').textContent = '开始于 ' + fmtDT(state.streakStart);
     $('urgeCountHome').textContent = state.urges.length;
     $('checkinCountHome').textContent = Object.keys(state.checkins).length;
@@ -203,15 +205,16 @@
     if (today) {
       var m = D.moods.filter(function (x) { return x.v === today.mood; })[0] || D.moods[2];
       var msg = today.mood >= 4 ? '状态不错，继续保持！' : today.mood === 3 ? '平稳也是一种力量。' : '辛苦了，照顾好自己，今天能打卡已经很棒了。';
-      $('checkinDone').innerHTML = '<span class="e">' + m.e + '</span><div><b>今日已打卡 · ' + m.t + '</b><p class="small muted" style="margin:2px 0 0">' + msg + '</p></div>';
+      $('checkinDone').setAttribute('data-mood', m.v);
+      $('checkinDone').innerHTML = '<span class="e">' + ic(m.icon) + '</span><div><b>今日已打卡 · ' + m.t + '</b><p class="small muted" style="margin:2px 0 0">' + msg + '</p></div>';
       return;
     }
     var html = D.moods.map(function (m) {
-      return '<button class="mood' + (selMood === m.v ? ' sel' : '') + '" data-mood="' + m.v + '"><span class="e">' + m.e + '</span>' + m.t + '</button>';
+      return '<button class="mood' + (selMood === m.v ? ' sel' : '') + '" data-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
     }).join('');
     $('moodPicker').innerHTML = html;
     $('btnCheckin').disabled = !selMood;
-    $('btnCheckin').textContent = selMood ? '✓ 完成今日打卡' : '选择心情后打卡';
+    $('btnCheckin').innerHTML = selMood ? ic('check') + '完成今日打卡' : '选择心情后打卡';
   }
   $('moodPicker').addEventListener('click', function (e) {
     var b = e.target.closest('.mood'); if (!b) return;
@@ -223,7 +226,7 @@
     if (!selMood) return;
     state.checkins[k] = { mood: selMood, ts: Date.now() };
     selMood = null; save();
-    toast('打卡成功，又是认真生活的一天 🌱');
+    toast('打卡成功，又是认真生活的一天');
     renderHome();
   });
 
@@ -264,7 +267,7 @@
       if (cd >= m.days) { cls += ' on'; on++; }
       else if (!nextSet) { cls += ' next'; nextSet = true; sub = '下一个'; }
       else if (bd >= m.days) { sub = '曾达成'; }
-      return '<div class="' + cls + '"><div class="b-ico">' + m.icon + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
+      return '<div class="' + cls + '"><div class="b-ico">' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
     }).join('');
     $('badgeCount').textContent = '已解锁 ' + on + '/' + D.milestones.length;
   }
@@ -358,12 +361,12 @@
     $('quoteText').textContent = '“' + q.q + '”';
     $('quoteSrc').textContent = '—— ' + q.s;
     $('reasonsView').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('')
-      : '<li>还没有写下理由 —— 可以在「设置」里添加对你重要的理由。</li>';
+      ? state.reasons.map(function (r) { return '<li>' + ic('sparkle', 'tint-blue') + '<span>' + esc(r) + '</span></li>'; }).join('')
+      : '<li>' + ic('sparkle', 'tint-blue') + '<span>还没有写下理由 —— 可以在「设置」里添加对你重要的理由。</span></li>';
   }
   function renderActionList() {
     $('actionList').innerHTML = shuffle(D.actions).slice(0, 3).map(function (a) {
-      return '<button class="action"><span class="e">' + a.e + '</span><span>' + esc(a.t) + '</span></button>';
+      return '<button class="action"><span class="e">' + ic(a.icon) + '</span><span>' + esc(a.t) + '</span></button>';
     }).join('');
   }
   $('actionList').addEventListener('click', function (e) {
@@ -417,7 +420,7 @@
     openModal({
       title: '确认记录？',
       html: resets
-        ? '<p>记录后，当前的连续天数（' + fmtDays(ts - state.streakStart) + ' 天）将从这一刻重新计算，历史记录和最佳纪录都会保留。</p><p>一次失误不会抹去你之前的努力。休息一下，然后重新出发 💙</p>'
+        ? '<p>记录后，当前的连续天数（' + fmtDays(ts - state.streakStart) + ' 天）将从这一刻重新计算，历史记录和最佳纪录都会保留。</p><p>一次失误不会抹去你之前的努力。休息一下，然后重新出发。</p>'
         : '<p>这个时间早于当前连续记录的开始时间，将只添加到历史记录中，不会影响当前连续天数。</p>',
       ok: resets ? '记录并重新开始' : '添加记录',
       warm: true,
@@ -431,7 +434,7 @@
         save();
         selTriggers = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
         renderLog();
-        toast(resets ? '已记录。新的开始，从现在起 🌱' : '已添加到历史记录');
+        toast(resets ? '已记录。新的开始，从现在起' : '已添加到历史记录');
       }
     });
   });
@@ -445,16 +448,16 @@
     $('historyList').innerHTML = items.slice(0, 60).map(function (it) {
       var r = it.r;
       if (it.type === 'urge') {
-        return '<div class="h-item urge"><div class="h-ico">💪</div><div class="h-main"><b>成功抵御一次冲动</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
-          '<button class="h-del" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">✕</button></div>';
+        return '<div class="h-item urge"><div class="h-ico">' + ic('shield-check') + '</div><div class="h-main"><b>成功抵御一次冲动</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
+          '<button class="h-del" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div>';
       }
       var tags = r.triggers.map(function (t) { return '<span>' + esc(t === '其他' && r.other ? '其他：' + r.other : t) + '</span>'; }).join('');
-      return '<div class="h-item relapse"><div class="h-ico">🌧️</div><div class="h-main"><b>破戒记录</b>' +
+      return '<div class="h-item relapse"><div class="h-ico">' + ic('cloud-rain') + '</div><div class="h-main"><b>破戒记录</b>' +
         (r.streakMs ? '<span class="small muted"> · 本次坚持 ' + fmtDays(r.streakMs) + ' 天</span>' : '') +
         '<div class="small muted">' + fmtDT(r.ts) + '</div>' +
         (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
         (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-        '</div><button class="h-del" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">✕</button></div>';
+        '</div><button class="h-del" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div>';
     }).join('');
   }
   $('historyList').addEventListener('click', function (e) {
@@ -477,10 +480,10 @@
   var BUCKETS = [['凌晨', 0], ['清晨', 4], ['上午', 8], ['下午', 12], ['傍晚', 16], ['夜间', 20]];
   function bucketOf(ts) { return Math.floor(new Date(ts).getHours() / 4); }
 
-  function hbars(rows, cls) {
+  function hbars(rows, cls, raw) {
     var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
     return rows.map(function (r) {
-      return '<div class="hbar"><span>' + esc(r[0]) + '</span><div class="hbar-track"><div class="hbar-fill ' + (cls || '') + '" style="width:' + (r[1] / max * 100).toFixed(1) + '%"></div></div><span class="hbar-n">' + r[1] + '</span></div>';
+      return '<div class="hbar"><span class="hbar-l">' + (raw ? r[0] : esc(r[0])) + '</span><div class="hbar-track"><div class="hbar-fill ' + (cls || '') + '" style="width:' + (r[1] / max * 100).toFixed(1) + '%"></div></div><span class="hbar-n">' + r[1] + '</span></div>';
     }).join('');
   }
 
@@ -523,30 +526,30 @@
     // 心情
     var mc = {};
     Object.keys(state.checkins).forEach(function (k) { var m = state.checkins[k].mood; mc[m] = (mc[m] || 0) + 1; });
-    var mrows = D.moods.map(function (m) { return [m.e + ' ' + m.t, mc[m.v] || 0]; });
-    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint') : '<div class="empty-state">每天打卡并选择心情后，这里会显示你的心情分布。</div>';
+    var mrows = D.moods.map(function (m) { return ['<span class="mood-tint" data-mood="' + m.v + '">' + ic(m.icon) + '</span>' + m.t, mc[m.v] || 0]; });
+    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : '<div class="empty-state">每天打卡并选择心情后，这里会显示你的心情分布。</div>';
 
     // 建议
     var ins = [];
     if (r) {
       var peak = rb.indexOf(Math.max.apply(null, rb));
-      ins.push(['⏰', '你的高风险时段是<b>' + BUCKETS[peak][0] + '（' + BUCKETS[peak][1] + '-' + (BUCKETS[peak][1] + 4) + ' 点）</b>。可以提前为这个时段安排运动、学习或与人相处的计划。']);
+      ins.push(['clock', '你的高风险时段是<b>' + BUCKETS[peak][0] + '（' + BUCKETS[peak][1] + '-' + (BUCKETS[peak][1] + 4) + ' 点）</b>。可以提前为这个时段安排运动、学习或与人相处的计划。']);
     }
     if (trows.length) {
-      ins.push(['🎯', '最常见的触发因素是<b>「' + esc(trows[0][0]) + '」</b>。' + esc(D.triggerTips[trows[0][0]] || D.triggerTips['其他'])]);
+      ins.push(['target', '最常见的触发因素是<b>「' + esc(trows[0][0]) + '」</b>。' + esc(D.triggerTips[trows[0][0]] || D.triggerTips['其他'])]);
     }
-    if (u) ins.push(['💪', '你已经成功抵御了 <b>' + u + '</b> 次冲动，每一次都在强化新的习惯回路。']);
+    if (u) ins.push(['shield-check', '你已经成功抵御了 <b>' + u + '</b> 次冲动，每一次都在强化新的习惯回路。']);
     var cd = curMs() / DAY;
     var w = milestoneWindow(cd);
-    ins.push(['🌱', '当前已坚持 <b>' + fmtDays(curMs()) + '</b> 天，下一个目标是 <b>' + w.next + ' 天</b>。专注于今天就好。']);
-    if (!r && !u) ins.push(['📒', '数据越多，分析越准确。遇到冲动时使用急救功能，或诚实记录每一次失误，都能帮助你更了解自己。']);
-    $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + x[0] + '</span><div>' + x[1] + '</div></div>'; }).join('');
+    ins.push(['sprout', '当前已坚持 <b>' + fmtDays(curMs()) + '</b> 天，下一个目标是 <b>' + w.next + ' 天</b>。专注于今天就好。']);
+    if (!r && !u) ins.push(['notebook', '数据越多，分析越准确。遇到冲动时使用急救功能，或诚实记录每一次失误，都能帮助你更了解自己。']);
+    $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + ic(x[0]) + '</span><div>' + x[1] + '</div></div>'; }).join('');
   }
 
   /* ---------------- 设置 ---------------- */
   function renderSettings() {
     $('reasonsEdit').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">✕</button></li>'; }).join('')
+      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由，写下第一条吧。</span></li>';
   }
   function addReason() {
@@ -600,7 +603,7 @@
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」以确认'); return false; }
         state = defaultState(); save(); selTriggers = {}; selMood = null; calOffset = 0;
-        renderSettings(); toast('已重置，新的开始 🌱');
+        renderSettings(); toast('已重置，新的开始');
       }
     });
   });

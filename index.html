@@ -17,6 +17,83 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<!-- ICONS:START  Lucide icons (ISC License, https://lucide.dev) — see LICENSE-icons -->
+<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+<symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+<symbol id="i-annoyed" viewBox="0 0 24 24"><path d="M14 10h2"/><path d="M8 10h2"/><path d="M8 16h8"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 6.528V3a1 1 0 0 1 1-1h0"/><path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21"/></symbol>
+<symbol id="i-arrow-down-up" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-award" viewBox="0 0 24 24"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></symbol>
+<symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></symbol>
+<symbol id="i-brush-cleaning" viewBox="0 0 24 24"><path d="m16 22-1-4"/><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"/><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"/><path d="m8 22 1-4"/></symbol>
+<symbol id="i-calendar-check" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="m9 15 2 2 4-4"/></symbol>
+<symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></symbol>
+<symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></symbol>
+<symbol id="i-cloud-sun" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></symbol>
+<symbol id="i-clover" viewBox="0 0 24 24"><path d="M16.17 7.83 2 22"/><path d="M4.02 12a2.827 2.827 0 1 1 3.81-4.17A2.827 2.827 0 1 1 12 4.02a2.827 2.827 0 1 1 4.17 3.81A2.827 2.827 0 1 1 19.98 12a2.827 2.827 0 1 1-3.81 4.17A2.827 2.827 0 1 1 12 19.98a2.827 2.827 0 1 1-4.17-3.81A1 1 0 1 1 4 12"/><path d="m7.83 7.83 8.34 8.34"/></symbol>
+<symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/></symbol>
+<symbol id="i-crown" viewBox="0 0 24 24"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+<symbol id="i-droplets" viewBox="0 0 24 24"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></symbol>
+<symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z"/><path d="m2.5 21.5 1.4-1.4"/><path d="m20.1 3.9 1.4-1.4"/><path d="M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z"/><path d="m9.6 14.4 4.8-4.8"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/></symbol>
+<symbol id="i-footprints" viewBox="0 0 24 24"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></symbol>
+<symbol id="i-frown" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M9 10V9"/><path d="M9 16a5 5 0 016 0"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-glass-water" viewBox="0 0 24 24"><path d="M5.116 4.104A1 1 0 0 1 6.11 3h11.78a1 1 0 0 1 .994 1.105L17.19 20.21A2 2 0 0 1 15.2 22H8.8a2 2 0 0 1-2-1.79z"/><path d="M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0"/></symbol>
+<symbol id="i-hard-drive" viewBox="0 0 24 24"><path d="M10 16h.01"/><path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M21.946 12.013H2.054"/><path d="M6 16h.01"/></symbol>
+<symbol id="i-headphones" viewBox="0 0 24 24"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+<symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-laugh" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M7.084 14.302a5.12 5.12 0 009.833 0 .24.24 0 00-.235-.302H7.32a.24.24 0 00-.235.302"/><path d="M9 10V9"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/><path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/></symbol>
+<symbol id="i-life-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></symbol>
+<symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
+<symbol id="i-list-checks" viewBox="0 0 24 24"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="i-meh" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M8 16h8"/><path d="M9 10V9"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-message-circle" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+<symbol id="i-moon-star" viewBox="0 0 24 24"><path d="M18 5h4"/><path d="M20 3v4"/><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></symbol>
+<symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+<symbol id="i-mountain-snow" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></symbol>
+<symbol id="i-notebook" viewBox="0 0 24 24"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M16 2v20"/></symbol>
+<symbol id="i-notebook-pen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
+<symbol id="i-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></symbol>
+<symbol id="i-pen-line" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></symbol>
+<symbol id="i-percent" viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+<symbol id="i-person-standing" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></symbol>
+<symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-shower-head" viewBox="0 0 24 24"><path d="m4 4 2.5 2.5"/><path d="M13.5 6.5a4.95 4.95 0 0 0-7 7"/><path d="M15 5 5 15"/><path d="M14 17v.01"/><path d="M10 16v.01"/><path d="M13 13v.01"/><path d="M16 10v.01"/><path d="M11 20v.01"/><path d="M17 14v.01"/><path d="M20 11v.01"/></symbol>
+<symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></symbol>
+<symbol id="i-smile" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M16.472 15a6 6 0 01-8.943 0"/><path d="M9 10V9"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></symbol>
+<symbol id="i-sprout" viewBox="0 0 24 24"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/><path d="M5 21h14"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+<symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></symbol>
+<symbol id="i-sunset" viewBox="0 0 24 24"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+<symbol id="i-trees" viewBox="0 0 24 24"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19v3"/><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/></symbol>
+<symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+<symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 12q2.5 2 5 0t5 0 5 0 5 0"/><path d="M2 19q2.5 2 5 0t5 0 5 0 5 0"/><path d="M2 5q2.5 2 5 0t5 0 5 0 5 0"/></symbol>
+<symbol id="i-wind" viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/></symbol>
+</svg>
+<!-- ICONS:END -->
 <div id="app" class="app">
   <div class="bg-blobs" aria-hidden="true">
     <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
@@ -30,9 +107,9 @@
         <div>
           <p class="brand"><img src="icon.svg" alt="" class="brand-logo" />ZenFlow<span class="brand-tag">戒色 · 自律 · 平静</span></p>
           <p class="eyebrow" id="greeting">你好</p>
-          <h1>今天也在变好 🌱</h1>
+          <h1>今天也在变好 <svg class="ic ic-title tint-mint" aria-hidden="true"><use href="#i-sprout"/></svg></h1>
         </div>
-        <span class="privacy-pill" title="所有数据只保存在本机浏览器中">🔒 仅本机</span>
+        <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
       </header>
 
       <div class="card hero-card">
@@ -66,14 +143,14 @@
       </div>
 
       <div class="mini-stats">
-        <div class="mini"><span class="mini-v" id="bestStreak">0天</span><span class="mini-l">最佳纪录</span></div>
-        <div class="mini"><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
-        <div class="mini"><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
+        <div class="mini"><span class="mini-ic tint-amber"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span><span class="mini-v" id="bestStreak">0天</span><span class="mini-l">最佳纪录</span></div>
+        <div class="mini"><span class="mini-ic tint-mint"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
+        <div class="mini"><span class="mini-ic tint-blue"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
       </div>
 
       <div class="card">
         <div class="card-title">
-          <h2>今日打卡</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-check"/></svg>今日打卡</h2>
           <span class="muted small" id="todayDate"></span>
         </div>
         <div id="checkinArea">
@@ -86,11 +163,11 @@
 
       <div class="card">
         <div class="card-title">
-          <h2>打卡日历</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>打卡日历</h2>
           <div class="cal-nav">
-            <button class="icon-btn" id="calPrev" aria-label="上个月">‹</button>
+            <button class="icon-btn" id="calPrev" aria-label="上个月"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
             <span id="calTitle"></span>
-            <button class="icon-btn" id="calNext" aria-label="下个月">›</button>
+            <button class="icon-btn" id="calNext" aria-label="下个月"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
           </div>
         </div>
         <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
@@ -104,19 +181,19 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><h2>里程碑徽章</h2><span class="muted small" id="badgeCount"></span></div>
+        <div class="card-title"><h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-award"/></svg>里程碑徽章</h2><span class="muted small" id="badgeCount"></span></div>
         <div class="badges" id="badges"></div>
       </div>
 
       <div class="card tip-card">
-        <div class="card-title"><h2>💡 今日小知识</h2></div>
+        <div class="card-title"><h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-lightbulb"/></svg>今日小知识</h2></div>
         <p id="dailyTip"></p>
       </div>
 
       <button class="sos-banner" data-goto="sos">
-        <span>🆘</span>
+        <span class="sb-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span>
         <div><b>感到冲动？</b><small>点这里，陪你度过这几分钟</small></div>
-        <span class="arrow">›</span>
+        <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></span>
       </button>
     </section>
 
@@ -138,24 +215,24 @@
           </button>
         </div>
         <div class="card">
-          <h3>🌊 冲浪式应对（Urge Surfing）</h3>
+          <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-waves"/></svg>冲浪式应对（Urge Surfing）</h3>
           <p class="small">不去压抑、也不去跟随，而是像观察海浪一样观察这股冲动。多数冲动在几分钟到二十分钟左右会达到顶点然后自然减弱。接下来我们先一起呼吸，让身体平静下来。</p>
         </div>
         <div class="card">
-          <h3>选择呼吸方式</h3>
+          <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-wind"/></svg>选择呼吸方式</h3>
           <div class="seg" id="breathMode">
             <button class="seg-btn active" data-mode="box">箱式呼吸 4-4-4-4</button>
             <button class="seg-btn" data-mode="478">4-7-8 呼吸</button>
           </div>
           <p class="muted small" id="breathDesc">吸气 4 秒 · 屏息 4 秒 · 呼气 4 秒 · 屏息 4 秒，共 4 轮（约 64 秒）</p>
         </div>
-        <p class="muted small center">已经陪你度过了 <b id="urgeCountSos">0</b> 次冲动 💙</p>
+        <p class="muted small center">已经陪你度过了 <b id="urgeCountSos">0</b> 次冲动 <svg class="ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg></p>
       </div>
 
       <!-- step 1: breathing -->
       <div class="sos-step" id="sosBreath">
         <div class="sos-top">
-          <button class="icon-btn" id="btnSosClose1" aria-label="关闭">✕</button>
+          <button class="icon-btn" id="btnSosClose1" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
           <span class="muted small">第 1 步 · 呼吸</span>
           <button class="btn-link" id="btnSkipBreath">跳过</button>
         </div>
@@ -174,24 +251,24 @@
       <!-- step 2: actions -->
       <div class="sos-step" id="sosActions">
         <div class="sos-top">
-          <button class="icon-btn" id="btnSosClose2" aria-label="关闭">✕</button>
+          <button class="icon-btn" id="btnSosClose2" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
           <span class="muted small">第 2 步 · 转移注意力</span>
           <span></span>
         </div>
         <div class="card soft-blue">
           <p class="small">做得很好。现在，用一个小行动打断这股冲动 —— 选一个马上就能做的：</p>
           <div class="actions" id="actionList"></div>
-          <button class="btn btn-ghost btn-block" id="btnShuffle">🔄 换一批建议</button>
+          <button class="btn btn-ghost btn-block" id="btnShuffle"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg>换一批建议</button>
         </div>
         <div class="card quote-card">
           <p class="quote" id="quoteText"></p>
           <p class="quote-src" id="quoteSrc"></p>
         </div>
         <div class="card">
-          <h3>💙 记住你为什么出发</h3>
+          <h3><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>记住你为什么出发</h3>
           <ul class="reasons-view" id="reasonsView"></ul>
         </div>
-        <button class="btn btn-success btn-block btn-lg" id="btnMadeIt">💪 我挺过来了</button>
+        <button class="btn btn-success btn-block btn-lg" id="btnMadeIt"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg>我挺过来了</button>
         <button class="btn-link center-block" id="btnRebreath">再做一次呼吸练习</button>
         <button class="btn-link center-block muted" id="btnSosRelapse">我没能忍住…（去记录，没关系）</button>
       </div>
@@ -199,7 +276,7 @@
       <!-- step 3: success -->
       <div class="sos-step" id="sosDone">
         <div class="done-wrap">
-          <div class="done-emoji">🎉</div>
+          <div class="done-icon"><svg class="ic" aria-hidden="true"><use href="#i-party-popper"/></svg></div>
           <h1>你做到了！</h1>
           <p class="muted">这是你第 <b id="urgeCountDone">1</b> 次成功抵御冲动。<br/>每一次坚持，都在让大脑的新习惯更牢固一点。</p>
           <button class="btn btn-primary btn-block" data-goto="home">回到首页</button>
@@ -219,7 +296,7 @@
         <p class="small">一次失误不等于失败。记录下来，是为了看清规律、找到更好的应对方法 —— 不是为了责备自己。</p>
       </div>
       <div class="card">
-        <h2>记录一次破戒</h2>
+        <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-pen-line"/></svg>记录一次破戒</h2>
         <label class="field">
           <span>发生时间</span>
           <input type="datetime-local" id="relapseTime" />
@@ -237,7 +314,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><h2>历史记录</h2><span class="muted small" id="historyCount"></span></div>
+        <div class="card-title"><h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-history"/></svg>历史记录</h2><span class="muted small" id="historyCount"></span></div>
         <div id="historyList" class="history"></div>
       </div>
     </section>
@@ -247,38 +324,38 @@
       <header class="page-head">
         <div>
           <p class="eyebrow">数据统计</p>
-          <h1>看见自己的进步 📈</h1>
+          <h1>看见自己的进步 <svg class="ic ic-title tint-mint" aria-hidden="true"><use href="#i-trending-up"/></svg></h1>
         </div>
       </header>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-v" id="stUrges">0</span><span class="stat-l">抵御冲动</span></div>
-        <div class="stat"><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
-        <div class="stat"><span class="stat-v" id="stBest">0</span><span class="stat-l">最长连续（天）</span></div>
-        <div class="stat"><span class="stat-v" id="stCurrent">0</span><span class="stat-l">当前连续（天）</span></div>
-        <div class="stat"><span class="stat-v" id="stCheckins">0</span><span class="stat-l">累计打卡</span></div>
-        <div class="stat"><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="stat-v" id="stUrges">0</span><span class="stat-l">抵御冲动</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-cloud-rain"/></svg></span><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span><span class="stat-v" id="stBest">0</span><span class="stat-l">最长连续（天）</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span><span class="stat-v" id="stCurrent">0</span><span class="stat-l">当前连续（天）</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="stat-v" id="stCheckins">0</span><span class="stat-l">累计打卡</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-percent"/></svg></span><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
       </div>
 
       <div class="card">
-        <h2>常见触发因素</h2>
+        <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-zap"/></svg>常见触发因素</h2>
         <div id="triggerChart" class="hbars"></div>
       </div>
 
       <div class="card">
         <div class="card-title">
-          <h2>时段分布</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-clock"/></svg>时段分布</h2>
           <div class="legend-inline"><span><i class="dot dot-warm"></i>破戒</span><span><i class="dot dot-mint"></i>抵御冲动</span></div>
         </div>
         <div id="timeChart"></div>
       </div>
 
       <div class="card">
-        <h2>心情分布</h2>
+        <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-smile"/></svg>心情分布</h2>
         <div id="moodChart" class="hbars"></div>
       </div>
 
       <div class="card tip-card">
-        <h2>🧭 个性化建议</h2>
+        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-compass"/></svg>个性化建议</h2>
         <div id="insights"></div>
       </div>
     </section>
@@ -293,7 +370,7 @@
       </header>
 
       <div class="card">
-        <h2>💙 我坚持的理由</h2>
+        <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>我坚持的理由</h2>
         <p class="muted small">写下对你真正重要的理由。冲动来临时，急救页面会提醒你。</p>
         <ul class="reasons-edit" id="reasonsEdit"></ul>
         <div class="add-row">
@@ -303,29 +380,29 @@
       </div>
 
       <div class="card">
-        <h2>🔒 隐私说明</h2>
+        <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私说明</h2>
         <p class="small">所有数据（打卡、记录、理由等）<b>只保存在你这台设备的浏览器本地存储（localStorage）中</b>，不会上传到任何服务器，也没有账号和统计追踪。清除浏览器数据会删除这些记录，建议定期导出备份。</p>
       </div>
 
       <div class="card">
-        <h2>💾 数据管理</h2>
+        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-hard-drive"/></svg>数据管理</h2>
         <div class="setting-row">
-          <div><b>导出数据</b><p class="muted small">下载 JSON 备份文件</p></div>
+          <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span><div><b>导出数据</b><p class="muted small">下载 JSON 备份文件</p></div>
           <button class="btn btn-ghost" id="btnExport">导出</button>
         </div>
         <div class="setting-row">
-          <div><b>导入数据</b><p class="muted small">从 JSON 备份恢复（会覆盖当前数据）</p></div>
+          <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span><div><b>导入数据</b><p class="muted small">从 JSON 备份恢复（会覆盖当前数据）</p></div>
           <button class="btn btn-ghost" id="btnImport">导入</button>
           <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
         </div>
         <div class="setting-row">
-          <div><b class="danger-text">重置所有数据</b><p class="muted small">清空全部记录，无法撤销</p></div>
+          <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></span><div><b class="danger-text">重置所有数据</b><p class="muted small">清空全部记录，无法撤销</p></div>
           <button class="btn btn-danger" id="btnReset">重置</button>
         </div>
       </div>
 
       <div class="card">
-        <h2>ℹ️ 关于</h2>
+        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
         <p class="small">ZenFlow v1.0 · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
         <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
       </div>
@@ -335,11 +412,11 @@
   <!-- 底部导航 -->
   <nav class="tabbar" id="tabbar" data-active="home">
     <span class="tab-pill" aria-hidden="true"></span>
-    <button class="tab active" data-tab="home"><span class="ti">🏠</span><span>打卡</span></button>
-    <button class="tab" data-tab="log"><span class="ti">📝</span><span>记录</span></button>
+    <button class="tab active" data-tab="home"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
+    <button class="tab" data-tab="log"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
     <button class="tab tab-sos" data-tab="sos" aria-label="急救"><span class="sos-dot">SOS</span><span>急救</span></button>
-    <button class="tab" data-tab="stats"><span class="ti">📊</span><span>统计</span></button>
-    <button class="tab" data-tab="settings"><span class="ti">⚙️</span><span>设置</span></button>
+    <button class="tab" data-tab="stats"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
+    <button class="tab" data-tab="settings"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
   </nav>
 
   <!-- 弹窗 -->

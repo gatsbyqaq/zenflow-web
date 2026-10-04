@@ -42,6 +42,9 @@
   --field:rgba(255,255,255,.55);
   --track:rgba(120,135,170,.16);
 
+  --check-svg:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  --amber:#c9850f; --pink:#e0567f; --blue:#2f6fe4; --lav:#7a63d6;
+  --m5:#1f9e78; --m4:#2b8fd0; --m3:#c98a14; --m2:#7a63d6; --m1:#e0685a;
   --r-xl:30px; --r-lg:24px; --r-md:18px; --r-sm:14px;
   --spring:cubic-bezier(.34,1.56,.64,1);
   --safe-t:env(safe-area-inset-top,0px);
@@ -75,6 +78,8 @@
     --warm:#ff9d8f;
     --warm-tint:rgba(255,157,143,.16);
     --field:rgba(255,255,255,.07);
+    --amber:#ffc65c; --pink:#ff8fb0; --blue:#8db4ff; --lav:#b9a8ff;
+    --m5:#62dbb6; --m4:#7cc4f5; --m3:#ffcc66; --m2:#b9a8ff; --m1:#ff9d8f;
     --track:rgba(255,255,255,.10);
   }
 }
@@ -343,15 +348,15 @@ b{font-weight:650}
 .action{display:flex;align-items:center;gap:12px;background:var(--glass-tint);box-shadow:var(--hl),0 2px 8px rgba(38,56,110,.05);border:none;border-radius:var(--r-md);padding:13px 14px;text-align:left;font-size:15px;color:var(--text);width:100%;transition:transform .35s var(--spring),background .2s,box-shadow .2s}
 .action .e{font-size:24px}
 .action.done{background:var(--mint-tint);box-shadow:var(--hl),0 0 0 1.5px var(--mint)}
-.action.done::after{content:"✓";margin-left:auto;color:var(--mint);font-weight:800}
+.action.done::after{content:"";margin-left:auto;width:20px;height:20px;flex-shrink:0;background:var(--mint);-webkit-mask:var(--check-svg) center/contain no-repeat;mask:var(--check-svg) center/contain no-repeat}
 .quote-card{color:#fff;background:linear-gradient(140deg,rgba(110,130,240,.86),rgba(150,120,230,.8) 50%,rgba(70,185,170,.84))}
 .quote{font-size:17px;line-height:1.75;font-weight:650;margin:4px 0;text-shadow:0 1px 8px rgba(30,30,90,.2)}
 .quote-src{text-align:right;opacity:.92;font-size:13px;margin:4px 0 0}
 .reasons-view{margin:0;padding-left:0;list-style:none}
 .reasons-view li{padding:10px 13px;background:var(--glass-soft);box-shadow:var(--hl);border-radius:var(--r-sm);margin-top:8px;font-size:14px}
-.reasons-view li::before{content:"✦ ";color:var(--primary)}
 .done-wrap{text-align:center;padding:60px 10px}
-.done-emoji{font-size:88px;animation:pop .7s var(--spring);filter:drop-shadow(0 10px 20px rgba(245,182,66,.35))}
+.done-icon{width:120px;height:120px;margin:0 auto 6px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#d08a12;background:radial-gradient(circle at 32% 24%,rgba(255,255,255,.95),rgba(255,231,176,.85) 45%,rgba(245,182,66,.7));box-shadow:inset 0 2px 2px rgba(255,255,255,.9),0 0 40px rgba(245,182,66,.45),0 14px 30px rgba(245,182,66,.3);animation:pop .7s var(--spring)}
+.done-icon .ic{width:60px;height:60px;stroke-width:1.6}
 @keyframes pop{0%{transform:scale(.3)}100%{transform:scale(1)}}
 
 /* ---------- 表单 / 记录 ---------- */
@@ -432,6 +437,99 @@ b{font-weight:650}
 .modal-actions .btn{flex:1}
 .toast{position:absolute;left:50%;bottom:calc(var(--safe-b) + 98px);transform:translateX(-50%) translateY(20px) scale(.95);background:var(--glass-strong);color:var(--text);font-weight:600;padding:11px 20px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s,transform .45s var(--spring);z-index:60;white-space:nowrap;max-width:90%}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+
+/* =========================================================
+   图标系统（Lucide，内联 SVG sprite，SF Symbols 风格）
+   ========================================================= */
+.ic{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.2em;flex-shrink:0;
+  fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.tint-mint{color:var(--mint)}.tint-blue{color:var(--blue)}.tint-amber{color:var(--amber)}
+.tint-pink{color:var(--pink)}.tint-warm{color:var(--warm)}.tint-lav{color:var(--lav)}
+h1 .ic-title{width:.95em;height:.95em;vertical-align:-.12em;stroke-width:1.9;margin-left:2px}
+h2,h3{display:flex;align-items:center}
+.h-ic{width:19px;height:19px;margin-right:7px;color:var(--primary);stroke-width:1.9}
+.h-ic.tint-mint{color:var(--mint)}.h-ic.tint-amber{color:var(--amber)}.h-ic.tint-pink{color:var(--pink)}.h-ic.tint-warm{color:var(--warm)}
+.eyebrow .ic{width:15px;height:15px;vertical-align:-.22em;margin-right:2px;stroke-width:1.9}
+.privacy-pill{display:inline-flex;align-items:center;gap:4px}
+.privacy-pill .ic{width:13px;height:13px;stroke-width:2.1}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center}
+.icon-btn .ic{width:18px;height:18px;stroke-width:2}
+.btn .ic{width:1.1em;height:1.1em;margin-right:6px;vertical-align:-.18em;stroke-width:2}
+.center .ic{width:15px;height:15px;vertical-align:-.2em}
+
+/* Tab 图标：未选中描边 + 次要色；选中强调色 + 加粗 + 有封闭轮廓的图标轻填充 */
+.tab .ti{font-size:inherit;filter:none;opacity:1;width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.tab .ti .ic{width:24px;height:24px;stroke-width:1.7;transition:stroke-width .2s,fill-opacity .25s}
+.tab.active .ti{filter:none;color:var(--primary);transform:scale(1.06)}
+.tab.active .ti .ic{stroke-width:2.1}
+.tab.active .ti .ic.fillable{fill:currentColor;fill-opacity:.2}
+
+/* 小型统计 */
+.mini-ic,.stat-ic{display:flex;justify-content:center;margin-bottom:2px}
+.mini-ic .ic{width:18px;height:18px;stroke-width:2}
+.stat-ic .ic{width:19px;height:19px;stroke-width:1.9}
+.stat:nth-child(1) .stat-ic{color:var(--mint)}
+.stat:nth-child(2) .stat-ic{color:var(--warm)}
+.stat:nth-child(3) .stat-ic{color:var(--amber)}
+.stat:nth-child(4) .stat-ic{color:#f08a3c}
+.stat:nth-child(5) .stat-ic{color:var(--blue)}
+.stat:nth-child(6) .stat-ic{color:var(--lav)}
+
+/* 心情：线条表情 + 每种心情独立色调 */
+[data-mood="5"]{--mc:var(--m5)}[data-mood="4"]{--mc:var(--m4)}[data-mood="3"]{--mc:var(--m3)}[data-mood="2"]{--mc:var(--m2)}[data-mood="1"]{--mc:var(--m1)}
+.mood .e{font-size:inherit;display:flex;color:var(--mc)}
+.mood .e .ic{width:28px;height:28px;stroke-width:1.7}
+.mood.sel{background:color-mix(in srgb,var(--mc) 16%,transparent);color:var(--mc);box-shadow:var(--hl),0 0 0 2px var(--mc),0 6px 16px color-mix(in srgb,var(--mc) 25%,transparent)}
+.mood.sel .e .ic{stroke-width:2;fill:currentColor;fill-opacity:.14}
+.checkin-done{background:color-mix(in srgb,var(--mc,var(--mint)) 14%,transparent)}
+.checkin-done .e{font-size:inherit;display:flex;color:var(--mc)}
+.checkin-done .e .ic{width:34px;height:34px;stroke-width:1.8}
+.checkin-done b{color:var(--mc,var(--mint))}
+.mood-tint{display:inline-flex;color:var(--mc);margin-right:4px}
+.mood-tint .ic{width:16px;height:16px;stroke-width:2}
+.hbar-l{display:flex;align-items:center;white-space:nowrap}
+.hbar{grid-template-columns:76px 1fr 30px}
+
+/* 徽章 */
+.badge .b-ico{font-size:inherit;filter:none;color:var(--muted);opacity:.55}
+.badge .b-ico .ic{width:26px;height:26px;stroke-width:1.7}
+.badge.on .b-ico{color:#b06f00;opacity:1}
+.badge.on .b-ico .ic{stroke-width:1.9;fill:currentColor;fill-opacity:.12}
+.badge.next .b-ico{filter:none;color:var(--primary);opacity:1}
+
+/* SOS 横幅 */
+.sos-banner .sb-ic{font-size:inherit;width:42px;height:42px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.sos-banner .sb-ic .ic{width:24px;height:24px;stroke-width:2}
+.sos-banner .arrow{display:flex}
+.sos-banner .arrow .ic{width:22px;height:22px;stroke-width:2.2}
+
+/* 行动建议：iOS 风格彩色图标块 */
+.action .e{font-size:inherit;width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 3px 8px rgba(38,56,110,.15)}
+.action .e .ic{width:21px;height:21px;stroke-width:2}
+.action:nth-child(3n+1) .e{background:linear-gradient(180deg,#5fd6b1,#22a882)}
+.action:nth-child(3n+2) .e{background:linear-gradient(180deg,#76a6ff,#3a72e8)}
+.action:nth-child(3n) .e{background:linear-gradient(180deg,#ae98ff,#7a5fe0)}
+
+/* 理由列表 */
+.reasons-view li{display:flex;align-items:flex-start;gap:8px}
+.reasons-view li .ic{width:16px;height:16px;margin-top:2px;stroke-width:2}
+.reasons-edit li button,.h-del{display:flex;align-items:center;justify-content:center}
+.reasons-edit li button .ic,.h-del .ic{width:16px;height:16px;stroke-width:2}
+
+/* 历史 & 建议图标 */
+.h-ico{font-size:inherit}
+.h-ico .ic{width:19px;height:19px;stroke-width:1.9}
+.h-item.relapse .h-ico{color:var(--warm)}
+.h-item.urge .h-ico{color:var(--mint)}
+.insight .e{font-size:inherit;width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--primary);background:var(--primary-tint);box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
+.insight .e .ic{width:18px;height:18px;stroke-width:1.9}
+
+/* 设置行：iOS 设置风格彩色方块 */
+.row-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 2px 6px rgba(38,56,110,.15)}
+.row-ic .ic{width:18px;height:18px;stroke-width:2}
+.ri-blue{background:linear-gradient(180deg,#6aa0ff,#2f6fe4)}
+.ri-teal{background:linear-gradient(180deg,#5fd6b1,#1f9e78)}
+.ri-warm{background:linear-gradient(180deg,#ff9b8a,#e0564a)}
 
 /* ---------- 不支持 backdrop-filter 时的降级 ---------- */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
