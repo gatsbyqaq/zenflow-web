@@ -592,6 +592,150 @@ h2,h3{display:flex;align-items:center}
 .theme-seg .seg-btn .ic{width:16px;height:16px;stroke-width:1.9}
 .theme-seg .seg-btn.active .ic{stroke-width:2.1}
 
+/* =========================================================
+   桌面端（≥1024px）：左侧玻璃侧边栏 + 多栏仪表盘布局
+   移动端（<1024px）布局保持不变；仅桌面端可见的元素用 .d-only，仅移动端用 .m-only
+   ========================================================= */
+.app .d-only{display:none}
+kbd{font-family:inherit;font-size:11px;font-weight:650;padding:1px 6px;border-radius:6px;background:var(--glass-soft);box-shadow:inset 0 0 0 .5px var(--glass-line),inset 0 -1px 0 var(--glass-line);color:var(--text2)}
+/* 键盘焦点环（只在键盘操作时出现，触屏点按不显示） */
+button:focus-visible,.btn:focus-visible,.tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+@media (min-width:1024px){
+  .app .m-only{display:none}
+  .app{
+    max-width:1280px;padding:0 32px;
+    display:grid;grid-template-columns:240px minmax(0,1fr);column-gap:28px;align-items:start;
+  }
+  .content{grid-column:2;grid-row:1;min-width:0;padding:30px 0 56px}
+  /* 边缘层铺满整个视口宽度 */
+  .edge{left:0;right:0;width:auto;transform:none}
+  .edge-top{height:calc(var(--safe-t) + 18px)}
+  .edge-bottom{height:calc(var(--safe-b) + 14px)}
+  .toast{bottom:calc(var(--safe-b) + 32px)}
+
+  h1{font-size:30px;letter-spacing:-.4px}
+  .page-head{padding:4px 4px 22px}
+  .card{padding:20px 22px}
+
+  /* ---------- 侧边栏（由底部 Tab 栏变形而来） ---------- */
+  .tabbar{
+    grid-column:1;grid-row:1;
+    position:sticky;top:24px;left:auto;right:auto;bottom:auto;
+    height:calc(100vh - 48px);height:calc(100dvh - 48px);margin:24px 0;
+    padding:22px 14px 16px;border-radius:30px;
+    display:flex;flex-direction:column;align-items:stretch;gap:4px;
+    overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+    box-shadow:var(--hl),var(--depth);
+  }
+  .tabbar::-webkit-scrollbar{display:none}
+  .tab-pill{display:none}
+  .app .side-brand{display:flex;align-items:center;gap:11px;padding:0 8px 20px}
+  .side-logo{width:38px;height:38px;border-radius:11px;box-shadow:0 4px 14px rgba(47,111,228,.32)}
+  .side-brand div{display:flex;flex-direction:column}
+  .side-brand b{font-size:18px;font-weight:750;letter-spacing:.2px}
+  .side-brand small{font-size:11px;color:var(--muted);letter-spacing:1.5px;margin-top:1px}
+
+  .tab{
+    flex:none;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;
+    padding:11px 14px;border-radius:15px;font-size:15px;font-weight:550;color:var(--text2);text-align:left;
+    transition:background .2s,color .2s,transform .35s var(--spring);
+  }
+  .tab .ti{width:24px;height:24px}
+  .tab .ti .ic{width:21px;height:21px}
+  .tab.active{background:var(--primary-tint);color:var(--primary);font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 0 0 .5px rgba(47,111,228,.14)}
+  .tab.active .ti{transform:none}
+  .tab:active{transform:scale(.97)}
+
+  /* SOS：侧边栏底部的醒目渐变按钮 */
+  .tabbar .tab-sos,.tabbar .tab-sos.active{
+    order:5;top:auto;margin-top:auto;justify-content:center;gap:10px;padding:13px 14px;border-radius:18px;
+    color:#fff;font-size:16px;font-weight:700;letter-spacing:.5px;
+    background:radial-gradient(circle at 22% 0%,rgba(255,255,255,.45),rgba(255,255,255,0) 50%),linear-gradient(135deg,var(--sos1),var(--sos2));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -3px 8px rgba(180,30,80,.18),0 10px 24px rgba(255,95,143,.35);
+  }
+  .tab-sos .sos-dot{width:30px;height:30px;font-size:9.5px;letter-spacing:.3px;background:rgba(255,255,255,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 0 0 .5px rgba(255,255,255,.4)}
+  .tab-sos.active{color:#fff}
+  .tab-sos.active .sos-dot{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 2px rgba(255,255,255,.75)}
+  .tabbar .tab-sos.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 0 3px var(--glass-strong),0 0 0 5px rgba(255,95,143,.55),0 12px 30px rgba(255,95,143,.45)}
+
+  .app .side-foot{order:6;display:block;padding:14px 4px 0;margin-top:12px;border-top:.5px solid var(--glass-line)}
+  .side-label{font-size:12px;color:var(--muted);font-weight:600;margin:0 4px 6px}
+  .side-seg .seg-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 2px;font-size:12px}
+  .side-seg .seg-btn .ic{width:14px;height:14px;stroke-width:2}
+  .side-note{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--mint);margin:12px 4px 4px}
+  .side-note .ic{width:13px;height:13px;stroke-width:2.1}
+  .side-keys{font-size:11px;color:var(--muted);margin:6px 4px 0;line-height:1.9}
+
+  /* ---------- 首页：左侧计时器 + SOS，右侧打卡 / 日历 / 徽章 ---------- */
+  #screen-home.active{display:grid;grid-template-columns:minmax(340px,5fr) minmax(0,7fr);column-gap:22px;align-items:start}
+  #screen-home .page-head{grid-column:1/-1}
+  #screen-home .page-head .brand{display:none}
+  .home-main,.home-side{min-width:0}
+  .hero-card{padding:24px 22px 20px}
+  .ring-wrap{width:218px;height:218px}
+  .days-num{font-size:72px}
+  .days-label{font-size:15px}
+  .chip-t{width:88px;padding:11px 0}
+  .chip-t b{font-size:26px}
+  .app .sos-banner-lg{display:flex;padding:20px 22px;margin-bottom:14px}
+  .sos-banner-lg b{font-size:18px}
+  .sos-banner-lg small{font-size:13px}
+  .sos-banner-lg .sb-ic{width:48px;height:48px;border-radius:16px}
+  .cal-cell{aspect-ratio:auto;height:44px;font-size:13px}
+  .badges{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+
+  /* ---------- 记录：左侧表单，右侧时间线 ---------- */
+  #screen-log.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-items:start}
+  #screen-log .page-head{grid-column:1/-1}
+  .log-main,.log-side{min-width:0}
+
+  /* ---------- 统计：6 列数字 + 2 列图表 ---------- */
+  .stat-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+  .stat{padding:18px 6px}
+  .stat-v{font-size:26px}
+  .stats-cards{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-items:start}
+  .st-trig{grid-column:1;grid-row:1}
+  .st-mood{grid-column:2;grid-row:1}
+  .st-time{grid-column:1;grid-row:2}
+  .st-ins{grid-column:2;grid-row:2}
+  .stats-cards .card{min-width:0}
+
+  /* ---------- 设置：两栏 ---------- */
+  .settings-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:22px;align-items:start}
+  .set-col{min-width:0}
+
+  /* ---------- SOS ---------- */
+  #sosStart.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:32px;align-items:center;max-width:1000px;margin:0 auto}
+  #sosStart .page-head{grid-column:1/-1}
+  #sosStart .sos-btn-wrap{grid-column:1;grid-row:2/span 3;padding:30px 0}
+  #sosStart .sos-c,#sosStart .sos-count{grid-column:2}
+  .sos-big{width:260px;height:260px}
+  .sos-inner{font-size:58px}
+  .sos-inner small{font-size:15px}
+  #sosBreath.active,#sosDone.active{max-width:620px;margin:0 auto}
+  .breath-stage{height:380px}
+  #sosActions.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto 1fr auto;column-gap:22px;align-items:start;max-width:1000px;margin:0 auto}
+  #sosActions .sos-top{grid-column:1/-1}
+  #sosActions .sa-acts{grid-column:1;grid-row:2/span 2}
+  #sosActions .sa-quote,#sosActions .sa-reasons{grid-column:2}
+  #sosActions .sa-foot{grid-column:1/-1;justify-self:center;width:100%;max-width:440px}
+
+  .modal{max-width:400px}
+}
+/* 桌面端：视口足够高时，左栏（计时器 / 记录表单）随滚动吸附 */
+@media (min-width:1024px) and (min-height:760px){
+  .home-main,.log-main{position:sticky;top:24px}
+}
+/* 指针设备的悬停反馈 */
+@media (hover:hover) and (pointer:fine){
+  .tab:not(.active):not(.tab-sos):hover{background:var(--glass-soft);color:var(--text)}
+  .tab-sos:hover,.sos-banner:hover{filter:brightness(1.04) saturate(1.05)}
+  .action:hover,.tag:hover,.mood:hover{transform:translateY(-1px)}
+  .btn-ghost:hover,.icon-btn:hover{background:var(--primary-tint)}
+  .seg-btn:not(.active):hover{color:var(--text)}
+}
+
 /* ---------- 不支持 backdrop-filter 时的降级 ---------- */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   :root{--glass:rgba(255,255,255,.92);--glass-strong:rgba(255,255,255,.96);--glass-tint:rgba(118,136,178,.10);--glass-soft:rgba(118,136,178,.08)}

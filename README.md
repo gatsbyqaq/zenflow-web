@@ -3,7 +3,7 @@
 一个温和、基于科学的自律小助手（第一版原型），采用 iOS 26「液态玻璃（Liquid Glass）」风格界面，支持深色模式。纯静态网页：HTML + CSS + 原生 JS，无构建步骤、无后端、无外部依赖。
 
 **在线体验：** https://gatsbyqaq.github.io/zenflow-web/
-（手机浏览器打开后，可"添加到主屏幕"像 App 一样使用，支持离线。）
+（手机浏览器打开后，可"添加到主屏幕"像 App 一样使用，支持离线；在电脑上打开则是多栏桌面布局。）
 
 ## 功能
 
@@ -19,6 +19,8 @@
 - 纯色背景：浅色 `#f0f2f7`、深色 `#0c111d`，与 `theme-color` 和页面边缘完全一致，让 iOS Safari 的状态栏/工具栏颜色与页面融为一体
 - 悬浮胶囊式 Tab 栏 + 跟随切换的玻璃指示器；发光玻璃球 SOS 按钮；按压弹性缩放动画
 - 外观可选「跟随系统 / 浅色 / 深色」（保存在本机，备份文件中包含该设置）；首帧前应用，无闪烁；适配刘海/安全区域；"添加到主屏幕"后全屏显示
+- 响应式桌面版（窗口宽度 ≥ 1024px）：底部 Tab 栏变为左侧玻璃侧边栏（品牌、导航、醒目的 SOS 按钮、外观快捷切换、"仅本机"提示）；内容最宽约 1280px 居中，首页左侧为大号计时器 + SOS 入口（视口足够高时随滚动吸附），右侧为打卡 / 日历 / 徽章；记录、统计、设置、急救页均为多栏布局。同一套 HTML/JS，窄屏仍是原来的手机布局
+- 键盘友好：`1`–`4` 切换打卡 / 记录 / 统计 / 设置，`S` 打开急救，`Esc` 关闭弹窗（在输入框中输入时不触发）；键盘焦点有清晰的焦点环
 - 不支持毛玻璃的浏览器自动降级为不透明卡片；尊重"减少动态效果"设置
 - 图标：SF Symbols 风格的线性图标（[Lucide](https://lucide.dev)），以内联 SVG sprite 形式嵌在 `index.html` 中，无需联网、支持 `file://`；心情使用带色调的线条表情，界面不使用 emoji
 
@@ -35,6 +37,26 @@
 直接双击 `index.html` 即可（支持 `file://`）。Service Worker 与 manifest 仅在 http(s) 下启用。
 
 ## 截图
+
+### 桌面端（1280×800）
+
+| 打卡（浅色） | 打卡（深色） |
+|---|---|
+| ![](screenshots/desktop-21-home-light.png) | ![](screenshots/desktop-22-home-dark.png) |
+
+| 急救 | 统计 |
+|---|---|
+| ![](screenshots/desktop-23-sos-light.png) | ![](screenshots/desktop-24-stats-light.png) |
+
+| 急救 · 转移注意力（深色） | 统计（深色） |
+|---|---|
+| ![](screenshots/desktop-23c-sos-actions-dark.png) | ![](screenshots/desktop-24b-stats-dark.png) |
+
+| 记录 | 设置 |
+|---|---|
+| ![](screenshots/desktop-25-log-light.png) | ![](screenshots/desktop-26-settings-light.png) |
+
+### 手机端
 
 | 打卡 | 急救 | 统计 | 设置 |
 |---|---|---|---|

@@ -131,6 +131,7 @@
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
       </header>
 
+      <div class="home-main">
       <div class="card hero-card">
         <div class="ring-wrap">
           <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
@@ -166,6 +167,16 @@
         <div class="mini"><span class="mini-ic tint-mint"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
         <div class="mini"><span class="mini-ic tint-blue"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
       </div>
+
+      <!-- 桌面端：SOS 入口紧跟计时器（移动端使用页面底部的横幅） -->
+      <button class="sos-banner sos-banner-lg d-only" data-goto="sos">
+        <span class="sb-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span>
+        <div><b>感到冲动？</b><small>点这里，陪你度过这几分钟 · 快捷键 S</small></div>
+        <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></span>
+      </button>
+      </div>
+
+      <div class="home-side">
 
       <div class="card">
         <div class="card-title">
@@ -209,11 +220,12 @@
         <p id="dailyTip"></p>
       </div>
 
-      <button class="sos-banner" data-goto="sos">
+      <button class="sos-banner m-only" data-goto="sos">
         <span class="sb-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span>
         <div><b>感到冲动？</b><small>点这里，陪你度过这几分钟</small></div>
         <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></span>
       </button>
+      </div>
     </section>
 
     <!-- ========== 急救 SOS ========== -->
@@ -233,11 +245,11 @@
             <span class="sos-inner">SOS<small>我现在有冲动</small></span>
           </button>
         </div>
-        <div class="card">
+        <div class="card sos-c">
           <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-waves"/></svg>冲浪式应对（Urge Surfing）</h3>
           <p class="small">不去压抑、也不去跟随，而是像观察海浪一样观察这股冲动。多数冲动在几分钟到二十分钟左右会达到顶点然后自然减弱。接下来我们先一起呼吸，让身体平静下来。</p>
         </div>
-        <div class="card">
+        <div class="card sos-c">
           <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-wind"/></svg>选择呼吸方式</h3>
           <div class="seg" id="breathMode">
             <button class="seg-btn active" data-mode="box">箱式呼吸 4-4-4-4</button>
@@ -245,7 +257,7 @@
           </div>
           <p class="muted small" id="breathDesc">吸气 4 秒 · 屏息 4 秒 · 呼气 4 秒 · 屏息 4 秒，共 4 轮（约 64 秒）</p>
         </div>
-        <p class="muted small center">已经陪你度过了 <b id="urgeCountSos">0</b> 次冲动 <svg class="ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg></p>
+        <p class="muted small center sos-count">已经陪你度过了 <b id="urgeCountSos">0</b> 次冲动 <svg class="ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg></p>
       </div>
 
       <!-- step 1: breathing -->
@@ -274,22 +286,24 @@
           <span class="muted small">第 2 步 · 转移注意力</span>
           <span></span>
         </div>
-        <div class="card soft-blue">
+        <div class="card soft-blue sa-acts">
           <p class="small">做得很好。现在，用一个小行动打断这股冲动 —— 选一个马上就能做的：</p>
           <div class="actions" id="actionList"></div>
           <button class="btn btn-ghost btn-block" id="btnShuffle"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg>换一批建议</button>
         </div>
-        <div class="card quote-card">
+        <div class="card quote-card sa-quote">
           <p class="quote" id="quoteText"></p>
           <p class="quote-src" id="quoteSrc"></p>
         </div>
-        <div class="card">
+        <div class="card sa-reasons">
           <h3><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>记住你为什么出发</h3>
           <ul class="reasons-view" id="reasonsView"></ul>
         </div>
+        <div class="sa-foot">
         <button class="btn btn-success btn-block btn-lg" id="btnMadeIt"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg>我挺过来了</button>
         <button class="btn-link center-block" id="btnRebreath">再做一次呼吸练习</button>
         <button class="btn-link center-block muted" id="btnSosRelapse">我没能忍住…（去记录，没关系）</button>
+        </div>
       </div>
 
       <!-- step 3: success -->
@@ -311,6 +325,7 @@
           <h1>诚实面对，温柔前行</h1>
         </div>
       </header>
+      <div class="log-main">
       <div class="card soft-warm">
         <p class="small">一次失误不等于失败。记录下来，是为了看清规律、找到更好的应对方法 —— 不是为了责备自己。</p>
       </div>
@@ -331,10 +346,14 @@
         </label>
         <button class="btn btn-warm btn-block" id="btnLogRelapse">记录并重新开始</button>
       </div>
+      </div>
+
+      <div class="log-side">
 
       <div class="card">
         <div class="card-title"><h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-history"/></svg>历史记录</h2><span class="muted small" id="historyCount"></span></div>
         <div id="historyList" class="history"></div>
+      </div>
       </div>
     </section>
 
@@ -355,12 +374,13 @@
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-percent"/></svg></span><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
       </div>
 
-      <div class="card">
+      <div class="stats-cards">
+      <div class="card st-trig">
         <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-zap"/></svg>常见触发因素</h2>
         <div id="triggerChart" class="hbars"></div>
       </div>
 
-      <div class="card">
+      <div class="card st-time">
         <div class="card-title">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-clock"/></svg>时段分布</h2>
           <div class="legend-inline"><span><i class="dot dot-warm"></i>破戒</span><span><i class="dot dot-mint"></i>抵御冲动</span></div>
@@ -368,14 +388,15 @@
         <div id="timeChart"></div>
       </div>
 
-      <div class="card">
+      <div class="card st-mood">
         <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-smile"/></svg>心情分布</h2>
         <div id="moodChart" class="hbars"></div>
       </div>
 
-      <div class="card tip-card">
+      <div class="card tip-card st-ins">
         <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-compass"/></svg>个性化建议</h2>
         <div id="insights"></div>
+      </div>
       </div>
     </section>
 
@@ -388,6 +409,8 @@
         </div>
       </header>
 
+      <div class="settings-cols">
+      <div class="set-col">
       <div class="card">
         <div class="card-title">
           <h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-sun-moon"/></svg>外观</h2>
@@ -414,6 +437,9 @@
         <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私说明</h2>
         <p class="small">所有数据（打卡、记录、理由等）<b>只保存在你这台设备的浏览器本地存储（localStorage）中</b>，不会上传到任何服务器，也没有账号和统计追踪。清除浏览器数据会删除这些记录，建议定期导出备份。</p>
       </div>
+      </div>
+
+      <div class="set-col">
 
       <div class="card">
         <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-hard-drive"/></svg>数据管理</h2>
@@ -437,17 +463,33 @@
         <p class="small">ZenFlow v1.0 · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
         <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
       </div>
+      </div>
+      </div>
     </section>
   </main>
 
-  <!-- 底部导航 -->
-  <nav class="tabbar" id="tabbar" data-active="home">
+  <!-- 导航：移动端为底部悬浮胶囊 Tab 栏，桌面端（≥1024px）为左侧玻璃侧边栏 -->
+  <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
+    <div class="side-brand d-only">
+      <img src="icon.svg" alt="" class="side-logo" />
+      <div><b>ZenFlow</b><small>戒色 · 自律 · 平静</small></div>
+    </div>
     <span class="tab-pill" aria-hidden="true"></span>
-    <button class="tab active" data-tab="home"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
-    <button class="tab" data-tab="log"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
-    <button class="tab tab-sos" data-tab="sos" aria-label="急救"><span class="sos-dot">SOS</span><span>急救</span></button>
-    <button class="tab" data-tab="stats"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
-    <button class="tab" data-tab="settings"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
+    <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
+    <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
+    <button class="tab tab-sos" data-tab="sos" aria-label="急救" title="急救（快捷键 S）"><span class="sos-dot">SOS</span><span>急救</span></button>
+    <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
+    <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
+    <div class="side-foot d-only">
+      <div class="side-label">外观</div>
+      <div class="seg side-seg" id="themeSegSide" role="radiogroup" aria-label="外观">
+        <button class="seg-btn" data-theme-opt="system" role="radio" aria-label="跟随系统" title="跟随系统"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg><span>自动</span></button>
+        <button class="seg-btn" data-theme-opt="light" role="radio" aria-label="浅色" title="浅色"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg><span>浅色</span></button>
+        <button class="seg-btn" data-theme-opt="dark" role="radio" aria-label="深色" title="深色"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg><span>深色</span></button>
+      </div>
+      <p class="side-note"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机 · 数据不上传</p>
+      <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换 · <kbd>S</kbd> 急救</p>
+    </div>
   </nav>
 
   <!-- 弹窗 -->

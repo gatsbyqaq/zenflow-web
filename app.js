@@ -140,7 +140,11 @@
     if (current === 'sos' && tab !== 'sos') resetSos();
     current = tab;
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
-    document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
+    document.querySelectorAll('.tab').forEach(function (b) {
+      var on = b.dataset.tab === tab;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     $('tabbar').dataset.active = tab;
     window.scrollTo(0, 0);
     render(tab);
@@ -149,6 +153,18 @@
   document.addEventListener('click', function (e) {
     var g = e.target.closest('[data-goto]');
     if (g) go(g.dataset.goto);
+  });
+
+  // 键盘：Esc 关闭弹窗；1–4 切换页面、S 打开急救（输入框内或按住修饰键时不触发）
+  document.addEventListener('keydown', function (e) {
+    var modalOpen = !$('modalMask').classList.contains('hidden');
+    if (e.key === 'Escape') { if (modalOpen) { e.preventDefault(); closeModal(); } return; }
+    if (modalOpen || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    var t = e.target, tag = t && t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+    var map = { '1': 'home', '2': 'log', '3': 'stats', '4': 'settings', 's': 'sos', 'S': 'sos' };
+    var dest = map[e.key];
+    if (dest && dest !== current) { e.preventDefault(); go(dest); }
   });
 
   function render(tab) {
@@ -597,7 +613,7 @@
   }
   function renderThemeControl() {
     var t = getTheme();
-    document.querySelectorAll('#themeSeg .seg-btn').forEach(function (b) {
+    document.querySelectorAll('#themeSeg .seg-btn, #themeSegSide .seg-btn').forEach(function (b) {
       var on = b.dataset.themeOpt === t;
       b.classList.toggle('active', on);
       b.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -605,9 +621,12 @@
     var isDark = t === 'dark' || (t === 'system' && sysDark && sysDark.matches);
     $('themeHint').textContent = t === 'system' ? ('当前系统：' + (isDark ? '深色' : '浅色')) : '';
   }
-  $('themeSeg').addEventListener('click', function (e) {
-    var b = e.target.closest('.seg-btn'); if (!b) return;
-    setTheme(b.dataset.themeOpt, true);
+  ['themeSeg', 'themeSegSide'].forEach(function (id) {
+    var el = $(id); if (!el) return;
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('.seg-btn'); if (!b) return;
+      setTheme(b.dataset.themeOpt, true);
+    });
   });
   // 跟随系统时实时响应系统外观变化（CSS 自动切换，这里更新提示文字）
   if (sysDark) {
