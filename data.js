@@ -17,6 +17,14 @@ window.ZF_DATA = {
     { v: 2, icon: 'frown', t: '低落' },
     { v: 1, icon: 'annoyed', t: '挣扎' }
   ],
+  /* 破戒 / 记录类型。id 稳定存储，label 仅用于界面。旧数据没有 types 时视为空数组，不丢记录。 */
+  lapseTypes: [
+    { id: 'masturbation', label: '自慰', icon: 'flame' },
+    { id: 'porn', label: '看黄', icon: 'eye' },
+    { id: 'sex', label: '性行为', icon: 'heart' },
+    { id: 'fantasy', label: '意淫', icon: 'brain' },
+    { id: 'dream', label: '梦淫', icon: 'moon' }
+  ],
   triggers: ['无聊', '压力', '熬夜', '独处', '刷手机', '情绪低落', '其他'],
   actions: [
     { icon: 'droplets', t: '用冷水洗把脸，感受水的温度' },
