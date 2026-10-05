@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" id="metaColorScheme" />
-  <meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)" id="metaThemeLight" />
-  <meta name="theme-color" content="#12110f" media="(prefers-color-scheme: dark)" id="metaThemeDark" />
+  <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" id="metaThemeLight" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" id="metaThemeDark" />
   <script>
     /* 首帧前应用外观设置，避免闪烁（'light' | 'dark'；无属性 = 跟随系统） */
     (function () {
@@ -13,7 +13,7 @@
         var t = localStorage.getItem('zenflow_theme');
         if (t !== 'light' && t !== 'dark') return;
         document.documentElement.setAttribute('data-theme', t);
-        var c = t === 'dark' ? '#12110f' : '#f4f1ea';
+        var c = t === 'dark' ? '#000000' : '#fafafa';
         // iOS 26 Safari 会根据页面背景为状态栏/工具栏着色：首帧前就把根背景设为当前主题色
         document.documentElement.style.backgroundColor = c;
         document.documentElement.style.colorScheme = t;
@@ -31,14 +31,14 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=16" />
+  <link rel="stylesheet" href="styles.css?v=17" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
-  body.auth-booting{overflow:hidden;background:var(--bg,#f4f1ea)}
+  body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
-  #authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg,#f4f1ea);color:var(--muted,#6f675c)}
+  #authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg,#fafafa);color:var(--muted,#737373)}
   body.auth-booting #authBoot{display:flex}
-  #authBoot .auth-boot-logo{width:40px;height:40px;border-radius:0;box-shadow:none}
-  #authBoot .auth-boot-spin{width:16px;height:16px;border-radius:50%;animation:zf-boot-spin .8s linear infinite}
+  #authBoot .auth-boot-logo{width:40px;height:40px;border-radius:12px;box-shadow:none}
+  #authBoot .auth-boot-spin{width:16px;height:16px;border:2px solid #dbdbdb;border-top-color:#262626;border-radius:50%;animation:zf-boot-spin .8s linear infinite}
   @keyframes zf-boot-spin{to{transform:rotate(360deg)}}
   </style>
 </head>
@@ -165,8 +165,17 @@
       <div class="card hero-card">
         <div class="gauge" id="streakGauge" role="img" aria-label="已戒 0 天">
           <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+            <defs>
+              <linearGradient id="storyRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#feda75"/>
+                <stop offset="28%" stop-color="#fa7e1e"/>
+                <stop offset="55%" stop-color="#d62976"/>
+                <stop offset="78%" stop-color="#962fbf"/>
+                <stop offset="100%" stop-color="#4f5bd5"/>
+              </linearGradient>
+            </defs>
             <circle class="ring-bg" cx="100" cy="100" r="86" />
-            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" />
+            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" stroke="url(#storyRing)" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
           </svg>
           <div class="gauge-copy">
             <p class="gauge-kicker">已戒</p>
@@ -525,14 +534,14 @@
         <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
         <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
         <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-        <p class="small muted app-version" id="appVersion">版本 v16</p>
+        <p class="small muted app-version" id="appVersion">版本 v17</p>
       </div>
       </div>
       </div>
     </section>
   </main>
 
-  <!-- 导航：移动端为底部悬浮胶囊 Tab 栏，桌面端（≥1024px）为左侧玻璃侧边栏 -->
+  <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
       <img src="icon.svg" alt="" class="side-logo" />
@@ -541,7 +550,7 @@
     <span class="tab-pill" aria-hidden="true"></span>
     <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
     <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
-    <button class="tab tab-sos" data-tab="sos" aria-label="急救" title="急救（快捷键 S）"><span class="sos-dot">SOS</span><span>急救</span></button>
+    <button class="tab tab-sos" data-tab="sos" aria-label="急救" title="急救（快捷键 S）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span><span class="sos-dot">SOS</span><span>急救</span></button>
     <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
     <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
     <div class="side-foot d-only">
@@ -651,7 +660,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=16"></script>
+<script src="config.js?v=17"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -660,9 +669,9 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=16"></script>
-<script src="app.js?v=16"></script>
-<script src="cloud.js?v=16"></script>
-<script src="admin.js?v=16"></script>
+<script src="data.js?v=17"></script>
+<script src="app.js?v=17"></script>
+<script src="cloud.js?v=17"></script>
+<script src="admin.js?v=17"></script>
 </body>
 </html>

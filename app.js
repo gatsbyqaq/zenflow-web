@@ -933,7 +933,7 @@
 
   /* ---------------- 外观（浅色 / 深色 / 跟随系统） ---------------- */
   var THEME_KEY = 'zenflow_theme';
-  var THEME_COLOR = { light: '#f4f1ea', dark: '#12110f' };
+  var THEME_COLOR = { light: '#fafafa', dark: '#000000' };
   var sysDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function getTheme() {
@@ -1090,7 +1090,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '16';
+  var APP_VERSION = '17';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
