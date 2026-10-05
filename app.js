@@ -557,9 +557,9 @@
     for (var g = 0; g <= 2; g++) { var gy = top + chartH * g / 2; svg += '<line x1="0" x2="' + W + '" y1="' + gy + '" y2="' + gy + '" class="grid" stroke-dasharray="3 4"/>'; }
     BUCKETS.forEach(function (b, i) {
       var cx = gw * i + gw / 2;
-      [[rb[i], '#ee8a7d', cx - bw - 2], [ub[i], '#4fbf9f', cx + 2]].forEach(function (bar) {
+      [[rb[i], 'bar-rel', cx - bw - 2], [ub[i], 'bar-urge', cx + 2]].forEach(function (bar) {
         var h = bar[0] / max * chartH, y = top + chartH - h;
-        svg += '<rect x="' + bar[2] + '" y="' + (bar[0] ? y : top + chartH - 2) + '" width="' + bw + '" height="' + (bar[0] ? h : 2) + '" rx="4" fill="' + bar[1] + '" opacity="' + (bar[0] ? 1 : .25) + '"/>';
+        svg += '<rect x="' + bar[2] + '" y="' + (bar[0] ? y : top + chartH - 2) + '" width="' + bw + '" height="' + (bar[0] ? h : 2) + '" rx="0" class="' + bar[1] + '" opacity="' + (bar[0] ? 1 : .28) + '"/>';
         if (bar[0]) svg += '<text x="' + (bar[2] + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" class="val">' + bar[0] + '</text>';
       });
       svg += '<text x="' + cx + '" y="' + (H - 22) + '" text-anchor="middle" font-size="12" class="lbl">' + b[0] + '</text>';
@@ -593,7 +593,7 @@
 
   /* ---------------- 外观（浅色 / 深色 / 跟随系统） ---------------- */
   var THEME_KEY = 'zenflow_theme';
-  var THEME_COLOR = { light: '#f0f2f7', dark: '#0c111d' };
+  var THEME_COLOR = { light: '#f4f1ea', dark: '#12110f' };
   var sysDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function getTheme() {
@@ -740,7 +740,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '14';
+  var APP_VERSION = '15';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
