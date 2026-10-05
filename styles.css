@@ -2,7 +2,7 @@
    ZenFlow · Liquid Glass 主题（iOS 26 风格）
    ========================================================= */
 :root{
-  --zf-css:"12"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
+  --zf-css:"13"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
   color-scheme:light dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro","PingFang SC","Hiragino Sans GB","Helvetica Neue","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
 
@@ -869,3 +869,17 @@ body.admin-open{overflow:hidden}
   .admin-tab{flex-direction:row;gap:8px;padding:10px 16px;font-size:14px}
   .admin-tab .ic{width:17px;height:17px}
 }
+
+/* ---- 登录门禁 / Google ---- */
+body.auth-gated{overflow:hidden}
+body.auth-gated #app > :not(#authMask):not(#modalMask){visibility:hidden;pointer-events:none}
+body.auth-gated #authMask{visibility:visible;pointer-events:auto;z-index:80}
+body.auth-gated .auth-close{display:none}
+body.auth-gated .auth-mask{align-items:center;background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none;padding:20px 16px}
+body.auth-gated .auth-sheet{max-width:420px;box-shadow:var(--hl),var(--depth-lg)}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--glass-strong);color:var(--text);font-weight:650;box-shadow:var(--hl),0 4px 14px rgba(38,56,110,.08);margin-bottom:4px}
+.btn-google .g-ic{width:18px;height:18px;flex-shrink:0}
+.btn-google:active{transform:scale(.97)}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:14px 0 4px;color:var(--muted);font-size:12px;font-weight:550}
+.auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--glass-line)}
+#formInviteGate .field{margin-top:12px}

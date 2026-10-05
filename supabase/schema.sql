@@ -362,3 +362,12 @@ grant execute on function public.admin_list_invites() to authenticated;
 grant execute on function public.admin_set_admin(uuid, boolean) to authenticated;
 grant execute on function public.admin_set_banned(uuid, boolean) to authenticated;
 grant execute on function public.admin_revoke_invite(text) to authenticated;
+
+
+-- OAuth invite gate (see migrations/20261005_oauth_invite_gate.sql)
+
+
+-- OAuth invite gate (see migrations/20261005_oauth_invite_gate.sql + user_data_invite_ok_rls)
+-- profiles.invite_ok: false until invite redeemed (email signup with invite_code sets true in handle_new_user)
+-- complete_invite_registration(p_code, p_display_name) for Google/pending users
+-- user_data RLS requires current_invite_ok()

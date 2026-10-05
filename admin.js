@@ -69,6 +69,7 @@
     var st = me();
     if (!st || !st.configured) { toast('尚未连接云端'); return; }
     if (!st.loggedIn) { toast('请先登录'); if (cloud().openAuth) cloud().openAuth('login'); return; }
+    if (st.gated || (st.inviteOk === false)) { toast('请先完成登录与邀请码'); return; }
     if (!st.profile || !st.profile.is_admin) { showDenied(); return; }
     if (!sb()) { toast('云端尚未就绪，请稍后再试'); return; }
     open = true;

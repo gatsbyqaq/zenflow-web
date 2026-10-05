@@ -124,3 +124,36 @@ select code, expires_at from public.create_invites(5, 0, '朋友');  -- 0 = 永�
 功能：总览统计、用户列表（设管理员 / 禁用登录）、邀请码（生成 / 复制 / 作废）、维护说明。
 
 相关 SQL：`migrations/20261005_admin_dashboard.sql`（`admin_stats`、`admin_list_users`、`admin_list_invites`、`admin_set_admin`、`admin_set_banned`、`admin_revoke_invite`）。全部为 `SECURITY DEFINER`，内部检查 `is_admin`，只授予 `authenticated` 执行权限。
+
+
+## Google 一键登录（需你在控制台完成密钥）
+
+Supabase MCP **无法**代填 Google Client Secret，请按下列步骤操作：
+
+### A. Google Cloud Console
+1. 打开 https://console.cloud.google.com/ → 创建/选择项目
+2. **APIs & Services → OAuth consent screen**：选 External，填应用名（ZenFlow）、支持邮箱
+3. **Credentials → Create Credentials → OAuth client ID** → 类型 **Web application**
+4. **Authorized JavaScript origins**
+   - `https://gatsbyqaq.github.io`
+   - （本地调试）`http://localhost:8765`
+5. **Authorized redirect URIs**（必须是 Supabase 回调，不是 Pages 地址）：
+   - `https://ordgebjytixmbwabpsrj.supabase.co/auth/v1/callback`
+6. 复制 **Client ID** 与 **Client Secret**
+
+### B. Supabase Dashboard
+1. **Authentication → Providers → Google** → Enable
+2. 粘贴 Client ID / Client Secret → Save
+3. **Authentication → URL Configuration**
+   - Site URL: `https://gatsbyqaq.github.io/zenflow-web/`
+   - Redirect URLs 另加：`https://gatsbyqaq.github.io/zenflow-web/`、`http://localhost:8765/`
+
+### C. 产品行为
+- 已配置 `config.js` 时：**未登录只能看到登录门禁**，不能使用主应用
+- Google 新用户：OAuth 成功后进入「输入邀请码完成注册」，调用 `complete_invite_registration`
+- 邮箱+邀请码注册路径不变（metadata 带 `invite_code`，触发器直接 `invite_ok=true`）
+- `config.js` 留空：仍为纯本机模式
+
+
+### 数据库门禁
+- `profiles.invite_ok`：未核销邀请码的账号（典型：Google 首次登录）不能进入主应用，也不能读写 `user_data`（RLS 调用 `current_invite_ok()`）。

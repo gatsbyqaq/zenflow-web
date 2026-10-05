@@ -4,8 +4,9 @@
  *   管理员生成邀请码，以及登录后的自动同步（拉取 → 合并 → 上传，最后写入者不会覆盖另一台设备的新增记录）。
  */
 (function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */
+  
   'use strict';
+  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') ic('layout-dashboard') */
   var Z = window.ZenFlowCore;
   if (!Z) return;
   var $ = function (id) { return document.getElementById(id); };
@@ -50,11 +51,15 @@
 
   /* ---------------- 状态 ---------------- */
   var sb = null, session = null, profile = null, invites = null;
+  var gateMode = 'none'; // none | login | invite
   var sync = { status: 'off', at: +localStorage.getItem(LAST_SYNC_KEY) || 0, error: '' };
   var syncing = false, pending = false, pushTimer = null, replaceAllPending = false;
   var loadError = '';
   function appUrl() { return location.origin + location.pathname; }
   function user() { return session && session.user; }
+  function inviteOk() { return !!(profile && profile.invite_ok); }
+  function needsInvite() { return !!(user() && profile && profile.invite_ok === false); }
+  function isGated() { return configured && (!user() || needsInvite()); }
 
   /* ---------------- 合并（纯函数，导出供测试） ---------------- */
   function stable(v) {
@@ -120,6 +125,8 @@
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络连接失败，请检查网络后重试';
     if (/NOT_ADMIN/.test(m)) return '只有管理员可以执行此操作';
+    if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
+    if (/provider is not enabled/i.test(m)) return 'Google 登录尚未启用，请在 Supabase Authentication → Providers 中配置';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
     if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
     if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
@@ -135,7 +142,7 @@
   }
   async function syncNow(opts) {
     opts = opts || {};
-    if (!sb || !user()) return;
+    if (!sb || !user() || needsInvite()) return;
     if (syncing) { pending = true; if (opts.replaceAll) replaceAllPending = true; return; }
     syncing = true; setSync('syncing');
     var replaceAll = opts.replaceAll || replaceAllPending; replaceAllPending = false;
@@ -170,8 +177,7 @@
   }
   function schedulePush(ms) {
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */ syncNow(); }, ms == null ? 1500 : ms);
+    pushTimer = setTimeout(function () { syncNow(); }, ms == null ? 1500 : ms);
   }
 
   /* ---------------- 顶部/侧边栏状态 ---------------- */
@@ -218,7 +224,7 @@
     var u = user();
     if (!u) {
       body.innerHTML =
-        '<p class="small">登录后，打卡、记录和理由会自动同步到你的账号，换手机或在电脑上也能继续。<b>不登录也能使用全部功能</b>，数据只保存在本机。</p>' +
+        '<p class="small">登录后即可使用 ZenFlow，打卡 / 记录 / 理由会自动同步。当前站点已启用云端，<b>需要登录</b>（邮箱或 Google；新用户需邀请码）。</p>' +
         '<div class="acct-actions"><button class="btn btn-primary" id="btnOpenLogin">' + ic('log-in') + '登录</button>' +
         '<button class="btn btn-ghost" id="btnOpenRegister">' + ic('ticket') + '邀请码注册</button></div>' +
         (cfg.source === 'local' ? '<p class="muted small acct-src">使用本机连接设置 · <button class="btn-link" id="btnCloudSetup">修改</button></p>' : '');
@@ -258,12 +264,14 @@
   }
   async function loadProfile() {
     profile = null; invites = null;
-    if (!user()) return;
-    var r = await sb.from('profiles').select('display_name,is_admin,created_at').eq('id', user().id).maybeSingle();
+    if (!user()) { updateGate(); return; }
+    var r = await sb.from('profiles').select('display_name,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
     if (!r.error) profile = r.data;
+    if (!profile) profile = { display_name: null, is_admin: false, invite_ok: false };
     renderAccount();
-    if (profile && profile.is_admin) loadInvites();
-    if (window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
+    updateGate();
+    if (inviteOk() && profile.is_admin) loadInvites();
+    if (inviteOk() && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
   }
   async function loadInvites() {
     var r = await sb.from('invites').select('code,used_at,expires_at,note,created_at').order('created_at', { ascending: false }).limit(30);
@@ -271,29 +279,79 @@
     var el = $('inviteList'); if (el) el.innerHTML = inviteListHtml();
   }
 
-  /* ---------------- 登录 / 注册面板 ---------------- */
+  /* ---------------- 登录 / 注册面板 / 门禁 ---------------- */
   var authMode = 'login';
   function openAuth(mode) {
     if (!configured) { openSetup(); return; }
     setAuthMode(mode || 'login');
     $('loginMsg').textContent = ''; $('regMsg').textContent = '';
     $('authMask').classList.remove('hidden');
-    Z.lockScroll();
+    if (!isGated()) Z.lockScroll();
     setTimeout(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */ (mode === 'register' ? $('regInvite') : $('loginEmail')).focus(); }, 60);
+      var focusEl = (authMode === 'register' ? $('regInvite') : $('loginEmail'));
+      if (focusEl) focusEl.focus();
+    }, 60);
   }
   function closeAuth() {
+    if (isGated()) return;
     if ($('authMask').classList.contains('hidden')) return;
     $('authMask').classList.add('hidden');
     Z.unlockScroll();
   }
   function setAuthMode(m) {
-    authMode = m;
-    document.querySelectorAll('#authSeg .seg-btn').forEach(function (b) { var on = b.dataset.auth === m; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
-    $('formLogin').classList.toggle('hidden', m !== 'login');
-    $('formRegister').classList.toggle('hidden', m !== 'register');
-    $('authTitle').textContent = m === 'login' ? '登录 ZenFlow' : '用邀请码注册';
-    $('authSub').textContent = m === 'login' ? '登录后可在手机和电脑之间同步数据。不登录也能使用全部功能。' : '注册需要一个有效的邀请码。注册成功后，本机已有的数据会自动同步到新账号。';
+    authMode = m === 'register' ? 'register' : 'login';
+    document.querySelectorAll('#authSeg .seg-btn').forEach(function (b) {
+      var on = b.dataset.auth === authMode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    $('formLogin').classList.toggle('hidden', authMode !== 'login');
+    $('formRegister').classList.toggle('hidden', authMode !== 'register');
+    $('authTitle').textContent = authMode === 'login' ? '登录 ZenFlow' : '用邀请码注册';
+    $('authSub').textContent = authMode === 'login'
+      ? '登录后即可使用全部功能，数据会安全同步到你的账号。'
+      : '注册需要有效邀请码。也可用 Google 登录后再补填邀请码。';
+  }
+  function showInviteGate() {
+    gateMode = 'invite';
+    document.body.classList.add('auth-gated');
+    $('authMask').classList.remove('hidden');
+    $('authSeg').classList.add('hidden');
+    if ($('authMainPane')) $('authMainPane').classList.add('hidden');
+    $('formInviteGate').classList.remove('hidden');
+    $('authTitle').textContent = '输入邀请码完成注册';
+    var email = (user() && user().email) || '';
+    $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
+    $('inviteGateHint').textContent = 'Google / 第三方登录成功。ZenFlow 仅限邀请制，请输入管理员发给你的邀请码。';
+    $('gateMsg').textContent = '';
+    setTimeout(function () { var el = $('gateInvite'); if (el) el.focus(); }, 60);
+  }
+  function showLoginGate() {
+    gateMode = 'login';
+    document.body.classList.add('auth-gated');
+    $('authMask').classList.remove('hidden');
+    $('authSeg').classList.remove('hidden');
+    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
+    $('formInviteGate').classList.add('hidden');
+    setAuthMode(authMode === 'register' ? 'register' : 'login');
+  }
+  function clearGate() {
+    gateMode = 'none';
+    document.body.classList.remove('auth-gated');
+    $('formInviteGate').classList.add('hidden');
+    $('authSeg').classList.remove('hidden');
+    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
+    if (!isGated()) {
+      $('authMask').classList.add('hidden');
+      Z.unlockScroll();
+    }
+  }
+  function updateGate() {
+    if (!configured) { clearGate(); return; }
+    if (!user()) { showLoginGate(); return; }
+    if (!profile) return;
+    if (profile.invite_ok) { clearGate(); return; }
+    showInviteGate();
   }
   function msg(id, text, ok) { var el = $(id); el.textContent = text || ''; el.classList.toggle('ok', !!ok); }
   function busy(btn, on, label) {
@@ -319,6 +377,58 @@
     return !!r.data;
   }
 
+  async function checkGateInvite() {
+    var code = normInvite($('gateInvite').value), el = $('gateInviteState');
+    el.className = 'invite-state'; el.innerHTML = '';
+    if (!code || !sb) return null;
+    if (!/^[A-Z0-9-]{6,32}$/.test(code)) { el.className = 'invite-state bad'; el.innerHTML = ic('circle-alert') + '格式不对'; return false; }
+    el.innerHTML = ic('loader-circle', 'spin');
+    var r = await sb.rpc('validate_invite', { p_code: code });
+    if (r.error) { el.innerHTML = ''; return null; }
+    el.className = 'invite-state ' + (r.data ? 'good' : 'bad');
+    el.innerHTML = r.data ? ic('circle-check') + '可用' : ic('circle-alert') + '无效或已使用';
+    return !!r.data;
+  }
+
+  async function doGoogle() {
+    if (!sb) return;
+    var btn = $('btnGoogle'); busy(btn, true, '正在跳转…'); msg('loginMsg', ''); msg('regMsg', '');
+    try {
+      var r = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: appUrl(), queryParams: { access_type: 'online', prompt: 'select_account' } }
+      });
+      if (r.error) throw r.error;
+    } catch (err) {
+      var msgText = cn(err);
+      if (/provider is not enabled|Unsupported provider|validation_failed/i.test(String(err && err.message))) {
+        msgText = 'Google 登录尚未在 Supabase 中启用。请到 Authentication → Providers → Google 填入 Client ID/Secret（见 supabase/README.md）。';
+      }
+      msg(authMode === 'register' ? 'regMsg' : 'loginMsg', msgText);
+      busy(btn, false);
+    }
+  }
+
+  async function doCompleteInvite(e) {
+    e.preventDefault();
+    var code = normInvite($('gateInvite').value), name = $('gateName').value.trim();
+    if (!code) return msg('gateMsg', '请输入邀请码');
+    var btn = $('btnCompleteInvite'); busy(btn, true, '验证中…'); msg('gateMsg', '');
+    try {
+      var valid = await checkGateInvite();
+      if (valid === false) throw new Error('INVITE_INVALID');
+      var r = await sb.rpc('complete_invite_registration', { p_code: code, p_display_name: name || null });
+      if (r.error) throw r.error;
+      profile = r.data;
+      Z.toast('注册完成，欢迎加入');
+      updateGate();
+      renderAccount();
+      syncNow();
+      if (profile && profile.is_admin && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
+    } catch (err) { msg('gateMsg', cn(err)); }
+    finally { busy(btn, false); }
+  }
+
   async function doLogin(e) {
     e.preventDefault();
     var email = $('loginEmail').value.trim(), pw = $('loginPassword').value;
@@ -329,7 +439,7 @@
       var r = await sb.auth.signInWithPassword({ email: email, password: pw });
       if (r.error) throw r.error;
       $('loginPassword').value = '';
-      closeAuth(); Z.toast('登录成功，正在同步');
+      Z.toast('登录成功');
     } catch (err) { msg('loginMsg', cn(err)); }
     finally { busy(btn, false); }
   }
@@ -348,7 +458,7 @@
       var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null }, emailRedirectTo: appUrl() } });
       if (r.error) throw r.error;
       $('regPassword').value = ''; $('regPassword2').value = '';
-      if (r.data && r.data.session) { closeAuth(); Z.toast('注册成功，欢迎加入'); }
+      if (r.data && r.data.session) { Z.toast('注册成功，欢迎加入'); }
       else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '这个邮箱已经注册过了，请直接登录');
       else msg('regMsg', '注册成功！确认邮件已发送到 ' + email + '，点击邮件中的链接后即可登录。', true);
     } catch (err) { msg('regMsg', cn(err)); }
@@ -441,33 +551,45 @@
     if (t.dataset.copy) {
       var code = t.dataset.copy;
       (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject()).then(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */ Z.toast('已复制 ' + code); }, function () { Z.toast('邀请码：' + code); });
+  Z.toast('已复制 ' + code); }, function () { Z.toast('邀请码：' + code); });
     }
   });
   $('authClose').addEventListener('click', closeAuth);
-  $('authMask').addEventListener('click', function (e) { if (e.target === this) closeAuth(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('authMask').classList.contains('hidden') && $('modalMask').classList.contains('hidden')) closeAuth(); });
+  $('authMask').addEventListener('click', function (e) { if (e.target === this && !isGated()) closeAuth(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('authMask').classList.contains('hidden') && $('modalMask').classList.contains('hidden') && !isGated()) closeAuth();
+  });
   $('authSeg').addEventListener('click', function (e) { var b = e.target.closest('.seg-btn'); if (b) { setAuthMode(b.dataset.auth); msg('loginMsg', ''); msg('regMsg', ''); } });
   $('formLogin').addEventListener('submit', doLogin);
   $('formRegister').addEventListener('submit', doRegister);
+  $('formInviteGate').addEventListener('submit', doCompleteInvite);
   $('btnForgot').addEventListener('click', doForgot);
+  $('btnGoogle').addEventListener('click', doGoogle);
+  $('btnGateLogout').addEventListener('click', function () {
+    clearTimeout(pushTimer);
+    sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); });
+  });
   $('regInvite').addEventListener('blur', checkInvite);
   $('regInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('inviteState').innerHTML = ''; $('inviteState').className = 'invite-state'; });
+  $('gateInvite').addEventListener('blur', checkGateInvite);
+  $('gateInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('gateInviteState').innerHTML = ''; $('gateInviteState').className = 'invite-state'; });
 
   /* ---------------- 启动 ---------------- */
   window.ZFCloud = {
     merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
     userId: function () { return user() && user().id; },
-    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile }; },
-    onLocalChange: function (replaceAll) { if (!user()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
+    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated() }; },
+    onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; }
   };
   renderChrome(); renderAccount();
   if (!configured) return;
+  // 已配置则先盖住主界面，避免 session 解析前闪一下
+  document.body.classList.add('auth-gated'); // boot
+
 
   loadLib().then(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */
     sb = window.supabase.createClient(cfg.url, cfg.key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'zenflow_auth', flowType: 'implicit' }
     });
@@ -475,18 +597,24 @@
       var prev = user() && user().id;
       session = s;
       if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
-      if (event === 'SIGNED_OUT' || !s) { profile = null; invites = null; setSync('off'); renderAccount(); Z.toast && event === 'SIGNED_OUT' && Z.toast('已退出登录，数据仍保留在本机'); return; }
-      if (prev !== s.user.id || event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (event === 'SIGNED_OUT' || !s) {
+        profile = null; invites = null; setSync('off');
+        renderAccount(); updateGate();
+        if (event === 'SIGNED_OUT') Z.toast && Z.toast('已退出登录');
+        return;
+      }
+      if (prev !== s.user.id || event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
         renderAccount();
-        // 回调里不能直接 await Supabase 请求（会与 auth 锁死锁），放到下一轮
-        setTimeout(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */ loadProfile(); syncNow(); }, 0);
+        setTimeout(function () { loadProfile().then(function () { if (inviteOk()) syncNow(); }); }, 0);
       }
     });
-    sb.auth.getSession().then(function (r) { if (!r.data.session) renderAccount(); });
+    updateGate();
+    sb.auth.getSession().then(function (r) {
+      session = r.data.session;
+      if (!r.data.session) { renderAccount(); updateGate(); }
+    });
     window.addEventListener('online', function () { if (user()) syncNow(); });
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && user() && Date.now() - sync.at > 60000) syncNow(); });
-    setInterval(function () {
-  /* icons: ic('cloud-check') ic('cloud-off') ic('circle-alert') ic('refresh-cw') ic('loader-circle') ic('copy') ic('log-out') ic('plug') ic('circle-check') ic('ticket') ic('user-plus') ic('log-in') ic('pen-line') ic('shield') */ if (user() && sync.status === 'error') syncNow(); }, 60000);
+    setInterval(function () { if (user() && sync.status === 'error') syncNow(); }, 60000);
   }).catch(function (e) { loadError = e.message; renderAccount(); });
 })();

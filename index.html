@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
 <!-- ICONS:START  Lucide icons (ISC License, https://lucide.dev) — see LICENSE-icons -->
@@ -458,7 +458,7 @@
 
       <div class="card">
         <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私说明</h2>
-        <p class="small"><b>未登录时</b>，所有数据（打卡、记录、理由等）只保存在这台设备的浏览器本地存储（localStorage）中，不会上传到任何服务器，也没有统计追踪。清除浏览器数据会删除这些记录，建议定期导出备份。</p>
+        <p class="small">在未连接云端（本机模式）时，数据只保存在这台设备的 localStorage。启用云端后需要登录才能使用；登录后的数据经 HTTPS 同步到你的账号。</p>
         <p class="small"><b>登录后（可选）</b>，数据会通过 HTTPS 同步到 ZenFlow 的 Supabase 数据库，数据库的行级安全策略保证只有你本人能读取和修改自己的数据。注册仅限邀请码。</p>
       </div>
       </div>
@@ -486,7 +486,7 @@
         <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
         <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
         <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-        <p class="small muted app-version" id="appVersion">版本 v12</p>
+        <p class="small muted app-version" id="appVersion">版本 v13</p>
       </div>
       </div>
       </div>
@@ -550,34 +550,51 @@
       <div class="auth-brand">
         <img src="icon.svg" alt="" class="auth-logo" />
         <h2 id="authTitle">登录 ZenFlow</h2>
-        <p class="muted small" id="authSub">登录后可在手机和电脑之间同步数据。不登录也能使用全部功能。</p>
+        <p class="muted small" id="authSub">登录后即可使用全部功能，数据会安全同步到你的账号。</p>
       </div>
       <div class="seg auth-seg" id="authSeg" role="tablist" aria-label="登录或注册">
         <button class="seg-btn active" type="button" role="tab" data-auth="login" aria-selected="true"><svg class="ic" aria-hidden="true"><use href="#i-log-in"/></svg>登录</button>
         <button class="seg-btn" type="button" role="tab" data-auth="register" aria-selected="false"><svg class="ic" aria-hidden="true"><use href="#i-ticket"/></svg>邀请码注册</button>
       </div>
 
-      <form class="auth-form" id="formLogin" novalidate>
-        <label class="field"><span>邮箱</span><input type="email" id="loginEmail" autocomplete="username" inputmode="email" placeholder="you@example.com" /></label>
-        <label class="field"><span>密码</span><input type="password" id="loginPassword" autocomplete="current-password" placeholder="至少 8 位" /></label>
-        <p class="auth-msg" id="loginMsg" role="alert"></p>
-        <button class="btn btn-primary btn-block" type="submit" id="btnLogin"><svg class="ic" aria-hidden="true"><use href="#i-log-in"/></svg>登录</button>
-        <button class="btn-link center-block" type="button" id="btnForgot">忘记密码？</button>
+      <div id="authMainPane">
+        <button class="btn btn-google btn-block" type="button" id="btnGoogle"><svg class="g-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.71z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg><span>使用 Google 账号继续</span></button>
+        <div class="auth-divider" id="authDivider" role="separator"><span>或使用邮箱</span></div>
+
+        <form class="auth-form" id="formLogin" novalidate>
+          <label class="field"><span>邮箱</span><input type="email" id="loginEmail" autocomplete="username" inputmode="email" placeholder="you@example.com" /></label>
+          <label class="field"><span>密码</span><input type="password" id="loginPassword" autocomplete="current-password" placeholder="至少 8 位" /></label>
+          <p class="auth-msg" id="loginMsg" role="alert"></p>
+          <button class="btn btn-primary btn-block" type="submit" id="btnLogin"><svg class="ic" aria-hidden="true"><use href="#i-log-in"/></svg>登录</button>
+          <button class="btn-link center-block" type="button" id="btnForgot">忘记密码？</button>
+        </form>
+
+        <form class="auth-form hidden" id="formRegister" novalidate>
+          <label class="field"><span>邀请码</span>
+            <span class="invite-row"><input type="text" id="regInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="inviteState" aria-live="polite"></span></span>
+          </label>
+          <label class="field"><span>昵称（可选）</span><input type="text" id="regName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你" /></label>
+          <label class="field"><span>邮箱</span><input type="email" id="regEmail" autocomplete="username" inputmode="email" placeholder="you@example.com" /></label>
+          <label class="field"><span>密码（至少 8 位）</span><input type="password" id="regPassword" autocomplete="new-password" /></label>
+          <label class="field"><span>确认密码</span><input type="password" id="regPassword2" autocomplete="new-password" /></label>
+          <p class="auth-msg" id="regMsg" role="alert"></p>
+          <button class="btn btn-primary btn-block" type="submit" id="btnRegister"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>注册</button>
+          <p class="muted small center auth-note">ZenFlow 仅限邀请注册。也可用上方 Google 登录，再补填邀请码。</p>
+        </form>
+      </div>
+
+      <form class="auth-form hidden" id="formInviteGate" novalidate>
+        <p class="small" id="inviteGateHint">你已用第三方账号登录。请输入邀请码以完成注册并进入应用。</p>
+        <label class="field"><span>邀请码</span>
+          <span class="invite-row"><input type="text" id="gateInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="gateInviteState" aria-live="polite"></span></span>
+        </label>
+        <label class="field"><span>昵称（可选）</span><input type="text" id="gateName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你" /></label>
+        <p class="auth-msg" id="gateMsg" role="alert"></p>
+        <button class="btn btn-primary btn-block" type="submit" id="btnCompleteInvite"><svg class="ic" aria-hidden="true"><use href="#i-ticket"/></svg>完成注册</button>
+        <button class="btn-link center-block muted" type="button" id="btnGateLogout">换一个账号</button>
       </form>
 
-      <form class="auth-form hidden" id="formRegister" novalidate>
-        <label class="field"><span>邀请码</span>
-          <span class="invite-row"><input type="text" id="regInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="inviteState" aria-live="polite"></span></span>
-        </label>
-        <label class="field"><span>昵称（可选）</span><input type="text" id="regName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你" /></label>
-        <label class="field"><span>邮箱</span><input type="email" id="regEmail" autocomplete="username" inputmode="email" placeholder="you@example.com" /></label>
-        <label class="field"><span>密码（至少 8 位）</span><input type="password" id="regPassword" autocomplete="new-password" /></label>
-        <label class="field"><span>确认密码</span><input type="password" id="regPassword2" autocomplete="new-password" /></label>
-        <p class="auth-msg" id="regMsg" role="alert"></p>
-        <button class="btn btn-primary btn-block" type="submit" id="btnRegister"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>注册</button>
-        <p class="muted small center auth-note">ZenFlow 目前仅限邀请注册，每个邀请码只能使用一次。</p>
-      </form>
-      <p class="auth-foot muted small"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>密码由 Supabase Auth 加密保存，ZenFlow 无法看到。</p>
+      <p class="auth-foot muted small"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>密码与第三方登录由 Supabase Auth 加密处理，ZenFlow 无法看到。</p>
     </div>
   </div>
 
@@ -595,10 +612,10 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=12"></script>
-<script src="data.js?v=12"></script>
-<script src="app.js?v=12"></script>
-<script src="cloud.js?v=12"></script>
-<script src="admin.js?v=12"></script>
+<script src="config.js?v=13"></script>
+<script src="data.js?v=13"></script>
+<script src="app.js?v=13"></script>
+<script src="cloud.js?v=13"></script>
+<script src="admin.js?v=13"></script>
 </body>
 </html>
