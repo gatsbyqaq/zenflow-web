@@ -2,6 +2,7 @@
    ZenFlow · Liquid Glass 主题（iOS 26 风格）
    ========================================================= */
 :root{
+  --zf-css:"9"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
   color-scheme:light dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro","PingFang SC","Hiragino Sans GB","Helvetica Neue","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
 
@@ -735,6 +736,8 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible{outline:2px solid var
   .btn-ghost:hover,.icon-btn:hover{background:var(--primary-tint)}
   .seg-btn:not(.active):hover{color:var(--text)}
 }
+
+.app-version{font-variant-numeric:tabular-nums;font-size:12px;margin-top:8px}
 
 /* ---------- 不支持 backdrop-filter 时的降级 ---------- */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){

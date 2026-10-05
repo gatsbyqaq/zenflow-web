@@ -718,11 +718,25 @@
     document.head.appendChild(link);
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('SW 注册失败', e); });
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function (e) { console.warn('SW 注册失败', e); });
       });
     }
   }
 
+  /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
+  var APP_VERSION = '9';
+  var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
+  function renderVersion() {
+    var el = $('appVersion'); if (!el) return;
+    var cssV = (getComputedStyle(document.documentElement).getPropertyValue('--zf-css') || '').replace(/["'\s]/g, '');
+    var layout = getComputedStyle($('tabbar')).position === 'sticky' ? '桌面布局' : '手机布局';
+    el.textContent = '版本 v' + APP_VERSION + ' · 样式 ' + (cssV ? 'v' + cssV : '未知') + (cssV && cssV !== APP_VERSION ? '（样式为旧版本，请强制刷新）' : '') +
+      ' · ' + layout + ' · 窗口宽度 ' + window.innerWidth + 'px';
+  }
+  renderVersion();
+  window.addEventListener('resize', function () { clearTimeout(renderVersion._t); renderVersion._t = setTimeout(renderVersion, 150); });
+  if (DESKTOP_MQ) { if (DESKTOP_MQ.addEventListener) DESKTOP_MQ.addEventListener('change', renderVersion); else if (DESKTOP_MQ.addListener) DESKTOP_MQ.addListener(renderVersion); }
+
   // 便于测试
-  window.ZenFlow = { go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme };
+  window.ZenFlow = { version: APP_VERSION, go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme };
 })();
