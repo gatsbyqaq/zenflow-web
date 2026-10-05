@@ -736,6 +736,9 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-weight:700;font-size:16px;color:var(--text);background:var(--field);border:none;flex-shrink:0;overflow:hidden;
 }
+.avatar.side-avatar{
+  width:36px;height:36px;padding:2px;background:var(--story);overflow:hidden;
+}
 .acct-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .acct-id b{font-size:15px;font-weight:700}
 .admin-tag{display:inline-block;align-self:flex-start;font-size:11px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,var(--card));border-radius:999px;padding:2px 8px;margin-top:2px}
