@@ -51,7 +51,9 @@
 
   /* ---------------- 状态 ---------------- */
   var sb = null, session = null, profile = null, invites = null;
-  var gateMode = 'none'; // none | login | invite
+  var gateMode = 'none'; // none | boot | login | invite
+  var authReady = false; // getSession 已确认
+  var profileReady = false; // 有 session 时 profile/invite_ok 已解析
   var sync = { status: 'off', at: +localStorage.getItem(LAST_SYNC_KEY) || 0, error: '' };
   var syncing = false, pending = false, pushTimer = null, replaceAllPending = false;
   var loadError = '';
@@ -104,7 +106,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=10'; s.async = true;
+      s.src = 'vendor/supabase.js?v=14'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -263,11 +265,12 @@
     }).join('') + '</ul>';
   }
   async function loadProfile() {
-    profile = null; invites = null;
-    if (!user()) { updateGate(); return; }
+    profile = null; invites = null; profileReady = false;
+    if (!user()) { profileReady = true; updateGate(); return; }
     var r = await sb.from('profiles').select('display_name,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
     if (!r.error) profile = r.data;
     if (!profile) profile = { display_name: null, is_admin: false, invite_ok: false };
+    profileReady = true;
     renderAccount();
     updateGate();
     if (inviteOk() && profile.is_admin) loadInvites();
@@ -312,9 +315,38 @@
       ? '登录后即可使用全部功能，数据会安全同步到你的账号。'
       : '注册需要有效邀请码。也可用 Google 登录后再补填邀请码。';
   }
+  function peekPersistedSession() {
+    try {
+      var raw = localStorage.getItem('zenflow_auth');
+      if (!raw) return null;
+      var o = JSON.parse(raw);
+      if (!o) return null;
+      // supabase-js v2：整段 session，或 { currentSession }
+      var s = o.access_token ? o : (o.currentSession || o.session || null);
+      if (s && s.access_token && s.user) return s;
+      return null;
+    } catch (e) { return null; }
+  }
+  function setBootText(t) {
+    var el = $('authBootText');
+    if (el) el.textContent = t || '正在恢复登录…';
+  }
+  function showBootSplash(text) {
+    gateMode = 'boot';
+    document.body.classList.add('auth-booting');
+    document.body.classList.remove('auth-gated');
+    document.body.classList.remove('auth-ready');
+    setBootText(text || (peekPersistedSession() ? '正在恢复登录…' : '正在加载…'));
+    if ($('authMask') && !$('authMask').classList.contains('hidden')) {
+      // 启动闪屏期间不要露出登录表单
+      $('authMask').classList.add('hidden');
+    }
+  }
   function showInviteGate() {
     gateMode = 'invite';
+    document.body.classList.remove('auth-booting');
     document.body.classList.add('auth-gated');
+    document.body.classList.add('auth-ready');
     $('authMask').classList.remove('hidden');
     $('authSeg').classList.add('hidden');
     if ($('authMainPane')) $('authMainPane').classList.add('hidden');
@@ -328,7 +360,9 @@
   }
   function showLoginGate() {
     gateMode = 'login';
+    document.body.classList.remove('auth-booting');
     document.body.classList.add('auth-gated');
+    document.body.classList.add('auth-ready');
     $('authMask').classList.remove('hidden');
     $('authSeg').classList.remove('hidden');
     if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
@@ -337,19 +371,38 @@
   }
   function clearGate() {
     gateMode = 'none';
+    document.body.classList.remove('auth-booting');
     document.body.classList.remove('auth-gated');
+    document.body.classList.add('auth-ready');
     $('formInviteGate').classList.add('hidden');
     $('authSeg').classList.remove('hidden');
     if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
-    if (!isGated()) {
+    if ($('authMask') && !$('authMask').classList.contains('hidden') && !isGated()) {
       $('authMask').classList.add('hidden');
       Z.unlockScroll();
     }
   }
   function updateGate() {
-    if (!configured) { clearGate(); return; }
-    if (!user()) { showLoginGate(); return; }
-    if (!profile) return;
+    if (!configured) {
+      authReady = true; profileReady = true;
+      clearGate();
+      return;
+    }
+    // 会话尚未确认：只显示启动闪屏，绝不露出登录表单
+    if (!authReady) {
+      showBootSplash();
+      return;
+    }
+    if (!user()) {
+      profileReady = true;
+      showLoginGate();
+      return;
+    }
+    // 已登录但 invite_ok 未解析：继续闪屏，避免先闪登录再进主界面
+    if (!profileReady || !profile) {
+      showBootSplash('正在进入…');
+      return;
+    }
     if (profile.invite_ok) { clearGate(); return; }
     showInviteGate();
   }
@@ -579,42 +632,84 @@
     merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
     userId: function () { return user() && user().id; },
-    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated() }; },
+    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; }
   };
   renderChrome(); renderAccount();
-  if (!configured) return;
-  // 已配置则先盖住主界面，避免 session 解析前闪一下
-  document.body.classList.add('auth-gated'); // boot
+  if (!configured) {
+    authReady = true; profileReady = true;
+    document.body.classList.remove('auth-booting');
+    document.body.classList.add('auth-ready');
+    return;
+  }
+  // 云端已配置：启动闪屏（非登录表单），直到 getSession + invite_ok 解析完成
+  showBootSplash();
+  // 若 localStorage 已有会话，优先进入「恢复登录」文案；无会话也不提前亮登录门
+  var peeked = peekPersistedSession();
+  if (peeked) setBootText('正在恢复登录…');
 
+  var sessionResolved = false;
+  function markSession(s, from) {
+    // getSession 与 INITIAL_SESSION 可能先后到达；只采纳第一次，避免闪屏被登录门打断或重复拉 profile
+    if (sessionResolved) return;
+    sessionResolved = true;
+    authReady = true;
+    session = s || null;
+    if (!session) {
+      profile = null; profileReady = true; invites = null; setSync('off');
+      renderAccount(); updateGate();
+      return;
+    }
+    profileReady = false;
+    renderAccount();
+    updateGate();
+    loadProfile().then(function () { if (inviteOk()) syncNow(); });
+  }
 
   loadLib().then(function () {
     sb = window.supabase.createClient(cfg.url, cfg.key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'zenflow_auth', flowType: 'implicit' }
     });
     sb.auth.onAuthStateChange(function (event, s) {
-      var prev = user() && user().id;
-      session = s;
       if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
-      if (event === 'SIGNED_OUT' || !s) {
-        profile = null; invites = null; setSync('off');
-        renderAccount(); updateGate();
-        if (event === 'SIGNED_OUT') Z.toast && Z.toast('已退出登录');
+      if (event === 'SIGNED_OUT') {
+        session = null; profile = null; invites = null; profileReady = true; authReady = true;
+        setSync('off'); renderAccount(); updateGate();
+        Z.toast && Z.toast('已退出登录');
         return;
       }
-      if (prev !== s.user.id || event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-        renderAccount();
-        setTimeout(function () { loadProfile().then(function () { if (inviteOk()) syncNow(); }); }, 0);
+      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED
+      if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+        markSession(s, event);
+        return;
+      }
+      if (sessionResolved && s && s.user) {
+        var prev = user() && user().id;
+        session = s;
+        if (prev !== s.user.id || event === 'SIGNED_IN') {
+          profileReady = false;
+          renderAccount(); updateGate();
+          loadProfile().then(function () { if (inviteOk()) syncNow(); });
+        } else if (event === 'TOKEN_REFRESHED') {
+          session = s;
+        }
+      } else if (sessionResolved && !s) {
+        markSession(null, event);
       }
     });
-    updateGate();
+    // 与 onAuthStateChange 并行：尽快确认会话（避免只等 INITIAL_SESSION）
     sb.auth.getSession().then(function (r) {
-      session = r.data.session;
-      if (!r.data.session) { renderAccount(); updateGate(); }
+      if (sessionResolved) return;
+      markSession(r.data && r.data.session, 'getSession');
+    }).catch(function () {
+      if (sessionResolved) return;
+      markSession(null, 'getSession-error');
     });
     window.addEventListener('online', function () { if (user()) syncNow(); });
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && user() && Date.now() - sync.at > 60000) syncNow(); });
     setInterval(function () { if (user() && sync.status === 'error') syncNow(); }, 60000);
-  }).catch(function (e) { loadError = e.message; renderAccount(); });
+  }).catch(function (e) {
+    loadError = e.message; authReady = true; profileReady = true; renderAccount(); updateGate();
+  });
 })();

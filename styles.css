@@ -2,7 +2,7 @@
    ZenFlow · Liquid Glass 主题（iOS 26 风格）
    ========================================================= */
 :root{
-  --zf-css:"13"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
+  --zf-css:"14"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
   color-scheme:light dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro","PingFang SC","Hiragino Sans GB","Helvetica Neue","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
 
@@ -870,13 +870,22 @@ body.admin-open{overflow:hidden}
   .admin-tab .ic{width:17px;height:17px}
 }
 
-/* ---- 登录门禁 / Google ---- */
+/* ---- 登录门禁 / Google / 启动闪屏 ---- */
+body.auth-booting{overflow:hidden}
+body.auth-booting #app > :not(#authBoot){visibility:hidden;pointer-events:none}
+body.auth-booting #authBoot{display:flex;visibility:visible;pointer-events:auto}
+#authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg);color:var(--muted)}
+#authBoot .auth-boot-logo{width:56px;height:56px;border-radius:16px;box-shadow:var(--hl),var(--depth)}
+#authBoot .auth-boot-spin{width:22px;height:22px;border:2.5px solid color-mix(in srgb, var(--accent) 25%, transparent);border-top-color:var(--accent);border-radius:50%;animation:zf-boot-spin .7s linear infinite}
+@keyframes zf-boot-spin{to{transform:rotate(360deg)}}
 body.auth-gated{overflow:hidden}
-body.auth-gated #app > :not(#authMask):not(#modalMask){visibility:hidden;pointer-events:none}
+body.auth-gated #app > :not(#authMask):not(#modalMask):not(#authBoot){visibility:hidden;pointer-events:none}
 body.auth-gated #authMask{visibility:visible;pointer-events:auto;z-index:80}
+body.auth-gated #authBoot{display:none!important}
 body.auth-gated .auth-close{display:none}
 body.auth-gated .auth-mask{align-items:center;background:var(--bg);-webkit-backdrop-filter:none;backdrop-filter:none;padding:20px 16px}
 body.auth-gated .auth-sheet{max-width:420px;box-shadow:var(--hl),var(--depth-lg)}
+body.auth-ready #authBoot{display:none!important}
 .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--glass-strong);color:var(--text);font-weight:650;box-shadow:var(--hl),0 4px 14px rgba(38,56,110,.08);margin-bottom:4px}
 .btn-google .g-ic{width:18px;height:18px;flex-shrink:0}
 .btn-google:active{transform:scale(.97)}

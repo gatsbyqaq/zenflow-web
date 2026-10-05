@@ -31,7 +31,16 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
+  <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
+  body.auth-booting{overflow:hidden;background:var(--bg,#f0f2f7)}
+  body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
+  #authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg,#f0f2f7);color:var(--muted,#6b728a)}
+  body.auth-booting #authBoot{display:flex}
+  #authBoot .auth-boot-logo{width:56px;height:56px;border-radius:16px;box-shadow:0 8px 24px rgba(38,56,110,.12)}
+  #authBoot .auth-boot-spin{width:22px;height:22px;border:2.5px solid rgba(80,110,200,.22);border-top-color:#4f6ef2;border-radius:50%;animation:zf-boot-spin .7s linear infinite}
+  @keyframes zf-boot-spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
 <!-- ICONS:START  Lucide icons (ISC License, https://lucide.dev) — see LICENSE-icons -->
@@ -130,6 +139,11 @@
 </svg>
 <!-- ICONS:END -->
 <div id="app" class="app">
+  <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
+    <img src="icon.svg" alt="" class="auth-boot-logo" width="56" height="56" />
+    <div class="auth-boot-spin" aria-hidden="true"></div>
+    <p class="muted small" id="authBootText">正在恢复登录…</p>
+  </div>
   <!-- 顶/底边缘：与页面背景完全相同的纯色层（内容滚到边缘时渐隐），保证 Safari 采样到的边缘颜色始终是主题背景色 -->
   <div class="edge edge-top" aria-hidden="true"></div>
   <div class="edge edge-bottom" aria-hidden="true"></div>
@@ -612,10 +626,18 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=13"></script>
-<script src="data.js?v=13"></script>
-<script src="app.js?v=13"></script>
-<script src="cloud.js?v=13"></script>
-<script src="admin.js?v=13"></script>
+<script src="config.js?v=14"></script>
+<script id="auth-boot-early">
+(function () {
+  try {
+    var c = window.ZENFLOW_CONFIG || {};
+    if (c.supabaseUrl && c.supabaseAnonKey) document.body.classList.add('auth-booting');
+  } catch (e) {}
+})();
+</script>
+<script src="data.js?v=14"></script>
+<script src="app.js?v=14"></script>
+<script src="cloud.js?v=14"></script>
+<script src="admin.js?v=14"></script>
 </body>
 </html>
