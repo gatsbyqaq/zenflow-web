@@ -170,7 +170,7 @@
   document.addEventListener('keydown', function (e) {
     var modalOpen = !$('modalMask').classList.contains('hidden');
     if (e.key === 'Escape') { if (modalOpen) { e.preventDefault(); closeModal(); } return; }
-    if (modalOpen || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    if (modalOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     var map = { '1': 'home', '2': 'log', '3': 'stats', '4': 'settings', 's': 'sos', 'S': 'sos' };
@@ -740,7 +740,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '10';
+  var APP_VERSION = '12';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

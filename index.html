@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
 <!-- ICONS:START  Lucide icons (ISC License, https://lucide.dev) — see LICENSE-icons -->
@@ -40,6 +40,7 @@
 <symbol id="i-annoyed" viewBox="0 0 24 24"><path d="M14 10h2"/><path d="M8 10h2"/><path d="M8 16h8"/><circle cx="12" cy="12" r="10"/></symbol>
 <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 6.528V3a1 1 0 0 1 1-1h0"/><path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21"/></symbol>
 <symbol id="i-arrow-down-up" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
 <symbol id="i-award" viewBox="0 0 24 24"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></symbol>
 <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></symbol>
 <symbol id="i-brush-cleaning" viewBox="0 0 24 24"><path d="m16 22-1-4"/><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"/><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"/><path d="m8 22 1-4"/></symbol>
@@ -77,6 +78,7 @@
 <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
 <symbol id="i-laugh" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M7.084 14.302a5.12 5.12 0 009.833 0 .24.24 0 00-.235-.302H7.32a.24.24 0 00-.235.302"/><path d="M9 10V9"/><circle cx="12" cy="12" r="10"/></symbol>
+<symbol id="i-layout-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
 <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20"/><path d="M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13"/></symbol>
 <symbol id="i-life-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></symbol>
 <symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></symbol>
@@ -122,6 +124,7 @@
 <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
 <symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 12q2.5 2 5 0t5 0 5 0 5 0"/><path d="M2 19q2.5 2 5 0t5 0 5 0 5 0"/><path d="M2 5q2.5 2 5 0t5 0 5 0 5 0"/></symbol>
 <symbol id="i-wind" viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
 <symbol id="i-zap" viewBox="0 0 24 24"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/></symbol>
 </svg>
@@ -483,7 +486,7 @@
         <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
         <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
         <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-        <p class="small muted app-version" id="appVersion">版本 v10</p>
+        <p class="small muted app-version" id="appVersion">版本 v12</p>
       </div>
       </div>
       </div>
@@ -513,6 +516,32 @@
       <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换 · <kbd>S</kbd> 急救</p>
     </div>
   </nav>
+
+  <!-- 管理后台（仅 is_admin；非管理员会被拒） -->
+  <div class="admin-root hidden" id="adminRoot" role="dialog" aria-modal="true" aria-labelledby="adminTitle" hidden>
+    <div class="admin-shell">
+      <header class="admin-top">
+        <button class="icon-btn" type="button" id="adminBack" aria-label="返回应用"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg></button>
+        <div class="admin-brand">
+          <svg class="ic tint-amber" aria-hidden="true"><use href="#i-layout-dashboard"/></svg>
+          <div><h1 id="adminTitle">管理后台</h1><p class="muted small" id="adminSub">仅管理员可见</p></div>
+        </div>
+        <button class="icon-btn" type="button" id="adminRefresh" aria-label="刷新"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg></button>
+      </header>
+      <nav class="admin-nav" id="adminNav" aria-label="管理分区">
+        <button class="admin-tab active" type="button" data-admin="overview"><svg class="ic" aria-hidden="true"><use href="#i-layout-dashboard"/></svg><span>总览</span></button>
+        <button class="admin-tab" type="button" data-admin="users"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span>用户</span></button>
+        <button class="admin-tab" type="button" data-admin="invites"><svg class="ic" aria-hidden="true"><use href="#i-ticket"/></svg><span>邀请码</span></button>
+        <button class="admin-tab" type="button" data-admin="maintenance"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg><span>维护</span></button>
+      </nav>
+      <div class="admin-body" id="adminBody">
+        <section class="admin-panel active" data-admin-panel="overview" id="adminOverview"></section>
+        <section class="admin-panel" data-admin-panel="users" id="adminUsers"></section>
+        <section class="admin-panel" data-admin-panel="invites" id="adminInvites"></section>
+        <section class="admin-panel" data-admin-panel="maintenance" id="adminMaint"></section>
+      </div>
+    </div>
+  </div>
 
   <!-- 登录 / 邀请码注册 -->
   <div class="auth-mask hidden" id="authMask">
@@ -566,9 +595,10 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=11"></script>
-<script src="data.js?v=11"></script>
-<script src="app.js?v=11"></script>
-<script src="cloud.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="data.js?v=12"></script>
+<script src="app.js?v=12"></script>
+<script src="cloud.js?v=12"></script>
+<script src="admin.js?v=12"></script>
 </body>
 </html>

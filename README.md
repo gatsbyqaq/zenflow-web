@@ -12,7 +12,7 @@
 - **记录与复盘**：记录破戒（时间、触发因素标签、备注），重新开始计时（保留历史和最佳纪录）；历史时间线。
 - **统计**：抵御冲动次数、破戒次数、最长连续、抵御率、常见触发因素、时段分布、心情分布、个性化建议（纯 CSS/SVG 图表）。
 - **设置**：外观（跟随系统 / 浅色 / 深色）、编辑坚持理由、导出/导入 JSON 备份、重置所有数据。
-- **账号与云同步（可选）**：邮箱 + 密码登录；**邀请码注册**（每个邀请码只能使用一次）；登录后自动把打卡 / 记录 / 理由同步到你自己的 Supabase 项目。不配置 / 不登录时所有功能仍可用，数据只保存在本机。接入步骤见 [`supabase/README.md`](supabase/README.md)。
+- **账号与云同步（可选）**：邮箱 + 密码登录；**邀请码注册**（每个邀请码只能使用一次）；登录后自动把打卡 / 记录 / 理由同步到你自己的 Supabase 项目。不配置 / 不登录时所有功能仍可用，数据只保存在本机。接入步骤见 [`supabase/README.md`](supabase/README.md)。管理员可在「设置 → 账号与同步」打开**管理后台**（`#admin`），查看用户 / 邀请码 / 活跃概览。
 
 ## 界面风格
 
@@ -64,6 +64,12 @@
 | 登录 | 邀请码注册 | 设置 · 账号与同步 |
 |---|---|---|
 | ![](screenshots/desktop-30-auth-login.png) | ![](screenshots/desktop-30b-auth-register.png) | ![](screenshots/desktop-32-settings-account.png) |
+
+### 管理后台（管理员）
+
+| 总览 | 用户 | 邀请码 |
+|---|---|---|
+| ![](screenshots/40-admin-overview-desktop.png) | ![](screenshots/41-admin-users-desktop.png) | ![](screenshots/42-admin-invites-desktop.png) |
 
 ### 手机端
 

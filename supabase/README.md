@@ -112,3 +112,15 @@ select code, expires_at from public.create_invites(5, 0, '朋友');  -- 0 = 永�
 | `../config.js` | 前端配置（占位，由你填写） |
 | `../cloud.js` | 登录 / 注册 / 同步客户端 |
 | `../vendor/supabase.js` | `@supabase/supabase-js` UMD（MIT） |
+
+
+## 管理后台
+
+管理员（`profiles.is_admin = true`）登录后：
+
+- 设置 → 账号与同步 → **打开管理后台**
+- 或访问 `https://…/zenflow-web/#admin` / `?admin=1`（非管理员会被拒绝）
+
+功能：总览统计、用户列表（设管理员 / 禁用登录）、邀请码（生成 / 复制 / 作废）、维护说明。
+
+相关 SQL：`migrations/20261005_admin_dashboard.sql`（`admin_stats`、`admin_list_users`、`admin_list_invites`、`admin_set_admin`、`admin_set_banned`、`admin_revoke_invite`）。全部为 `SECURITY DEFINER`，内部检查 `is_admin`，只授予 `authenticated` 执行权限。

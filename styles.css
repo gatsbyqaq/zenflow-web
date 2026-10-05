@@ -2,7 +2,7 @@
    ZenFlow · Liquid Glass 主题（iOS 26 风格）
    ========================================================= */
 :root{
-  --zf-css:"10"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
+  --zf-css:"12"; /* 样式版本号（与 app.js APP_VERSION 一致，设置页显示） */
   color-scheme:light dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","SF Pro","PingFang SC","Hiragino Sans GB","Helvetica Neue","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif;
 
@@ -814,4 +814,58 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 @media (min-width:560px){
   .auth-mask{align-items:center;padding:24px}
   .auth-sheet{border-radius:32px;max-height:min(90vh,680px)}
+}
+
+/* =========================================================
+   管理后台
+   ========================================================= */
+.admin-root{position:fixed;inset:0;z-index:70;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
+.admin-root.hidden,[hidden].admin-root{display:none!important}
+.admin-shell{max-width:1100px;margin:0 auto;padding:calc(var(--safe-t) + 14px) 16px calc(var(--safe-b) + 28px)}
+.admin-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.admin-brand{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.admin-brand .ic{width:22px;height:22px;stroke-width:2}
+.admin-brand h1{margin:0;font-size:20px;letter-spacing:-.2px}
+.admin-brand p{margin:0}
+.admin-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;padding:6px;border-radius:18px;background:var(--glass);-webkit-backdrop-filter:var(--blur-sm);backdrop-filter:var(--blur-sm);box-shadow:var(--hl),var(--depth)}
+.admin-tab{border:none;background:transparent;border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:550;color:var(--muted);transition:background .2s,color .2s,transform .3s var(--spring)}
+.admin-tab .ic{width:18px;height:18px;stroke-width:1.9}
+.admin-tab.active{background:var(--primary-tint);color:var(--primary);font-weight:650;box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.admin-tab:active{transform:scale(.96)}
+.admin-panel{display:none}.admin-panel.active{display:block;animation:rise .35s var(--spring)}
+.admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (min-width:720px){.admin-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.admin-stat{border-radius:var(--r-lg);padding:16px 14px;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--hl),var(--depth);background-image:linear-gradient(180deg,var(--card-sheen),transparent 55%)}
+.admin-stat .k{font-size:12px;color:var(--muted);font-weight:550}
+.admin-stat .v{font-size:26px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:var(--primary)}
+.admin-stat.warn .v{color:var(--warm)}.admin-stat.ok .v{color:var(--mint)}.admin-stat.amber .v{color:var(--amber)}
+.admin-card{border-radius:var(--r-xl);padding:16px 18px;margin-bottom:14px;background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--hl),var(--depth);background-image:linear-gradient(180deg,var(--card-sheen),transparent 55%)}
+.admin-card h2{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:6px}
+.admin-card h2 .ic{width:18px;height:18px;color:var(--primary);stroke-width:1.9}
+.admin-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.admin-toolbar .grow{flex:1;min-width:140px}
+.admin-table-wrap{overflow:auto;border-radius:var(--r-md);box-shadow:inset 0 0 0 .5px var(--glass-line)}
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.admin-table th,.admin-table td{padding:10px 12px;text-align:left;border-bottom:.5px solid var(--glass-line);vertical-align:middle}
+.admin-table th{font-size:11px;text-transform:none;letter-spacing:.2px;color:var(--muted);font-weight:650;background:var(--glass-soft);position:sticky;top:0}
+.admin-table tr:last-child td{border-bottom:none}
+.admin-table .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:.3px}
+.admin-actions{display:flex;flex-wrap:wrap;gap:6px}
+.admin-actions .btn{padding:7px 10px;font-size:12px;margin:0}
+.pill-tag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:650;padding:2px 8px;border-radius:99px}
+.pill-tag.admin{color:var(--amber);background:color-mix(in srgb,var(--amber) 16%,transparent)}
+.pill-tag.banned{color:var(--warm);background:var(--warm-tint)}
+.pill-tag.ok{color:var(--mint);background:var(--mint-tint)}
+.pill-tag.muted{color:var(--muted);background:var(--glass-tint)}
+.admin-empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:13px}
+.admin-error{color:var(--warm);font-size:13px;padding:12px;border-radius:var(--r-sm);background:var(--warm-tint)}
+.admin-note{font-size:13px;line-height:1.7;color:var(--text2)}
+.admin-note code{font-size:.92em}
+body.admin-open .tabbar,body.admin-open .edge,body.admin-open .toast,body.admin-open .auth-mask,body.admin-open .content{visibility:hidden}
+body.admin-open{overflow:hidden}
+@media (min-width:1024px){
+  .admin-shell{padding:28px 24px 40px}
+  .admin-nav{display:flex;padding:6px}
+  .admin-tab{flex-direction:row;gap:8px;padding:10px 16px;font-size:14px}
+  .admin-tab .ic{width:17px;height:17px}
 }

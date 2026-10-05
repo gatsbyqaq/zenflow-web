@@ -119,7 +119,10 @@
     if (/invalid.*email|email.*invalid|validation_failed/i.test(m + code)) return '邮箱格式不正确';
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络连接失败，请检查网络后重试';
-    if (/NOT_ADMIN/.test(m)) return '只有管理员可以生成邀请码';
+    if (/NOT_ADMIN/.test(m)) return '只有管理员可以执行此操作';
+    if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
+    if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
+    if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
     if (/JWT|session|refresh_token/i.test(m)) return '登录已过期，请重新登录';
     return m || '出现未知错误';
   }
@@ -229,9 +232,12 @@
       '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button>' +
       '<button class="btn btn-danger" id="btnLogout">' + ic('log-out') + '退出登录</button></div>';
     if (profile && profile.is_admin) {
-      h += '<div class="invite-admin"><div class="card-title"><h3>' + ic('ticket', 'h-ic tint-amber') + '邀请码</h3>' +
+      h += '<div class="invite-admin"><div class="card-title"><h3>' + ic('layout-dashboard', 'h-ic tint-amber') + '管理后台</h3></div>' +
+        '<p class="muted small">查看用户、邀请码与活跃概览。也可在地址栏打开 <code>#admin</code>。</p>' +
+        '<div class="acct-actions"><button class="btn btn-primary" id="btnOpenAdmin">' + ic('layout-dashboard') + '打开管理后台</button></div>' +
+        '<div class="card-title" style="margin-top:14px"><h3>' + ic('ticket', 'h-ic tint-amber') + '快捷邀请码</h3>' +
         '<button class="btn btn-ghost btn-sm" id="btnNewInvites">' + ic('ticket') + '生成 3 个</button></div>' +
-        '<div id="inviteList">' + inviteListHtml() + '</div><p class="muted small">新邀请码 30 天内有效，每个只能注册一个账号。</p></div>';
+        '<div id="inviteList">' + inviteListHtml() + '</div><p class="muted small">新邀请码 30 天内有效；完整管理请用管理后台。</p></div>';
     }
     body.innerHTML = h;
   }
@@ -257,6 +263,7 @@
     if (!r.error) profile = r.data;
     renderAccount();
     if (profile && profile.is_admin) loadInvites();
+    if (window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
   }
   async function loadInvites() {
     var r = await sb.from('invites').select('code,used_at,expires_at,note,created_at').order('created_at', { ascending: false }).limit(30);
@@ -396,6 +403,7 @@
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t) return;
     switch (t.id) {
+      case 'btnOpenAdmin': if (window.ZFAdmin) window.ZFAdmin.open(); break;
       case 'btnOpenLogin': openAuth('login'); break;
       case 'btnOpenRegister': openAuth('register'); break;
       case 'btnCloudSetup': openSetup(); break;
@@ -448,8 +456,9 @@
 
   /* ---------------- 启动 ---------------- */
   window.ZFCloud = {
-    merge: merge, stable: stable, keyProblem: keyProblem,
+    merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
+    userId: function () { return user() && user().id; },
     status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile }; },
     onLocalChange: function (replaceAll) { if (!user()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; }
