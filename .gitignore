@@ -1,0 +1,5 @@
+# 本地覆盖（如果以后把密钥写进独立文件）
+config.local.js
+.env
+.env.*
+!.env.example

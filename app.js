@@ -34,7 +34,10 @@
       checkins: {},     // { 'YYYY-MM-DD': { mood: 1-5, ts } }
       relapses: [],     // [{ id, ts, triggers: [], other, note, streakMs }]
       urges: [],        // [{ id, ts }]
-      reasons: D.defaultReasons.slice()
+      reasons: D.defaultReasons.slice(),
+      // 云同步用：开始时间最后一次被设置的时间；已删除条目的墓碑（避免同步时被另一台设备"复活"）
+      streakStartSetAt: now,
+      removed: { ids: {}, reasons: {} }   // ids: { id: 删除时间 }；reasons: { 文本: 删除时间（负数 = 之后又重新添加） }
     };
   }
 
@@ -66,6 +69,12 @@
       s.urges = o.urges.filter(function (u) { return u && typeof u.ts === 'number'; }).map(function (u) { return { id: String(u.id || uid()), ts: u.ts }; });
     }
     if (Array.isArray(o.reasons)) s.reasons = o.reasons.map(String).filter(Boolean).slice(0, 50);
+    s.streakStartSetAt = typeof o.streakStartSetAt === 'number' && isFinite(o.streakStartSetAt) ? o.streakStartSetAt : 0;
+    var rm = o.removed && typeof o.removed === 'object' ? o.removed : {};
+    ['ids', 'reasons'].forEach(function (k) {
+      var src = rm[k] && typeof rm[k] === 'object' ? rm[k] : {};
+      Object.keys(src).slice(0, 5000).forEach(function (key) { if (typeof src[key] === 'number' && isFinite(src[key])) s.removed[k][String(key).slice(0, 200)] = src[key]; });
+    });
     return s;
   }
 
@@ -80,9 +89,11 @@
     }
     save();
   }
-  function save() {
+  function save(opts) {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch (e) { toast('保存失败：浏览器存储不可用'); }
+    // 已登录时通知云同步模块（未配置云端时 ZFCloud 不存在，行为与以前完全相同）
+    if (!(opts && opts.fromCloud) && window.ZFCloud && window.ZFCloud.onLocalChange) window.ZFCloud.onLocalChange(opts && opts.replaceAll);
   }
 
   function curMs() { return Math.max(0, Date.now() - state.streakStart); }
@@ -314,7 +325,7 @@
         var t = parseLocalInput($('startInput').value);
         if (!isFinite(t)) { toast('请选择有效的时间'); return false; }
         if (t > Date.now()) { toast('开始时间不能晚于现在'); return false; }
-        state.streakStart = t; save(); renderHome(); toast('开始时间已更新');
+        state.streakStart = t; state.streakStartSetAt = Date.now(); save(); renderHome(); toast('开始时间已更新');
       }
     });
   });
@@ -462,7 +473,7 @@
         state.relapses.push({ id: uid(), ts: ts, triggers: triggers, other: other, note: note, streakMs: streak });
         if (resets) {
           state.bestStreakMs = Math.max(state.bestStreakMs, streak);
-          state.streakStart = ts;
+          state.streakStart = ts; state.streakStartSetAt = Date.now();
         }
         save();
         selTriggers = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
@@ -504,6 +515,7 @@
         var arr = type === 'relapse' ? state.relapses : state.urges;
         var i = arr.findIndex(function (x) { return x.id === id; });
         if (i >= 0) arr.splice(i, 1);
+        state.removed.ids[id] = Date.now();
         save(); renderHistory(); toast('已删除');
       }
     });
@@ -643,14 +655,18 @@
   function addReason() {
     var v = $('reasonInput').value.trim();
     if (!v) { toast('请输入内容'); return; }
-    state.reasons.push(v); save();
+    state.reasons.push(v);
+    if (state.removed.reasons[v] > 0) state.removed.reasons[v] = -Date.now();
+    save();
     $('reasonInput').value = ''; renderSettings(); toast('已添加');
   }
   $('btnAddReason').addEventListener('click', addReason);
   $('reasonInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addReason(); });
   $('reasonsEdit').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-i]'); if (!b) return;
-    state.reasons.splice(+b.dataset.i, 1); save(); renderSettings();
+    var gone = state.reasons.splice(+b.dataset.i, 1)[0];
+    if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
+    save(); renderSettings();
   });
 
   $('btnExport').addEventListener('click', function () {
@@ -680,7 +696,7 @@
         title: '导入备份？',
         html: '<p>备份包含 ' + Object.keys(parsed.checkins).length + ' 次打卡、' + parsed.urges.length + ' 次抵御冲动、' + parsed.relapses.length + ' 条破戒记录。</p><p>导入将<b>覆盖</b>当前所有数据。</p>',
         ok: '覆盖导入',
-        onOk: function () { state = parsed; save(); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
+        onOk: function () { state = parsed; state.streakStartSetAt = Date.now(); save({ replaceAll: true }); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
     };
     reader.readAsText(f);
@@ -692,7 +708,7 @@
       ok: '确认重置', danger: true,
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」以确认'); return false; }
-        state = defaultState(); save(); selTriggers = {}; selMood = null; calOffset = 0;
+        state = defaultState(); save({ replaceAll: true }); selTriggers = {}; selMood = null; calOffset = 0;
         renderSettings(); toast('已重置，新的开始');
       }
     });
@@ -724,7 +740,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '9';
+  var APP_VERSION = '10';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -739,4 +755,15 @@
 
   // 便于测试
   window.ZenFlow = { version: APP_VERSION, go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme };
+
+  // 供 cloud.js 使用的接口（云端模块不直接改内部变量）
+  window.ZenFlowCore = {
+    getState: function () { return JSON.parse(JSON.stringify(state)); },
+    sanitize: sanitize,
+    defaultState: defaultState,
+    // 用云端合并结果替换本地状态并刷新当前页面（不会再次触发上传）
+    replaceState: function (s) { state = sanitize(s); save({ fromCloud: true }); if (current !== 'sos') render(current); },
+    toast: toast, openModal: openModal, closeModal: closeModal, lockScroll: lockScroll, unlockScroll: unlockScroll,
+    esc: esc, ic: ic, fmtDT: fmtDT, current: function () { return current; }
+  };
 })();
