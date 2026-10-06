@@ -1,7 +1,8 @@
-/* ZenFlow · 账号（Supabase Auth，邀请制注册）+ 云同步
- * - 未配置 Supabase（config.js 留空）时：只渲染"本机模式"说明，不加载任何云端代码，行为与以前完全一致。
- * - 已配置时：按需加载 vendor/supabase.js，提供登录 / 邀请码注册 / 找回密码 / 退出、个人资料、
- *   管理员生成邀请码，以及登录后的自动同步（拉取 → 合并 → 上传，最后写入者不会覆盖另一台设备的新增记录）。
+/* ZenFlow · 账号（Supabase Auth，邀请制）+ 云同步
+ * - 未配置 Supabase（config.js 留空）时：只渲染本机模式说明，不加载云端代码。
+ * - 已配置时：按需加载 vendor/supabase.js。登录默认手机号验证码，邮箱密码为第二页。
+ *   人机验证按 config.js 的 CAPTCHA_PROVIDER / CAPTCHA_SITE_KEY 加载（仅登录页）。
+ *   退出登录会登出并清除本机数据，不删除云端。登录后自动同步。
  */
 (function () {
   
@@ -14,6 +15,56 @@
   var OVERRIDE_KEY = 'zenflow_supabase_override';   // 本机连接设置（可选，优先于 config.js）
   var LAST_UID_KEY = 'zenflow_cloud_uid';            // 本机数据最近一次同步到的账号
   var LAST_SYNC_KEY = 'zenflow_cloud_last_sync';
+  var PULL_REMOTE_KEY = 'zenflow_pull_remote';       // 退出清本机后，下次登录只拉云端
+
+  function appDataKey(k, projectRef) {
+    if (!k || k === 'zenflow_supabase_override' || k === 'zenflow_pull_remote') return false;
+    if (k.indexOf('zenflow_') === 0) return true;
+    if (projectRef && k.indexOf('sb-' + projectRef + '-auth-token') === 0) return true;
+    return false;
+  }
+  function localLooksEmpty(s) {
+    if (!s) return true;
+    if (s.checkins && Object.keys(s.checkins).length) return false;
+    if (s.relapses && s.relapses.length) return false;
+    if (s.urges && s.urges.length) return false;
+    if (s.reasons && s.reasons.length) return false;
+    if (s.displayName || s.avatarDataUrl) return false;
+    if (s.goalSetAt > 0 || s.resetTypesSetAt > 0 || s.manualStreakStartSetAt > 0 || s.bestStreakMs > 0) return false;
+    var rm = s.removed || {};
+    if ((rm.ids && Object.keys(rm.ids).length) || (rm.reasons && Object.keys(rm.reasons).length) || (rm.checkins && Object.keys(rm.checkins).length)) return false;
+    return true;
+  }
+  function chooseSync(local, remote, lastUid, uid, pullRemote, replaceAll) {
+    if (replaceAll) return 'local';
+    if (lastUid && lastUid !== uid) return remote ? 'remote' : 'local';
+    if (!remote) return 'local';
+    if (pullRemote || (!lastUid && localLooksEmpty(local))) return 'remote';
+    return 'merge';
+  }
+  function normalizePhone(country, national) {
+    var cc = String(country || '86').replace(/\D/g, '') || '86';
+    var raw = String(national || '').trim();
+    if (!raw) return { ok: false, error: '请输入手机号' };
+    if (!/^[1-9]\d{0,3}$/.test(cc)) return { ok: false, error: '手机号不正确' };
+    var compact = raw.replace(/[\s\-().]/g, '');
+    var d;
+    if (compact.charAt(0) === '+') {
+      d = compact.slice(1).replace(/\D/g, '');
+      if (!/^[1-9]\d{7,14}$/.test(d)) return { ok: false, error: '手机号不正确' };
+      return { ok: true, e164: '+' + d };
+    }
+    d = compact.replace(/\D/g, '').replace(/^0+/, '');
+    if (cc === '86' && d.indexOf('86') === 0 && d.length === 13) d = d.slice(2);
+    if (cc === '86') {
+      if (!/^1\d{10}$/.test(d)) return { ok: false, error: '手机号不正确' };
+    } else if (d.length < 4 || d.length > 14) {
+      return { ok: false, error: '手机号不正确' };
+    }
+    var all = cc + d;
+    if (!/^[1-9]\d{7,14}$/.test(all)) return { ok: false, error: '手机号不正确' };
+    return { ok: true, e164: '+' + all };
+  }
 
   /* ---------------- 配置 ---------------- */
   function readConfig() {
@@ -55,7 +106,7 @@
   var authReady = false; // getSession 已确认
   var profileReady = false; // 有 session 时 profile/invite_ok 已解析
   var sync = { status: 'off', at: +localStorage.getItem(LAST_SYNC_KEY) || 0, error: '' };
-  var syncing = false, pending = false, pushTimer = null, replaceAllPending = false;
+  var syncing = false, pending = false, pushTimer = null, replaceAllPending = false, wipeLock = false, suppressSignedOut = false;
   var loadError = '';
   function appUrl() { return location.origin + location.pathname; }
   function user() { return session && session.user; }
@@ -147,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=22'; s.async = true;
+      s.src = 'vendor/supabase.js?v=28'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -170,16 +221,20 @@
     if (/Email not confirmed/i.test(m)) return '邮箱还没确认';
     if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '邮箱已注册，请登录';
     if (/Password should be|weak_password|password.*(short|characters)/i.test(m + code)) return '密码至少 8 位';
-    if (/rate limit|too many|over_email_send_rate_limit|429/i.test(m + code)) return '操作太频繁';
+    if (/invalid phone|phone number.*(invalid|format)|E\.164|21211/i.test(m + code)) return '手机号不正确';
+    if (code === 'otp_expired' || /otp_expired|token has expired or is invalid|invalid otp|otp.*invalid/i.test(m + code)) return '验证码错误或已过期';
+    if (/rate limit|too many|over_(email|sms)_send_rate_limit|only request this after|429/i.test(m + code)) return '操作太频繁';
+    if (/captcha/i.test(m + code)) return '请完成验证';
+    if (/sms_send_failed|error sending (confirmation )?(sms|otp)|sms provider|phone provider|phone login is disabled|otp_disabled/i.test(m + code)) return '短信服务未配置';
     if (/invalid.*email|email.*invalid|validation_failed/i.test(m + code)) return '邮箱格式不正确';
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络失败';
     if (/NOT_ADMIN/.test(m)) return '需要管理员';
+    if (/ADMIN_CANNOT_DELETE/.test(m)) return '管理员账号不能注销';
     if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
     if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB';
     if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
     if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
-    if (/provider is not enabled/i.test(m)) return 'Google 登录未开启';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
     if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
     if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
@@ -195,7 +250,7 @@
   }
   async function syncNow(opts) {
     opts = opts || {};
-    if (!sb || !user() || needsInvite()) return;
+    if (!sb || !user() || needsInvite() || wipeLock) return;
     if (syncing) { pending = true; if (opts.replaceAll) replaceAllPending = true; return; }
     syncing = true; setSync('syncing');
     var replaceAll = opts.replaceAll || replaceAllPending; replaceAllPending = false;
@@ -205,20 +260,21 @@
       if (r.error) throw r.error;
       var remote = r.data && r.data.data ? Z.sanitize(r.data.data) : null;
       var local = Z.sanitize(Z.getState());
-      var lastUid = localStorage.getItem(LAST_UID_KEY);
-      var merged;
-      if (lastUid && lastUid !== uid && !replaceAll) {
-        // 这台设备上的数据属于另一个账号：不混入当前账号，改用当前账号的云端数据
-        merged = remote || Z.defaultState();
-        Z.toast('已切换账号');
-      } else if (!remote || replaceAll) merged = local;
-      else merged = merge(local, remote);
+      if (wipeLock) return;
+      var lastUid = null, pullRemote = false;
+      try { lastUid = localStorage.getItem(LAST_UID_KEY); pullRemote = localStorage.getItem(PULL_REMOTE_KEY) === '1'; } catch (e) {}
+      var choice = chooseSync(local, remote, lastUid, uid, pullRemote, replaceAll);
+      var merged = choice === 'remote' ? (remote || Z.defaultState()) : choice === 'local' ? local : merge(local, remote);
+      if (lastUid && lastUid !== uid && !replaceAll) Z.toast('已切换账号');
+      if (wipeLock) return;
       if (stable(merged) !== stable(local)) Z.replaceState(merged);
+      if (wipeLock) return;
       if (!remote || stable(Z.sanitize(merged)) !== stable(remote)) {
         var w = await sb.from('user_data').upsert({ user_id: uid, data: Z.sanitize(merged) }, { onConflict: 'user_id' });
         if (w.error) throw w.error;
       }
       localStorage.setItem(LAST_UID_KEY, uid);
+      try { localStorage.removeItem(PULL_REMOTE_KEY); } catch (e) {}
       setSync('ok');
     } catch (e) {
       console.warn('同步失败', e);
@@ -247,16 +303,23 @@
   function localAvatarUrl() {
     try { return Z.getState().avatarDataUrl || ''; } catch (e) { return ''; }
   }
-  function googleAvatar() {
+  function metaAvatar() {
     var meta = (user() && user().user_metadata) || {};
     return meta.avatar_url || meta.picture || '';
+  }
+  function userContact() {
+    var u = user();
+    if (!u) return '';
+    if (u.email) return u.email;
+    if (u.phone) return String(u.phone).charAt(0) === '+' ? String(u.phone) : ('+' + u.phone);
+    return '';
   }
   function shownName() {
     var u = user();
     var meta = (u && u.user_metadata) || {};
     var cloudName = (profile && profile.display_name) || '';
     var emailName = u && u.email ? u.email.split('@')[0] : '';
-    if (u) return (cloudName || meta.full_name || meta.name || localDisplayName() || emailName || '').trim();
+    if (u) return (cloudName || meta.full_name || meta.name || localDisplayName() || emailName || userContact() || '').trim();
     return localDisplayName();
   }
   function shownHandle() {
@@ -265,7 +328,7 @@
   function shownAvatar() {
     if (user() && profile && profile.avatar_url) return profile.avatar_url;
     if (user()) {
-      var g = googleAvatar();
+      var g = metaAvatar();
       if (g) return g;
     }
     if (!user()) return localAvatarUrl();
@@ -305,10 +368,10 @@
     if (handle) subEl.textContent = handle;
     else if (!u) subEl.textContent = configured ? '前往设置' : '本机模式';
     else subEl.textContent = syncLabel().text;
-    paintAvatar(avatarEl, letterEl, shownAvatar(), name || (u && u.email) || '?');
+    paintAvatar(avatarEl, letterEl, shownAvatar(), name || userContact() || '?');
     var meName = $('settingsMeName'), meSub = $('settingsMeSub');
     if (meName) meName.textContent = name || (u ? '已登录' : '未登录');
-    if (meSub) meSub.textContent = handle || (!u ? (configured ? '前往设置' : '本机模式') : (u.email || syncLabel().text));
+    if (meSub) meSub.textContent = handle || (!u ? (configured ? '前往设置' : '本机模式') : (userContact() || syncLabel().text));
     paintAvatar($('settingsMeAvatar'), $('settingsMeLetter'), shownAvatar(), name || '?');
     fillProfileForm();
   }
@@ -358,7 +421,7 @@
     var handle = shownHandle();
     var h = '<div class="acct-head">' + avatarHtml(shownAvatar(), name, 'story-avatar acct-avatar') + '<div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
       (handle ? '<span class="acct-handle">' + esc(handle) + '</span>' : '') +
-      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div></div>' +
+      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(userContact()) + '</span></div></div>' +
       '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
       '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
       '<p class="muted small">退出在设置列表底部。</p>';
@@ -399,15 +462,294 @@
   }
 
   /* ---------------- 登录 / 注册面板 / 门禁 ---------------- */
-  var authMode = 'login';
+  var authChannel = 'phone';
+  function phoneLoginEnabled() {
+    var c = window.ZENFLOW_CONFIG || {};
+    return c.PHONE_LOGIN_ENABLED !== false;
+  }
+  var emailMode = 'login';
+  var phoneMode = 'login'; // login | register | code
+  var phoneIntent = 'login';
+  var phoneE164 = '';
+  var phoneRegData = null;
+  var smsUntil = 0;
+  var smsTimer = null;
+  var captchaToken = '';
+  var captchaWidget = null;
+  var captchaLoading = null;
+
+  function captchaSettings() {
+    var c = window.ZENFLOW_CONFIG || {};
+    var provider = String(c.CAPTCHA_PROVIDER || 'turnstile').toLowerCase();
+    if (provider !== 'hcaptcha') provider = 'turnstile';
+    var siteKey = String(c.CAPTCHA_SITE_KEY || '').trim();
+    return { provider: provider, siteKey: siteKey, enabled: !!siteKey };
+  }
+  function captchaApi() {
+    var p = captchaSettings().provider;
+    if (p === 'hcaptcha') {
+      return {
+        src: 'https://js.hcaptcha.com/1/api.js?render=explicit&hl=zh-CN',
+        onloadName: '',
+        render: function (el, siteKey) {
+          /* hCaptcha 没有 flexible，用 normal（其支持的最大可见尺寸） */
+          return window.hcaptcha.render(el, {
+            sitekey: siteKey,
+            theme: captchaTheme(),
+            size: 'normal',
+            callback: function (token) { setCaptchaToken(token); },
+            'expired-callback': function () { setCaptchaToken(''); },
+            'error-callback': function () { setCaptchaToken(''); }
+          });
+        },
+        reset: function (id) { if (window.hcaptcha && id != null) window.hcaptcha.reset(id); },
+        remove: function (id) { if (window.hcaptcha && id != null) window.hcaptcha.remove(id); }
+      };
+    }
+    return {
+      /* 不用 turnstile.ready()：动态插入的 script 默认 async，ready() 会报错 */
+      src: 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=zfTurnstileOnload',
+      onloadName: 'zfTurnstileOnload',
+      render: function (el, siteKey) {
+        return window.turnstile.render(el, {
+          sitekey: siteKey,
+          size: 'flexible',
+          theme: captchaTheme(),
+          language: 'zh-cn',
+          callback: function (token) { setCaptchaToken(token); },
+          'expired-callback': function () { setCaptchaToken(''); },
+          'error-callback': function () { setCaptchaToken(''); }
+        });
+      },
+      reset: function (id) { if (window.turnstile && id != null) window.turnstile.reset(id); },
+      remove: function (id) { if (window.turnstile && id != null) window.turnstile.remove(id); }
+    };
+  }
+  function placeCaptcha(form) {
+    var host = $('captchaHost');
+    if (!host || !form) return;
+    var anchor = form.querySelector('.auth-msg');
+    if (host.parentElement === form && (!anchor || host.nextElementSibling === anchor)) return;
+    if (anchor) form.insertBefore(host, anchor);
+    else form.appendChild(host);
+    /* 容器换表单后旧 iframe 会失效，拆掉再挂一次 */
+    if (captchaWidget != null) {
+      var api = captchaApi();
+      try { api.remove(captchaWidget); } catch (e) {}
+      captchaWidget = null;
+      captchaToken = '';
+      host.innerHTML = '';
+      paintCaptchaButtons();
+      ensureCaptcha();
+    }
+  }
+  function captchaTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    } catch (e) {}
+    return 'light';
+  }
+  var captchaRenderedTheme = '';
+  function refreshCaptchaTheme() {
+    if (!captchaSettings().enabled || captchaWidget == null) return;
+    if (captchaTheme() === captchaRenderedTheme) return;
+    var host = $('captchaHost');
+    try { captchaApi().remove(captchaWidget); } catch (e) {}
+    captchaWidget = null;
+    captchaToken = '';
+    if (host) host.innerHTML = '';
+    paintCaptchaButtons();
+    ensureCaptcha();
+  }
+  function watchCaptchaTheme() {
+    if (window.MutationObserver) {
+      new MutationObserver(refreshCaptchaTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+    try {
+      var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq) {
+        var onMq = function () { if (!document.documentElement.getAttribute('data-theme')) refreshCaptchaTheme(); };
+        if (mq.addEventListener) mq.addEventListener('change', onMq);
+        else if (mq.addListener) mq.addListener(onMq);
+      }
+    } catch (e2) {}
+  }
+  function captchaWait() {
+    return captchaSettings().enabled && !captchaToken;
+  }
+  function setCaptchaToken(token) {
+    captchaToken = token || '';
+    paintCaptchaButtons();
+  }
+  function paintCaptchaButtons() {
+    var wait = captchaWait();
+    ['btnLogin', 'btnRegister', 'btnForgot', 'btnVerifySms'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.disabled = wait;
+    });
+    paintSmsButtons();
+  }
+  function resetCaptcha() {
+    captchaToken = '';
+    paintCaptchaButtons();
+    var api = captchaApi();
+    if (captchaWidget != null) {
+      try { api.reset(captchaWidget); } catch (e) { captchaWidget = null; }
+    }
+  }
+  function ensureCaptcha() {
+    var host = $('captchaHost');
+    var cfgCap = captchaSettings();
+    if (!host) return;
+    if (!cfgCap.enabled) {
+      host.classList.add('captcha-off');
+      host.innerHTML = '';
+      captchaToken = '';
+      captchaWidget = null;
+      paintCaptchaButtons();
+      return;
+    }
+    host.classList.remove('captcha-off');
+    paintCaptchaButtons();
+    if (captchaWidget != null) return;
+    if (captchaLoading) return;
+    var api = captchaApi();
+    var globalName = cfgCap.provider === 'hcaptcha' ? 'hcaptcha' : 'turnstile';
+    function renderNow() {
+      if (captchaWidget != null || !$('captchaHost') || !window[globalName]) return;
+      try {
+        captchaRenderedTheme = captchaTheme();
+        captchaWidget = api.render($('captchaHost'), cfgCap.siteKey);
+      } catch (e) { captchaWidget = null; }
+    }
+    if (window[globalName]) { renderNow(); return; }
+    captchaLoading = true;
+    if (api.onloadName) window[api.onloadName] = function () { captchaLoading = null; renderNow(); };
+    var s = document.createElement('script');
+    s.src = api.src;
+    s.async = true;
+    s.onload = function () { if (!api.onloadName) { captchaLoading = null; renderNow(); } };
+    s.onerror = function () { captchaLoading = null; };
+    document.head.appendChild(s);
+  }
+  function takeCaptcha() {
+    if (!captchaSettings().enabled) return '';
+    if (!captchaToken) return false;
+    return captchaToken;
+  }
+  function paintAuthCopy() {
+    var foot = $('authFootText');
+    if (gateMode === 'invite' || gateMode === 'handle') {
+      if (foot) foot.textContent = '完成后进入。';
+      return;
+    }
+    if (authChannel === 'email') {
+      $('authTitle').textContent = emailMode === 'register' ? '注册' : '登录';
+      $('authSub').textContent = emailMode === 'register' ? '需要邀请码。' : '登录后会同步。';
+      if (foot) foot.textContent = '密码由 Supabase 处理，这里看不到。';
+      return;
+    }
+    if (phoneMode === 'code') {
+      $('authTitle').textContent = '验证码';
+      $('authSub').textContent = phoneE164 ? ('已发送到 ' + phoneE164) : '输入短信验证码';
+    } else if (phoneMode === 'register') {
+      $('authTitle').textContent = '注册';
+      $('authSub').textContent = '需要邀请码。';
+    } else {
+      $('authTitle').textContent = '登录';
+      $('authSub').textContent = '登录后会同步。';
+    }
+    if (foot) foot.textContent = '验证码只用于登录。';
+  }
+  function setChannel(ch) {
+    if (!phoneLoginEnabled()) ch = 'email';
+    authChannel = ch === 'email' ? 'email' : 'phone';
+    if ($('authSeg')) $('authSeg').classList.toggle('hidden', !phoneLoginEnabled());
+    document.querySelectorAll('#authSeg .seg-btn').forEach(function (b) {
+      if (!b.dataset.channel) return;
+      var on = b.dataset.channel === authChannel;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    if ($('panePhone')) $('panePhone').classList.toggle('hidden', authChannel !== 'phone');
+    if ($('paneEmail')) $('paneEmail').classList.toggle('hidden', authChannel !== 'email');
+    if (authChannel === 'phone') placeCaptcha(phoneMode === 'code' ? $('formPhoneCode') : $('formPhone'));
+    else placeCaptcha(emailMode === 'register' ? $('formRegister') : $('formLogin'));
+    paintAuthCopy();
+    ensureCaptcha();
+  }
+  function setEmailMode(m) {
+    emailMode = m === 'register' ? 'register' : 'login';
+    document.querySelectorAll('#emailSeg .seg-btn').forEach(function (b) {
+      var on = b.dataset.auth === emailMode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    if ($('formLogin')) $('formLogin').classList.toggle('hidden', emailMode !== 'login');
+    if ($('formRegister')) $('formRegister').classList.toggle('hidden', emailMode !== 'register');
+    if (authChannel === 'email') {
+      placeCaptcha(emailMode === 'register' ? $('formRegister') : $('formLogin'));
+      paintAuthCopy();
+    }
+  }
+  function paintSmsButtons() {
+    var left = Math.max(0, Math.ceil((smsUntil - Date.now()) / 1000));
+    var send = $('btnSendSms');
+    var resend = $('btnResendSms');
+    var wait = captchaWait();
+    if (send) {
+      send.disabled = left > 0 || wait;
+      send.textContent = left > 0 ? (left + ' 秒') : '获取验证码';
+    }
+    if (resend) {
+      resend.disabled = left > 0 || wait;
+      resend.textContent = left > 0 ? (left + ' 秒') : '重新发送';
+    }
+    if (left > 0) {
+      clearTimeout(smsTimer);
+      smsTimer = setTimeout(paintSmsButtons, 250);
+    }
+  }
+  function setPhoneMode(mode) {
+    phoneMode = mode === 'register' || mode === 'code' ? mode : 'login';
+    if ($('phoneRegFields')) $('phoneRegFields').classList.toggle('hidden', phoneMode !== 'register');
+    if ($('formPhone')) $('formPhone').classList.toggle('hidden', phoneMode === 'code');
+    if ($('formPhoneCode')) $('formPhoneCode').classList.toggle('hidden', phoneMode !== 'code');
+    var link = $('btnPhoneMode');
+    if (link) link.textContent = phoneMode === 'register' ? '已有账号' : '新用户注册';
+    var verify = $('btnVerifySms');
+    if (verify && phoneMode === 'code') verify.textContent = phoneIntent === 'register' ? '注册' : '登录';
+    var hint = $('phoneCodeHint');
+    if (hint) hint.textContent = phoneE164 ? ('已发送到 ' + phoneE164) : '验证码已发送';
+    if (authChannel === 'phone') placeCaptcha(phoneMode === 'code' ? $('formPhoneCode') : $('formPhone'));
+    paintAuthCopy();
+  }
+  function phoneCountry() {
+    var sel = $('phoneCc');
+    var v = sel ? sel.value : '86';
+    if (v === 'other') return ($('phoneCcOther') && $('phoneCcOther').value) || '';
+    return v || '86';
+  }
   function openAuth(mode) {
     if (!configured) { openSetup(); return; }
-    setAuthMode(mode || 'login');
-    $('loginMsg').textContent = ''; $('regMsg').textContent = '';
+    if (!phoneLoginEnabled()) {
+      setChannel('email');
+      setEmailMode(mode === 'register' ? 'register' : 'login');
+    } else if (mode === 'register') { setChannel('phone'); setPhoneMode('register'); }
+    else if (mode === 'email') { setChannel('email'); setEmailMode('login'); }
+    else { setChannel('phone'); setPhoneMode(phoneMode === 'code' ? 'code' : 'login'); }
+    if ($('loginMsg')) $('loginMsg').textContent = '';
+    if ($('regMsg')) $('regMsg').textContent = '';
+    if ($('phoneMsg')) $('phoneMsg').textContent = '';
     $('authMask').classList.remove('hidden');
     if (!isGated()) Z.lockScroll();
+    ensureCaptcha();
     setTimeout(function () {
-      var focusEl = (authMode === 'register' ? $('regName') : $('loginEmail'));
+      var focusEl = authChannel === 'email'
+        ? (emailMode === 'register' ? $('regName') : $('loginEmail'))
+        : (phoneMode === 'code' ? $('phoneCode') : phoneMode === 'register' ? $('phoneName') : $('phoneNational'));
       if (focusEl) focusEl.focus();
     }, 60);
   }
@@ -416,20 +758,6 @@
     if ($('authMask').classList.contains('hidden')) return;
     $('authMask').classList.add('hidden');
     Z.unlockScroll();
-  }
-  function setAuthMode(m) {
-    authMode = m === 'register' ? 'register' : 'login';
-    document.querySelectorAll('#authSeg .seg-btn').forEach(function (b) {
-      var on = b.dataset.auth === authMode;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    $('formLogin').classList.toggle('hidden', authMode !== 'login');
-    $('formRegister').classList.toggle('hidden', authMode !== 'register');
-    $('authTitle').textContent = authMode === 'login' ? '登录 ZenFlow' : '用邀请码注册';
-    $('authSub').textContent = authMode === 'login'
-      ? '登录后会同步数据。'
-      : '需要唯一 @ID 和邀请码。';
   }
   function peekPersistedSession() {
     try {
@@ -472,14 +800,15 @@
     if ($('gateInviteField')) $('gateInviteField').classList.remove('hidden');
     if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
     $('authTitle').textContent = '完成注册';
-    var email = (user() && user().email) || '';
-    $('authSub').textContent = email ? ('已登录 ' + email) : '填写邀请码和 @ID';
+    var who = userContact();
+    $('authSub').textContent = who ? ('已登录 ' + who) : '填写邀请码和 @ID';
     $('inviteGateHint').textContent = '填写邀请码和 @ID。';
     var btn = $('btnCompleteInvite');
     if (btn) btn.innerHTML = ic('ticket') + '完成注册';
     prefillGateProfile();
     $('gateMsg').textContent = '';
     setTimeout(function () { var el = $('gateInvite'); if (el) el.focus(); }, 60);
+    paintAuthCopy();
   }
   function showHandleOnlyGate() {
     gateMode = 'handle';
@@ -493,14 +822,15 @@
     if ($('gateInviteField')) $('gateInviteField').classList.add('hidden');
     if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
     $('authTitle').textContent = '设置 @ID';
-    var email = (user() && user().email) || '';
-    $('authSub').textContent = email ? ('已登录 ' + email) : '设置一个唯一的 @ID';
+    var who = userContact();
+    $('authSub').textContent = who ? ('已登录 ' + who) : '设置一个唯一的 @ID';
     $('inviteGateHint').textContent = '这个账号还没有 @ID。';
     var btn = $('btnCompleteInvite');
     if (btn) btn.innerHTML = ic('circle-check') + '保存并进入';
     prefillGateProfile();
     $('gateMsg').textContent = '';
     setTimeout(function () { var el = $('gateHandle'); if (el) el.focus(); }, 60);
+    paintAuthCopy();
   }
   function prefillGateProfile() {
     var nameEl = $('gateName');
@@ -509,15 +839,22 @@
     if (handleEl && document.activeElement !== handleEl && profile && profile.handle && !handleEl.value) handleEl.value = profile.handle;
   }
   function showLoginGate() {
+    var already = gateMode === 'login';
     gateMode = 'login';
+    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
+    $('formInviteGate').classList.add('hidden');
+    if (!already) {
+      setPhoneMode('login');
+      setEmailMode('login');
+      setChannel(phoneLoginEnabled() ? 'phone' : 'email');
+    } else {
+      if ($('authSeg')) $('authSeg').classList.toggle('hidden', !phoneLoginEnabled());
+      ensureCaptcha();
+    }
     document.body.classList.remove('auth-booting');
     document.body.classList.add('auth-gated');
     document.body.classList.add('auth-ready');
     $('authMask').classList.remove('hidden');
-    $('authSeg').classList.remove('hidden');
-    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
-    $('formInviteGate').classList.add('hidden');
-    setAuthMode(authMode === 'register' ? 'register' : 'login');
   }
   function clearGate() {
     gateMode = 'none';
@@ -643,23 +980,17 @@
     return !!r.data;
   }
 
-  async function doGoogle() {
-    if (!sb) return;
-    var btn = $('btnGoogle'); busy(btn, true, '正在跳转…'); msg('loginMsg', ''); msg('regMsg', '');
-    try {
-      var r = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: appUrl(), queryParams: { access_type: 'online', prompt: 'select_account' } }
-      });
-      if (r.error) throw r.error;
-    } catch (err) {
-      var msgText = cn(err);
-      if (/provider is not enabled|Unsupported provider|validation_failed/i.test(String(err && err.message))) {
-        msgText = 'Google 登录尚未在 Supabase 中启用。请到 Authentication → Providers → Google 填入 Client ID/Secret（见 supabase/README.md）。';
-      }
-      msg(authMode === 'register' ? 'regMsg' : 'loginMsg', msgText);
-      busy(btn, false);
-    }
+  async function checkPhoneInvite() {
+    var code = normInvite($('phoneInvite').value), el = $('phoneInviteState');
+    el.className = 'invite-state'; el.innerHTML = '';
+    if (!code || !sb) return null;
+    if (!/^[A-Z0-9-]{6,32}$/.test(code)) { el.className = 'invite-state bad'; el.innerHTML = ic('circle-alert') + '格式不对'; return false; }
+    el.innerHTML = ic('loader-circle', 'spin');
+    var r = await sb.rpc('validate_invite', { p_code: code });
+    if (r.error) { el.innerHTML = ''; return null; }
+    el.className = 'invite-state ' + (r.data ? 'good' : 'bad');
+    el.innerHTML = r.data ? ic('circle-check') + '可用' : ic('circle-alert') + '无效或已使用';
+    return !!r.data;
   }
 
   async function doCompleteInvite(e) {
@@ -700,19 +1031,105 @@
     finally { busy(btn, false); }
   }
 
+  function withCaptcha(options) {
+    options = options || {};
+    var cap = takeCaptcha();
+    if (cap === false) return null;
+    if (cap) options.captchaToken = cap;
+    return options;
+  }
+  async function preparePhoneRegister() {
+    var name = $('phoneName').value.trim().slice(0, 20);
+    var handle = normalizeHandleInput($('phoneHandle').value);
+    var code = normInvite($('phoneInvite').value);
+    var problem = handleProblem(handle);
+    if (problem) return { error: problem };
+    if (!code) return { error: '请输入邀请码' };
+    var avail = phoneHandleCheck ? await phoneHandleCheck.check() : null;
+    if (avail === 'invalid') return { error: cn(new Error('HANDLE_INVALID')) };
+    if (avail === false) return { error: cn(new Error('HANDLE_TAKEN')) };
+    var valid = await checkPhoneInvite();
+    if (valid === false) return { error: '邀请码无效、已过期或已使用' };
+    return { data: { invite_code: code, handle: handle, display_name: name || null } };
+  }
+  async function doSendSms(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!sb) return;
+    var resend = phoneMode === 'code';
+    var intent = resend ? phoneIntent : phoneMode;
+    var msgId = resend ? 'phoneCodeMsg' : 'phoneMsg';
+    if (smsUntil > Date.now()) return;
+    var norm = normalizePhone(phoneCountry(), $('phoneNational').value);
+    if (!norm.ok) return msg(msgId, norm.error);
+    msg(msgId, '');
+    var regData = null;
+    if (intent === 'register' && !resend) {
+      var prepared = await preparePhoneRegister();
+      if (prepared.error) return msg('phoneMsg', prepared.error);
+      regData = prepared.data;
+    } else if (intent === 'register' && phoneRegData) {
+      regData = phoneRegData;
+    }
+    var options = withCaptcha({});
+    if (!options) return msg(msgId, '请完成验证');
+    if (regData) options.data = regData;
+    var btn = resend ? $('btnResendSms') : $('btnSendSms');
+    if (btn) busy(btn, true, '发送中…');
+    try {
+      var r = await sb.auth.signInWithOtp({ phone: norm.e164, options: options });
+      if (r.error) throw r.error;
+      phoneE164 = norm.e164;
+      phoneIntent = intent === 'register' ? 'register' : 'login';
+      if (regData) phoneRegData = regData;
+      smsUntil = Date.now() + 60000;
+      setPhoneMode('code');
+      paintSmsButtons();
+      msg('phoneCodeMsg', '');
+      var codeEl = $('phoneCode');
+      if (codeEl) codeEl.focus();
+    } catch (err) {
+      msg(msgId, cn(err));
+      if (/频繁|rate|60/.test(cn(err))) { smsUntil = Date.now() + 60000; paintSmsButtons(); }
+    } finally {
+      resetCaptcha();
+      if (btn) busy(btn, false);
+      paintSmsButtons();
+    }
+  }
+  async function doVerifySms(e) {
+    e.preventDefault();
+    if (!sb || !phoneE164) return;
+    var token = String($('phoneCode').value || '').replace(/\s/g, '');
+    if (!token) return msg('phoneCodeMsg', '请输入验证码');
+    if (!/^\d{4,8}$/.test(token)) return msg('phoneCodeMsg', '验证码不正确');
+    var options = withCaptcha({});
+    if (!options) return msg('phoneCodeMsg', '请完成验证');
+    var btn = $('btnVerifySms'); busy(btn, true, '验证中…'); msg('phoneCodeMsg', '');
+    try {
+      var payload = { phone: phoneE164, token: token, type: 'sms' };
+      if (options.captchaToken) payload.options = { captchaToken: options.captchaToken };
+      var r = await sb.auth.verifyOtp(payload);
+      if (r.error) throw r.error;
+      $('phoneCode').value = '';
+      Z.toast(phoneIntent === 'register' ? '注册成功' : '登录成功');
+    } catch (err) { msg('phoneCodeMsg', cn(err)); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
+  }
   async function doLogin(e) {
     e.preventDefault();
     var email = $('loginEmail').value.trim(), pw = $('loginPassword').value;
     if (!EMAIL_RE.test(email)) return msg('loginMsg', '请输入有效的邮箱');
     if (!pw) return msg('loginMsg', '请输入密码');
+    var options = withCaptcha({});
+    if (!options) return msg('loginMsg', '请完成验证');
     var btn = $('btnLogin'); busy(btn, true, '登录中…'); msg('loginMsg', '');
     try {
-      var r = await sb.auth.signInWithPassword({ email: email, password: pw });
+      var r = await sb.auth.signInWithPassword({ email: email, password: pw, options: options });
       if (r.error) throw r.error;
       $('loginPassword').value = '';
       Z.toast('登录成功');
     } catch (err) { msg('loginMsg', cn(err)); }
-    finally { busy(btn, false); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
   }
   async function doRegister(e) {
     e.preventDefault();
@@ -725,6 +1142,8 @@
     if (pw.length < 8) return msg('regMsg', '密码至少 8 位');
     if (pw !== pw2) return msg('regMsg', '两次输入的密码不一致');
     if (!code) return msg('regMsg', '请输入邀请码');
+    var options = withCaptcha({ data: { invite_code: code, display_name: name || null, handle: handle }, emailRedirectTo: appUrl() });
+    if (!options) return msg('regMsg', '请完成验证');
     var btn = $('btnRegister'); busy(btn, true, '注册中…'); msg('regMsg', '');
     try {
       var avail = regHandleCheck ? await regHandleCheck.check() : null;
@@ -732,25 +1151,27 @@
       if (avail === false) throw new Error('HANDLE_TAKEN');
       var valid = await checkInvite();
       if (valid === false) throw new Error('INVITE_INVALID');
-      var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null, handle: handle }, emailRedirectTo: appUrl() } });
+      var r = await sb.auth.signUp({ email: email, password: pw, options: options });
       if (r.error) throw r.error;
       $('regPassword').value = ''; $('regPassword2').value = '';
       if (r.data && r.data.session) { Z.toast('注册成功'); }
       else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '邮箱已注册，请登录');
       else msg('regMsg', '确认邮件已发到 ' + email + '。点开链接后再登录。', true);
     } catch (err) { msg('regMsg', cn(err)); }
-    finally { busy(btn, false); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
   }
   async function doForgot() {
     var email = $('loginEmail').value.trim();
     if (!EMAIL_RE.test(email)) { msg('loginMsg', '先填写注册邮箱'); $('loginEmail').focus(); return; }
+    var options = withCaptcha({ redirectTo: appUrl() });
+    if (!options) { msg('loginMsg', '请完成验证'); return; }
     var btn = $('btnForgot'); btn.disabled = true;
     try {
-      var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
+      var r = await sb.auth.resetPasswordForEmail(email, options);
       if (r.error) throw r.error;
       msg('loginMsg', '如果邮箱已注册，重置邮件已发出。', true);
     } catch (err) { msg('loginMsg', cn(err)); }
-    finally { btn.disabled = false; }
+    finally { resetCaptcha(); paintCaptchaButtons(); }
   }
   function promptNewPassword() {
     Z.openModal({
@@ -1234,6 +1655,273 @@
     finally { if (btn) busy(btn, false); }
   }
 
+  /* ---------------- 退出：登出后清本机，不删云端 ---------------- */
+  function projectRef() {
+    var m = String(cfg.url || '').match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
+    return m ? m[1] : '';
+  }
+  function shellCacheRequest(url) {
+    try {
+      var u = new URL(url, location.href);
+      if (u.origin !== location.origin) return false;
+      var path = u.pathname.replace(/\/+$/, '') || '/';
+      var parts = path.split('/');
+      var base = parts[parts.length - 1] || '';
+      if (!base) return true;
+      if (/^(index\.html|privacy\.html|styles\.css|data\.js|streak\.js|app\.js|cloud\.js|admin\.js|config\.js|sw\.js|manifest\.json)$/i.test(base)) return true;
+      if (/^icon.*\.(svg|png)$/i.test(base)) return true;
+      if (parts.length >= 2 && parts[parts.length - 2] === 'vendor' && base === 'supabase.js') return true;
+      return false;
+    } catch (e2) { return false; }
+  }
+  async function wipeDeviceStores() {
+    var ref = projectRef();
+    try {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      keys.forEach(function (k) { if (appDataKey(k, ref)) localStorage.removeItem(k); });
+    } catch (e) {}
+    try {
+      var sk = [];
+      for (var j = 0; j < sessionStorage.length; j++) sk.push(sessionStorage.key(j));
+      sk.forEach(function (k) { if (appDataKey(k, ref)) sessionStorage.removeItem(k); });
+    } catch (e) {}
+    try {
+      if (window.indexedDB && indexedDB.databases) {
+        var dbs = await indexedDB.databases();
+        await Promise.all((dbs || []).map(function (d) {
+          if (!d || !d.name || !/zenflow|supabase|gotrue/i.test(d.name)) return Promise.resolve();
+          return new Promise(function (res) {
+            var req = indexedDB.deleteDatabase(d.name);
+            req.onsuccess = req.onerror = req.onblocked = function () { res(); };
+          });
+        }));
+      }
+    } catch (e) {}
+    try {
+      if (window.caches) {
+        var names = await caches.keys();
+        await Promise.all(names.map(function (name) {
+          if (name.indexOf('zenflow-') !== 0) return Promise.resolve();
+          return caches.open(name).then(function (cache) {
+            return cache.keys().then(function (reqs) {
+              return Promise.all(reqs.map(function (req) {
+                if (shellCacheRequest(req.url)) return Promise.resolve();
+                return cache.delete(req);
+              }));
+            });
+          });
+        }));
+      }
+    } catch (e) {}
+    try { localStorage.setItem(PULL_REMOTE_KEY, '1'); } catch (e) {}
+  }
+  function clearAuthFields() {
+    ['loginEmail', 'loginPassword', 'regName', 'regHandle', 'regEmail', 'regPassword', 'regPassword2', 'regInvite', 'phoneName', 'phoneHandle', 'phoneInvite', 'phoneNational', 'phoneCode', 'phoneCcOther'].forEach(function (id) {
+      var el = $(id); if (el) el.value = '';
+    });
+    ['loginMsg', 'regMsg', 'phoneMsg', 'phoneCodeMsg'].forEach(function (id) {
+      var el = $(id); if (el) { el.textContent = ''; el.className = 'auth-msg'; }
+    });
+    ['inviteState', 'regHandleState', 'phoneHandleState', 'phoneInviteState', 'gateInviteState', 'gateHandleState'].forEach(function (id) {
+      var el = $(id); if (el) { el.innerHTML = ''; el.className = 'invite-state'; }
+    });
+    phoneE164 = '';
+    phoneRegData = null;
+    phoneIntent = 'login';
+    smsUntil = 0;
+    var cc = $('phoneCc'); if (cc) cc.value = '86';
+    var other = $('phoneCcOther'); if (other) other.classList.add('hidden');
+  }
+  function confirmLogout() {
+    Z.openModal({
+      title: '退出登录',
+      ok: '退出',
+      danger: true,
+      html: '<p>退出并清除本机数据？云端数据不受影响。</p>',
+      onOk: function () { doLogout(); }
+    });
+  }
+  async function doLogout(opts) {
+    opts = opts || {};
+    if (wipeLock && !opts.keepLock) return;
+    wipeLock = true;
+    suppressSignedOut = true;
+    clearTimeout(pushTimer);
+    clearTimeout(smsTimer);
+    pending = false;
+    replaceAllPending = false;
+    var err = null;
+    try {
+      if (sb) {
+        var signP = sb.auth.signOut().then(function (r) { return r; }, function (e) { return { error: e }; });
+        var r = await Promise.race([
+          signP,
+          new Promise(function (resolve) { setTimeout(function () { resolve({ error: new Error('timeout') }); }, 4000); })
+        ]);
+        if (r && r.error) err = r.error;
+      }
+    } catch (e) { err = e; }
+    session = null;
+    profile = null;
+    invites = null;
+    profileReady = true;
+    authReady = true;
+    sync.status = 'off';
+    sync.at = 0;
+    sync.error = '';
+    await wipeDeviceStores();
+    if (Z.wipeLocal) Z.wipeLocal();
+    clearAuthFields();
+    setPhoneMode('login');
+    setEmailMode('login');
+    setChannel(phoneLoginEnabled() ? 'phone' : 'email');
+    renderAccount();
+    renderChrome();
+    updateGate();
+    wipeLock = false;
+    Z.toast(opts.toast || (err ? '已退出本机' : '已退出'));
+  }
+
+  function exportStamp(d) {
+    d = d || new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return String(d.getFullYear()) + p(d.getMonth() + 1) + p(d.getDate());
+  }
+  function downloadJson(obj, name) {
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  }
+  function themeSetting() {
+    try {
+      var t = localStorage.getItem('zenflow_theme');
+      return t === 'light' || t === 'dark' ? t : 'system';
+    } catch (e) { return 'system'; }
+  }
+  function profileExport() {
+    var p = profile || {};
+    return {
+      display_name: p.display_name || '',
+      handle: p.handle || '',
+      avatar_url: p.avatar_url || '',
+      created_at: p.created_at || null
+    };
+  }
+  async function buildExport() {
+    var local = Z.sanitize(Z.getState());
+    var data = local;
+    var source = 'local';
+    var note = '';
+    if (!sb || !user()) {
+      note = '未登录，只有本机数据。';
+    } else {
+      try {
+        var uid = user().id;
+        var r = await sb.from('user_data').select('data,updated_at').eq('user_id', uid).maybeSingle();
+        if (r.error) throw r.error;
+        if (!profile) {
+          var pr = await sb.from('profiles').select('display_name,handle,avatar_url,created_at').eq('id', uid).maybeSingle();
+          if (!pr.error && pr.data) profile = pr.data;
+        }
+        var remote = r.data && r.data.data ? Z.sanitize(r.data.data) : null;
+        var lastUid = null, pullRemote = false;
+        try {
+          lastUid = localStorage.getItem(LAST_UID_KEY);
+          pullRemote = localStorage.getItem(PULL_REMOTE_KEY) === '1';
+        } catch (e) {}
+        var choice = chooseSync(local, remote, lastUid, uid, pullRemote, false);
+        data = choice === 'remote' ? (remote || local) : choice === 'local' ? local : merge(local, remote);
+        source = remote ? 'cloud+local' : 'local';
+      } catch (e) {
+        data = local;
+        source = 'local';
+        note = '未能读取云端，可能缺少只在云端的数据。';
+      }
+    }
+    var out = {
+      app: 'ZenFlow',
+      exportedAt: new Date().toISOString(),
+      source: source,
+      profile: profileExport(),
+      data: data,
+      settings: { theme: themeSetting() }
+    };
+    if (note) out.note = note;
+    return out;
+  }
+  async function exportAccountData() {
+    var pack = await buildExport();
+    downloadJson(pack, 'zenflow-export-' + exportStamp() + '.json');
+    Z.toast(pack.note || '已导出');
+  }
+  async function removeMyAvatarFiles(uid) {
+    try {
+      var bucket = sb.storage.from('avatars');
+      var offset = 0;
+      var names = [];
+      while (offset < 1000) {
+        var listed = await bucket.list(uid, { limit: 100, offset: offset });
+        if (!listed || listed.error) break;
+        var batch = listed.data || [];
+        batch.forEach(function (f) {
+          if (f && f.name && f.id) names.push(uid + '/' + f.name);
+        });
+        if (batch.length < 100) break;
+        offset += batch.length;
+      }
+      if (names.length) await bucket.remove(names);
+    } catch (e) {}
+  }
+  function confirmDeleteAccount() {
+    Z.openModal({
+      title: '注销账号',
+      ok: '继续',
+      danger: true,
+      html: '<p>会永久删除账号和全部云端数据，不能恢复。</p><button class="btn btn-ghost btn-block" type="button" id="btnExportBeforeDelete">先导出数据</button>',
+      onOk: function () { setTimeout(confirmDeleteHandle, 0); }
+    });
+  }
+  function confirmDeleteHandle() {
+    var handle = (profile && profile.handle) || '';
+    Z.openModal({
+      title: '确认注销',
+      ok: '注销',
+      danger: true,
+      html: '<p>输入你的 @ID。</p><input type="text" id="deleteHandleConfirm" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="@ID" />',
+      onOk: function () {
+        var typed = normalizeHandleInput($('deleteHandleConfirm') && $('deleteHandleConfirm').value);
+        if (!handle || typed !== handle) { Z.toast('@ID 不正确'); return false; }
+        deleteMyAccount();
+      }
+    });
+  }
+  async function deleteMyAccount() {
+    if (wipeLock) return;
+    if (!sb || !user()) { Z.toast('请先登录'); return; }
+    wipeLock = true;
+    suppressSignedOut = true;
+    clearTimeout(pushTimer);
+    pending = false;
+    replaceAllPending = false;
+    try {
+      await removeMyAvatarFiles(user().id);
+      var r = await sb.rpc('delete_my_account');
+      if (r.error) throw r.error;
+    } catch (err) {
+      wipeLock = false;
+      suppressSignedOut = false;
+      Z.toast(cn(err));
+      return;
+    }
+    await doLogout({ toast: '账号已注销', keepLock: true });
+  }
+
   /* ---------------- 事件 ---------------- */
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t) return;
@@ -1245,11 +1933,14 @@
       case 'btnCloudRetry': location.reload(); break;
       case 'btnSyncNow': syncNow(); break;
       case 'btnLogout':
-        Z.openModal({
-          title: '退出登录？', ok: '退出登录', danger: true,
-          html: '<p>退出后本机数据还在。再次登录会合并。</p>',
-          onOk: function () { clearTimeout(pushTimer); sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); }); }
-        });
+        confirmLogout();
+        break;
+      case 'btnExportAccount':
+      case 'btnExportBeforeDelete':
+        exportAccountData();
+        break;
+      case 'btnDeleteAccount':
+        confirmDeleteAccount();
         break;
       case 'btnNewInvites':
         t.disabled = true;
@@ -1271,21 +1962,60 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !$('authMask').classList.contains('hidden') && $('modalMask').classList.contains('hidden') && !isGated()) closeAuth();
   });
-  $('authSeg').addEventListener('click', function (e) { var b = e.target.closest('.seg-btn'); if (b) { setAuthMode(b.dataset.auth); msg('loginMsg', ''); msg('regMsg', ''); } });
+  $('authSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn');
+    if (!b || !b.dataset.channel) return;
+    setChannel(b.dataset.channel);
+    msg('loginMsg', ''); msg('regMsg', ''); msg('phoneMsg', ''); msg('phoneCodeMsg', '');
+  });
+  if ($('emailSeg')) $('emailSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg-btn');
+    if (!b) return;
+    setEmailMode(b.dataset.auth);
+    msg('loginMsg', ''); msg('regMsg', '');
+  });
   $('formLogin').addEventListener('submit', doLogin);
   $('formRegister').addEventListener('submit', doRegister);
+  if ($('formPhone')) $('formPhone').addEventListener('submit', doSendSms);
+  if ($('formPhoneCode')) $('formPhoneCode').addEventListener('submit', doVerifySms);
+  if ($('btnResendSms')) $('btnResendSms').addEventListener('click', doSendSms);
+  if ($('btnPhoneMode')) $('btnPhoneMode').addEventListener('click', function () {
+    msg('phoneMsg', '');
+    setPhoneMode(phoneMode === 'register' ? 'login' : 'register');
+  });
+  if ($('btnPhoneBack')) $('btnPhoneBack').addEventListener('click', function () {
+    msg('phoneCodeMsg', '');
+    setPhoneMode(phoneIntent === 'register' ? 'register' : 'login');
+  });
+  if ($('phoneCc')) $('phoneCc').addEventListener('change', function () {
+    var other = $('phoneCcOther');
+    if (!other) return;
+    var on = this.value === 'other';
+    other.classList.toggle('hidden', !on);
+    if (on) other.focus();
+  });
+  ['phoneNational', 'phoneName', 'phoneCode', 'phoneCcOther'].forEach(function (id) {
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener('input', function () {
+      if (id === 'phoneCode') msg('phoneCodeMsg', '');
+      else msg('phoneMsg', '');
+    });
+  });
   $('formInviteGate').addEventListener('submit', doCompleteInvite);
   $('btnForgot').addEventListener('click', doForgot);
-  $('btnGoogle').addEventListener('click', doGoogle);
-  $('btnGateLogout').addEventListener('click', function () {
-    clearTimeout(pushTimer);
-    sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); });
-  });
+  watchCaptchaTheme();
+  $('btnGateLogout').addEventListener('click', confirmLogout);
   $('regInvite').addEventListener('blur', checkInvite);
   $('regInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('inviteState').innerHTML = ''; $('inviteState').className = 'invite-state'; });
+  if ($('phoneInvite')) {
+    $('phoneInvite').addEventListener('blur', checkPhoneInvite);
+    $('phoneInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('phoneInviteState').innerHTML = ''; $('phoneInviteState').className = 'invite-state'; msg('phoneMsg', ''); });
+  }
   $('gateInvite').addEventListener('blur', checkGateInvite);
   $('gateInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('gateInviteState').innerHTML = ''; $('gateInviteState').className = 'invite-state'; });
   var regHandleCheck = bindHandleInput($('regHandle'), $('regHandleState'));
+  var phoneHandleCheck = bindHandleInput($('phoneHandle'), $('phoneHandleState'));
   var gateHandleCheck = bindHandleInput($('gateHandle'), $('gateHandleState'));
   var profileHandleCheck = bindHandleInput($('profileHandleInput'), $('profileHandleState'));
   if ($('btnSaveProfile')) $('btnSaveProfile').addEventListener('click', function () { saveProfile(); });
@@ -1374,7 +2104,7 @@
   if ($('btnAvatarRemove')) $('btnAvatarRemove').addEventListener('click', function () {
     Z.openModal({
       title: '移除头像？', ok: '移除', danger: true,
-      html: '<p>移除后显示首字母。没有自定义头像时，Google 登录仍显示 Google 头像。</p>',
+      html: '<p>移除后显示首字母。</p>',
       onOk: function () { removeAvatar(); }
     });
   });
@@ -1384,7 +2114,7 @@
     merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
     userId: function () { return user() && user().id; },
-    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
+    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; },
     refreshChrome: renderChrome,
@@ -1429,6 +2159,7 @@
     function applyAuthEvent(event, s) {
       if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
       if (event === 'SIGNED_OUT') {
+        if (wipeLock || suppressSignedOut) return;
         session = null; profile = null; invites = null; profileReady = true; authReady = true;
         bootFinished = false;
         setSync('off'); renderAccount(); renderChrome(); updateGate();
@@ -1443,6 +2174,7 @@
         return;
       }
       if (sessionResolved && s && s.user) {
+        suppressSignedOut = false;
         var prevId = user() && user().id;
         session = s;
         if (prevId && prevId === s.user.id) return;

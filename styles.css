@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"22";
+  --zf-css:"28";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -179,8 +179,27 @@ html,body{background-color:#fafafa}
 }
 .privacy-pill .ic{width:13px;height:13px;stroke-width:2}
 .brand{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;font-weight:700;font-size:20px;letter-spacing:-.03em;text-transform:none;color:var(--text)}
-.brand-logo,.side-logo{display:block;width:28px;height:28px;border-radius:8px}
-.auth-logo{display:block;width:72px;height:72px;border-radius:18px;margin:0 auto 12px}
+.wordmark{
+  font-family:"Avenir Next",Avenir,"Century Gothic",Futura,"Trebuchet MS","Segoe UI","Helvetica Neue","PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+  font-weight:800;letter-spacing:.1em;text-transform:uppercase;line-height:1;
+}
+.brand-logo,.side-logo,.auth-logo,.auth-boot-logo{display:block;border-radius:50%;box-shadow:none}
+.brand-logo,.side-logo{width:28px;height:28px}
+.auth-logo{width:72px;height:72px;margin:0 auto 10px}
+.auth-wordmark{margin:0 0 10px;font-size:13px;letter-spacing:.12em;color:var(--text)}
+.auth-boot-word{margin:0;font-size:12px;letter-spacing:.12em;color:var(--text)}
+:root[data-theme="dark"] .brand-logo,
+:root[data-theme="dark"] .side-logo,
+:root[data-theme="dark"] .auth-logo,
+:root[data-theme="dark"] .auth-boot-logo,
+:root[data-theme="dark"] .privacy-brand img{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .brand-logo,
+  :root:not([data-theme="light"]) .side-logo,
+  :root:not([data-theme="light"]) .auth-logo,
+  :root:not([data-theme="light"]) .auth-boot-logo,
+  :root:not([data-theme="light"]) .privacy-brand img{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+}
 .brand-tag{font-weight:500;font-size:12px;color:var(--muted);letter-spacing:0}
 
 .card{
@@ -201,7 +220,7 @@ html,body{background-color:#fafafa}
   transition:background-color .15s ease,opacity .15s ease;
 }
 .btn:active,.icon-btn:active,.mood:active,.tag:active,.action:active,.seg-btn:active,.sos-banner:active,.tab:active,.btn-link:active{opacity:.72}
-.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled,.btn-link:disabled{opacity:.45;cursor:not-allowed}
 .btn-block{display:flex;align-items:center;justify-content:center;width:100%;margin-top:12px}
 .btn-lg{padding:12px 16px;font-size:15px}
 .btn-primary{color:var(--on-primary);background:var(--primary);border-color:transparent}
@@ -534,7 +553,7 @@ button.cal-cell:hover{box-shadow:inset 0 0 0 1.5px var(--text)}
 .ri-teal{background:color-mix(in srgb,var(--mint) 16%,var(--card));color:var(--mint)}
 .ri-warm{background:color-mix(in srgb,var(--warm) 14%,var(--card));color:var(--warm)}
 
-.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:0;z-index:50;animation:fade .2s}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:0;z-index:96;animation:fade .2s}
 .modal{
   border-radius:16px 16px 0 0;padding:20px 16px calc(16px + var(--safe-b));
   width:100%;max-width:480px;background:var(--surface);border:none;
@@ -617,9 +636,9 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   }
   .app .side-brand{display:flex;align-items:center;gap:10px;padding:4px 12px 22px}
   .side-brand div{display:flex;flex-direction:column;gap:2px;min-width:0}
-  .side-brand b{font-size:18px;font-weight:700;letter-spacing:-.03em;text-transform:none}
+  .side-brand b{font-size:15px;font-weight:800;letter-spacing:.1em}
   .side-brand small{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0}
-  .side-logo{width:32px;height:32px;border-radius:9px}
+  .side-logo{width:32px;height:32px}
 
   .tab{
     flex:none;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;
@@ -780,8 +799,27 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .auth-brand{text-align:center;padding:8px 8px 16px}
 .auth-brand h2{margin:0 0 6px;font-weight:700;font-size:22px;letter-spacing:-.02em;justify-content:center}
 .auth-seg{margin:0 0 16px}
+.email-seg{margin-top:0}
 .auth-seg .seg-btn{display:flex;align-items:center;justify-content:center;gap:6px}
 .auth-seg .seg-btn .ic{width:14px;height:14px}
+.phone-row{
+  display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;background:var(--field);overflow:hidden;
+}
+.phone-row:focus-within{border-color:#a8a8a8;background:var(--card)}
+.field > .phone-row{font-weight:500;margin-bottom:0}
+.field .phone-row select,.field .phone-row input{
+  border:none;background:transparent;border-radius:0;width:auto;padding:10px 12px;color:var(--text);
+}
+.field .phone-row select{font-weight:700;padding-right:6px;max-width:38%;flex-shrink:0}
+.field .phone-row .phone-national{flex:1;min-width:0;width:100%}
+.field .phone-row .phone-cc-other{width:4.6em;flex-shrink:0;border-left:1px solid var(--line);padding-left:8px;padding-right:8px}
+.field .phone-row input:focus,.field .phone-row select:focus{border-color:transparent;background:transparent}
+.captcha-host{
+  display:block;width:100%;margin:12px 0 0;min-height:65px;
+  border-radius:8px;overflow:hidden;
+}
+.captcha-host.captcha-off{display:none}
+.captcha-host iframe{display:block;width:100%;max-width:100%;border:0}
 .auth-form .field{margin-top:12px}
 .field > .invite-row,.field > .handle-row{display:flex;align-items:center;font-weight:500;font-size:inherit;color:inherit;margin-bottom:0}
 .invite-row{display:flex;align-items:center;gap:8px}
@@ -804,6 +842,8 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .auth-note{margin-top:12px}
 .auth-foot{display:flex;align-items:flex-start;justify-content:center;gap:6px;margin:18px 0 4px}
 .auth-foot .ic{width:14px;height:14px;margin-top:2px}
+.auth-privacy{margin:10px 0 0;text-align:center}
+.auth-privacy a{color:var(--muted);font-size:12px;font-weight:500;text-decoration:none}
 @media (min-width:560px){
   .auth-mask{align-items:center;padding:24px}
   .auth-sheet{border-radius:16px;padding:32px 28px 24px;max-height:min(88vh,720px);border:1px solid var(--line)}
@@ -869,24 +909,18 @@ body.auth-booting #authBoot{display:flex;visibility:visible;pointer-events:auto}
   display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:12px;
   background:var(--bg);color:var(--muted);
 }
-#authBoot .auth-boot-logo{width:56px;height:56px;border-radius:16px}
+#authBoot .auth-boot-logo{width:56px;height:56px;border-radius:50%}
 #authBoot .auth-boot-spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--text);border-radius:50%;animation:zf-boot-spin .8s linear infinite}
 @keyframes zf-boot-spin{to{transform:rotate(360deg)}}
 body.auth-gated{overflow:hidden}
 body.auth-gated #app > :not(#authMask):not(#modalMask):not(#authBoot){visibility:hidden;pointer-events:none}
+body.auth-gated #app > #toast.show{visibility:visible!important;z-index:90}
 body.auth-gated #authMask{visibility:visible;pointer-events:auto;z-index:80}
 body.auth-gated #authBoot{display:none!important}
 body.auth-gated .auth-close{display:none}
 body.auth-gated .auth-mask{align-items:center;background:var(--bg);padding:28px 20px}
 body.auth-gated .auth-sheet{max-width:400px;border:none;border-radius:0;padding:8px 0 24px;background:transparent;box-shadow:none}
 body.auth-ready #authBoot{display:none!important}
-.btn-google{
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  background:var(--card);color:var(--text);font-weight:600;border:1px solid var(--line);margin-bottom:2px;
-}
-.btn-google .g-ic{width:18px;height:18px;flex-shrink:0}
-.auth-divider{display:flex;align-items:center;gap:12px;margin:14px 0 4px;color:var(--muted);font-size:12px;font-weight:600}
-.auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:var(--line)}
 #formInviteGate .field{margin-top:12px}
 
 /* ---------- 设置二级菜单 ---------- */
@@ -955,6 +989,17 @@ body.auth-ready #authBoot{display:none!important}
   padding:12px 14px;color:var(--text);font-size:15px;
 }
 .set-group .set-row:last-child{border-bottom:none}
+a.set-row{color:inherit;text-decoration:none}
+#privacyDeleteRow{margin-top:16px}
+.privacy-page{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(var(--safe-t) + 20px) 20px 48px;background:var(--bg);color:var(--text)}
+.privacy-back{display:inline-flex;align-items:center;color:var(--text);text-decoration:none;font-size:14px;font-weight:600}
+.privacy-brand{display:flex;flex-direction:column;align-items:center;margin:28px 0 28px}
+.privacy-brand img{width:56px;height:56px;border-radius:50%;margin:0 0 10px}
+.privacy-brand .wordmark{font-size:13px;letter-spacing:.12em}
+.privacy-doc h1{margin:0 0 4px;font-size:22px}
+.privacy-doc h2{margin:20px 0 6px;font-size:15px}
+.privacy-doc p{margin:0;font-size:14px;line-height:1.65;color:var(--text)}
+.privacy-date{margin:0 0 4px;font-size:12px;font-weight:500;color:var(--muted)}
 .set-row-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .set-row-text b{font-size:15px;font-weight:700}
 .set-row-text small{font-size:12px;font-weight:500;color:var(--muted)}

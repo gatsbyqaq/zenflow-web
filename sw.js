@@ -1,6 +1,6 @@
 /* ZenFlow service worker：缓存静态资源，支持离线使用（仅 http/https 下注册） */
-var CACHE = 'zenflow-v22-copy';
-var ASSETS = ['./', './index.html', './styles.css?v=22', './data.js?v=22', './streak.js?v=22', './app.js?v=22', './cloud.js?v=22', './admin.js?v=22', './config.js?v=22', './vendor/supabase.js?v=22', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './manifest.json'];
+var CACHE = 'zenflow-v28';
+var ASSETS = ['./', './index.html', './privacy.html', './styles.css?v=28', './data.js?v=28', './streak.js?v=28', './app.js?v=28', './cloud.js?v=28', './admin.js?v=28', './config.js?v=28', './vendor/supabase.js?v=28', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './favicon.svg', './favicon.ico', './favicon-32.png', './manifest.json'];
 self.addEventListener('install', function (e) {
   // 安装时绕过浏览器 HTTP 缓存，确保缓存的是最新文件
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS.map(function (u) { return new Request(u, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
