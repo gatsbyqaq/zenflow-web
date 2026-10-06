@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"21";
+  --zf-css:"22";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -192,7 +192,7 @@ html,body{background-color:#fafafa}
 .card-title h2{margin:0}
 .soft-blue{background:color-mix(in srgb,var(--primary) 7%,var(--card))}
 .soft-warm{background:color-mix(in srgb,var(--warm) 7%,var(--card))}
-.tip-card,.quote-card{background:var(--card)}
+.tip-card{background:var(--card)}
 .tip-card p,.card p{font-size:14px;line-height:1.6;color:var(--text2)}
 
 .btn{
@@ -412,8 +412,6 @@ button.cal-cell:hover{box-shadow:inset 0 0 0 1.5px var(--text)}
 }
 .action.done{color:var(--muted)}
 .action.done::after{content:"";margin-left:auto;width:16px;height:16px;flex-shrink:0;background:var(--primary);-webkit-mask:var(--check-svg) center/contain no-repeat;mask:var(--check-svg) center/contain no-repeat}
-.quote{font-size:18px;line-height:1.45;font-weight:700;margin:4px 0;color:var(--text)}
-.quote-src{text-align:left;color:var(--muted);font-size:12px;font-weight:600;margin:8px 0 0}
 .reasons-view{margin:0;padding:0;list-style:none}
 .reasons-view li{padding:10px 0;border-bottom:1px solid var(--line);margin:0;font-size:14px;line-height:1.5}
 .reasons-view li:last-child{border-bottom:none}
@@ -694,7 +692,7 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   #sosActions.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto 1fr auto;column-gap:16px;align-items:start}
   #sosActions .sos-top{grid-column:1/-1}
   #sosActions .sa-acts{grid-column:1;grid-row:2/span 2}
-  #sosActions .sa-quote,#sosActions .sa-reasons{grid-column:2}
+  #sosActions .sa-reasons{grid-column:2}
   #sosActions .sa-foot{grid-column:1/-1;justify-self:start;width:100%;max-width:440px}
   .modal{max-width:420px;border-radius:16px;padding:22px 20px 18px;align-self:center}
   .modal-mask{align-items:center;padding:24px}

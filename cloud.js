@@ -147,7 +147,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=21'; s.async = true;
+      s.src = 'vendor/supabase.js?v=22'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -163,27 +163,27 @@
   function cn(err) {
     var m = errText(err);
     var code = err && (err.code || err.error_code) || '';
-    if (/HANDLE_TAKEN/.test(m)) return '这个 @ID 已经被占用了，换一个吧';
-    if (/HANDLE_INVALID/.test(m)) return '@ID 需要 3–20 位小写字母、数字或下划线';
-    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已被使用';
+    if (/HANDLE_TAKEN/.test(m)) return '@ID 已被占用';
+    if (/HANDLE_INVALID/.test(m)) return '@ID 需为 3–20 位小写字母、数字或下划线';
+    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已使用';
     if (/Invalid login credentials/i.test(m) || code === 'invalid_credentials') return '邮箱或密码不正确';
-    if (/Email not confirmed/i.test(m)) return '邮箱尚未确认，请先点击确认邮件中的链接';
-    if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '这个邮箱已经注册过了，请直接登录';
-    if (/Password should be|weak_password|password.*(short|characters)/i.test(m + code)) return '密码太弱：至少 8 位，建议包含字母和数字';
-    if (/rate limit|too many|over_email_send_rate_limit|429/i.test(m + code)) return '操作太频繁，请稍后再试';
+    if (/Email not confirmed/i.test(m)) return '邮箱还没确认';
+    if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '邮箱已注册，请登录';
+    if (/Password should be|weak_password|password.*(short|characters)/i.test(m + code)) return '密码至少 8 位';
+    if (/rate limit|too many|over_email_send_rate_limit|429/i.test(m + code)) return '操作太频繁';
     if (/invalid.*email|email.*invalid|validation_failed/i.test(m + code)) return '邮箱格式不正确';
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
-    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络连接失败，请检查网络后重试';
-    if (/NOT_ADMIN/.test(m)) return '只有管理员可以执行此操作';
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络失败';
+    if (/NOT_ADMIN/.test(m)) return '需要管理员';
     if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
-    if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB，请换一张小一点的';
+    if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB';
     if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
     if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
-    if (/provider is not enabled/i.test(m)) return 'Google 登录尚未启用，请在 Supabase Authentication → Providers 中配置';
+    if (/provider is not enabled/i.test(m)) return 'Google 登录未开启';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
     if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
     if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
-    if (/JWT|session|refresh_token/i.test(m)) return '登录已过期，请重新登录';
+    if (/JWT|session|refresh_token/i.test(m)) return '登录已过期';
     return m || '出现未知错误';
   }
 
@@ -210,7 +210,7 @@
       if (lastUid && lastUid !== uid && !replaceAll) {
         // 这台设备上的数据属于另一个账号：不混入当前账号，改用当前账号的云端数据
         merged = remote || Z.defaultState();
-        Z.toast('已切换账号，载入该账号的云端数据');
+        Z.toast('已切换账号');
       } else if (!remote || replaceAll) merged = local;
       else merged = merge(local, remote);
       if (stable(merged) !== stable(local)) Z.replaceState(merged);
@@ -318,7 +318,7 @@
     if (pill) { pill.className = 'sync-pill ' + L.cls; pill.innerHTML = ic(L.icon) + esc(L.text); }
     var logged = configured && user();
     var pp = document.querySelector('#screen-home .privacy-pill');
-    if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步到你的账号' : '所有数据只保存在本机浏览器中'; pp.classList.toggle('synced', !!logged); }
+    if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步' : '数据只在这台设备'; pp.classList.toggle('synced', !!logged); }
     renderSideUser();
     if (window.ZenFlowCore && window.ZenFlowCore.updateSettingsChrome) window.ZenFlowCore.updateSettingsChrome();
   }
@@ -335,8 +335,8 @@
     if (statusOnly && user()) { var st = $('acctSync'); if (st) { st.innerHTML = syncLine(); return; } }
     if (!configured) {
       body.innerHTML =
-        '<p class="small">当前为<b>本机模式</b>：所有功能都可以正常使用，数据只保存在这台设备上。</p>' +
-        '<p class="muted small">' + (cfgError ? '<span class="danger-text">连接配置有误：' + esc(cfgError) + '</span>' : '登录与云同步尚未启用：需要先在 <code>config.js</code> 中填写 Supabase 项目地址和 anon key（见仓库 supabase/README.md）。') + '</p>' +
+        '<p class="small">本机模式。数据只在这台设备。</p>' +
+        '<p class="muted small">' + (cfgError ? '<span class="danger-text">连接配置有误：' + esc(cfgError) + '</span>' : '云同步未开启。在 <code>config.js</code> 填写 Supabase 地址和 anon key。') + '</p>' +
         '<div class="acct-actions"><button class="btn btn-ghost" id="btnCloudSetup">' + ic('plug') + '填写连接信息</button></div>';
       return;
     }
@@ -348,7 +348,7 @@
     var u = user();
     if (!u) {
       body.innerHTML =
-        '<p class="small">登录后即可使用 ZenFlow，打卡 / 记录 / 理由会自动同步。当前站点已启用云端，<b>需要登录</b>（邮箱或 Google；新用户需邀请码）。</p>' +
+        '<p class="small">需要登录。新用户要邀请码。</p>' +
         '<div class="acct-actions"><button class="btn btn-primary" id="btnOpenLogin">' + ic('log-in') + '登录</button>' +
         '<button class="btn btn-ghost" id="btnOpenRegister">' + ic('ticket') + '邀请码注册</button></div>' +
         (cfg.source === 'local' ? '<p class="muted small acct-src">使用本机连接设置 · <button class="btn-link" id="btnCloudSetup">修改</button></p>' : '');
@@ -361,12 +361,12 @@
       (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div></div>' +
       '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
       '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
-      '<p class="muted small">退出登录在设置列表最下方。管理员入口也在设置列表里。</p>';
+      '<p class="muted small">退出在设置列表底部。</p>';
     body.innerHTML = h;
   }
   function syncLine() {
     var s = sync.status;
-    var t = s === 'syncing' ? '正在同步…' : s === 'error' ? '同步失败：' + esc(sync.error) + '（会自动重试）' : s === 'offline' ? '当前离线，联网后自动同步' : '上次同步：' + fmtTime(sync.at);
+    var t = s === 'syncing' ? '正在同步…' : s === 'error' ? '同步失败：' + esc(sync.error) : s === 'offline' ? '离线，联网后会同步' : '上次同步：' + fmtTime(sync.at);
     return ic(s === 'error' || s === 'offline' ? 'cloud-off' : s === 'syncing' ? 'refresh-cw' : 'cloud-check') + '<span>' + t + '</span>';
   }
   function inviteListHtml() {
@@ -428,8 +428,8 @@
     $('formRegister').classList.toggle('hidden', authMode !== 'register');
     $('authTitle').textContent = authMode === 'login' ? '登录 ZenFlow' : '用邀请码注册';
     $('authSub').textContent = authMode === 'login'
-      ? '登录后即可使用全部功能，数据会安全同步到你的账号。'
-      : '注册需要全站唯一的 @ID 和有效邀请码。昵称可以重复。';
+      ? '登录后会同步数据。'
+      : '需要唯一 @ID 和邀请码。';
   }
   function peekPersistedSession() {
     try {
@@ -471,10 +471,10 @@
     $('formInviteGate').classList.remove('hidden');
     if ($('gateInviteField')) $('gateInviteField').classList.remove('hidden');
     if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
-    $('authTitle').textContent = '输入邀请码完成注册';
+    $('authTitle').textContent = '完成注册';
     var email = (user() && user().email) || '';
-    $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
-    $('inviteGateHint').textContent = 'Google / 第三方登录成功。请填写邀请码，并设置一个全站唯一的 @ID。';
+    $('authSub').textContent = email ? ('已登录 ' + email) : '填写邀请码和 @ID';
+    $('inviteGateHint').textContent = '填写邀请码和 @ID。';
     var btn = $('btnCompleteInvite');
     if (btn) btn.innerHTML = ic('ticket') + '完成注册';
     prefillGateProfile();
@@ -492,10 +492,10 @@
     $('formInviteGate').classList.remove('hidden');
     if ($('gateInviteField')) $('gateInviteField').classList.add('hidden');
     if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
-    $('authTitle').textContent = '设置你的 @ID';
+    $('authTitle').textContent = '设置 @ID';
     var email = (user() && user().email) || '';
-    $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
-    $('inviteGateHint').textContent = '这个账号还没有 @ID。请设置一个全站唯一的 ID，昵称可以之后再改。';
+    $('authSub').textContent = email ? ('已登录 ' + email) : '设置一个唯一的 @ID';
+    $('inviteGateHint').textContent = '这个账号还没有 @ID。';
     var btn = $('btnCompleteInvite');
     if (btn) btn.innerHTML = ic('circle-check') + '保存并进入';
     prefillGateProfile();
@@ -690,7 +690,7 @@
         : await sb.rpc('update_my_profile', { p_display_name: name || null, p_handle: handle, p_avatar_url: null });
       if (r.error) throw r.error;
       profile = r.data || profile;
-      Z.toast(needInvite ? '注册完成，欢迎加入' : '已设置 @ID');
+      Z.toast(needInvite ? '注册完成' : '已设置 @ID');
       updateGate();
       renderAccount();
       renderChrome();
@@ -735,27 +735,27 @@
       var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null, handle: handle }, emailRedirectTo: appUrl() } });
       if (r.error) throw r.error;
       $('regPassword').value = ''; $('regPassword2').value = '';
-      if (r.data && r.data.session) { Z.toast('注册成功，欢迎加入'); }
-      else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '这个邮箱已经注册过了，请直接登录');
-      else msg('regMsg', '注册成功！确认邮件已发送到 ' + email + '，点击邮件中的链接后即可登录。', true);
+      if (r.data && r.data.session) { Z.toast('注册成功'); }
+      else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '邮箱已注册，请登录');
+      else msg('regMsg', '确认邮件已发到 ' + email + '。点开链接后再登录。', true);
     } catch (err) { msg('regMsg', cn(err)); }
     finally { busy(btn, false); }
   }
   async function doForgot() {
     var email = $('loginEmail').value.trim();
-    if (!EMAIL_RE.test(email)) { msg('loginMsg', '请先在上方输入你的注册邮箱'); $('loginEmail').focus(); return; }
+    if (!EMAIL_RE.test(email)) { msg('loginMsg', '先填写注册邮箱'); $('loginEmail').focus(); return; }
     var btn = $('btnForgot'); btn.disabled = true;
     try {
       var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
       if (r.error) throw r.error;
-      msg('loginMsg', '如果该邮箱已注册，重置密码的邮件已发送，请查收。', true);
+      msg('loginMsg', '如果邮箱已注册，重置邮件已发出。', true);
     } catch (err) { msg('loginMsg', cn(err)); }
     finally { btn.disabled = false; }
   }
   function promptNewPassword() {
     Z.openModal({
       title: '设置新密码', ok: '保存',
-      html: '<p>请输入新的登录密码（至少 8 位）。</p><input type="password" id="newPw" autocomplete="new-password" placeholder="新密码" />',
+      html: '<p>至少 8 位。</p><input type="password" id="newPw" autocomplete="new-password" placeholder="新密码" />',
       onOk: function () {
         var pw = $('newPw').value;
         if (pw.length < 8) { Z.toast('密码至少 8 位'); return false; }
@@ -769,7 +769,7 @@
     var o = readConfig();
     Z.openModal({
       title: '连接 Supabase', ok: '保存并连接',
-      html: '<p>填写你的 Supabase 项目信息（Project Settings → API）。只保存在这台设备上；要让所有设备都能登录，请把它们写进仓库里的 <code>config.js</code>。</p>' +
+      html: '<p>填写 Supabase 地址和 anon key。只存在这台设备；所有设备都要用，请写进 <code>config.js</code>。</p>' +
         '<input type="url" id="cfgUrl" placeholder="https://xxxx.supabase.co" value="' + esc(o.source === 'local' ? o.url : '') + '" />' +
         '<input type="text" id="cfgKey" placeholder="anon public key（eyJ… 或 sb_publishable_…）" value="' + esc(o.source === 'local' ? o.key : '') + '" />' +
         '<p class="muted small">⚠️ 不要填写 service_role 或 secret key。</p>' +
@@ -797,8 +797,8 @@
     var logged = loggedProfile();
     if (block) block.classList.toggle('hidden', !logged);
     if (hint) hint.textContent = logged
-      ? '昵称、@ID 和头像保存在你的账号里。留空昵称再保存可以清除昵称。'
-      : '当前是本机模式：昵称和头像只保存在这台设备，不需要 @ID。';
+      ? '留空昵称再保存会清除昵称。'
+      : '本机模式，不需要 @ID。';
     if (nameInput && document.activeElement !== nameInput && nameInput.dataset.useredit !== '1') {
       var nextName = logged ? ((profile && profile.display_name) || '') : localDisplayName();
       if (nameInput.value !== nextName) nameInput.value = nextName;
@@ -1247,7 +1247,7 @@
       case 'btnLogout':
         Z.openModal({
           title: '退出登录？', ok: '退出登录', danger: true,
-          html: '<p>退出后，这台设备上的数据<b>仍会保留</b>，可以继续离线使用；再次登录时会自动合并同步。</p>',
+          html: '<p>退出后本机数据还在。再次登录会合并。</p>',
           onOk: function () { clearTimeout(pushTimer); sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); }); }
         });
         break;
@@ -1374,7 +1374,7 @@
   if ($('btnAvatarRemove')) $('btnAvatarRemove').addEventListener('click', function () {
     Z.openModal({
       title: '移除头像？', ok: '移除', danger: true,
-      html: '<p>移除后会显示名字首字母。如果这个账号用 Google 登录，没有自定义头像时仍会显示 Google 头像。</p>',
+      html: '<p>移除后显示首字母。没有自定义头像时，Google 登录仍显示 Google 头像。</p>',
       onOk: function () { removeAvatar(); }
     });
   });

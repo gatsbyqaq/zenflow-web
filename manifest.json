@@ -1,7 +1,7 @@
 {
-  "name": "ZenFlow · 戒色 · 自律 · 平静",
+  "name": "ZenFlow",
   "short_name": "ZenFlow",
-  "description": "温和、基于科学的自律与专注小助手，数据仅保存在本机。",
+  "description": "戒色记录。数据在本机，登录后同步。",
   "lang": "zh-CN",
   "start_url": "./index.html",
   "scope": "./",

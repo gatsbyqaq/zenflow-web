@@ -18,7 +18,6 @@
   function parseLocalInput(s) { if (!s) return NaN; var t = new Date(s).getTime(); return t; }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
-  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
   function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
@@ -64,7 +63,7 @@
       checkins: {},     // { 'YYYY-MM-DD': { mood: 1-5, ts } }
       relapses: [],     // [{ id, ts, triggers: [], other, note, streakMs }]
       urges: [],        // [{ id, ts }]
-      reasons: D.defaultReasons.slice(),
+      reasons: [],
       goalDays: 30,
       goalSetAt: 0,
       displayName: '',
@@ -160,7 +159,7 @@
   }
   function save(opts) {
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
-    catch (e) { toast('保存失败：浏览器存储不可用'); }
+    catch (e) { toast('保存失败'); }
     // 已登录时通知云同步模块（未配置云端时 ZFCloud 不存在，行为与以前完全相同）
     if (!(opts && opts.fromCloud) && window.ZFCloud && window.ZFCloud.onLocalChange) window.ZFCloud.onLocalChange(opts && opts.replaceAll);
   }
@@ -188,7 +187,7 @@
   }
   function resetHint(types) {
     if (!types.length) return '';
-    if (!relapseResets(types)) return '不会重置戒色天数，仍会显示在日历和时间轴上';
+    if (!relapseResets(types)) return '不重置天数，仍记在日历上';
     var which = types.filter(function (id) { return state.resetTypes[id]; }).map(function (id) { return typeById(id).label; });
     return '会重置戒色天数（' + which.join('、') + '）';
   }
@@ -378,12 +377,12 @@
 
   function greeting() {
     var h = new Date().getHours();
-    if (h < 5) return ['夜深了，早点休息', 'moon-star'];
+    if (h < 5) return ['夜深了', 'moon-star'];
     if (h < 11) return ['早上好', 'sunrise'];
     if (h < 14) return ['中午好', 'sun'];
     if (h < 18) return ['下午好', 'cloud-sun'];
     if (h < 23) return ['晚上好', 'sunset'];
-    return ['夜深了，放下手机早点睡', 'moon'];
+    return ['夜深了', 'moon'];
   }
 
   function renderHome() {
@@ -398,8 +397,6 @@
     renderActEntry();
     renderCalendar();
     renderBadges();
-    var dayIdx = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY);
-    $('dailyTip').textContent = D.tips[dayIdx % D.tips.length];
   }
 
   function moodByValue(v) {
@@ -423,7 +420,7 @@
         return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? ' · 会重置天数' : ' · 不重置天数') + '</div></div></button>';
       }).join('') + '</div>';
     }
-    if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录。点下面一次记下心情，需要的话再标上行为。</p>';
+    if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录</p>';
     else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></p>';
     box.innerHTML = html;
   }
@@ -529,7 +526,7 @@
   $('btnSetGoal').addEventListener('click', function () {
     openModal({
       title: '设置目标天数',
-      html: '<p>圆环按已戒天数占目标的比例前进。例如 30 天或 90 天。</p>' +
+      html: '<p>圆环按已戒天数 / 目标天数显示。</p>' +
         '<div class="tags" id="goalModalPresets">' + GOAL_PRESETS.map(function (n) {
           return '<button type="button" class="tag' + (state.goalDays === n ? ' sel' : '') + '" data-goal="' + n + '">' + n + ' 天</button>';
         }).join('') + '</div>' +
@@ -547,7 +544,7 @@
   $('btnAdjustStart').addEventListener('click', function () {
     openModal({
       title: '调整开始时间',
-      html: '<p>如果你是之前就开始坚持的，可以在这里设置真实的开始时间。若这之后还有会重置天数的破戒，连续天数仍从最近的那一次算起。</p><input type="datetime-local" id="startInput" value="' + toLocalInput(state.streakStart) + '" max="' + toLocalInput(Date.now()) + '" />',
+      html: '<p>可改成更早的开始时间。之后若有会重置的破戒，天数从那次算起。</p><input type="datetime-local" id="startInput" value="' + toLocalInput(state.streakStart) + '" max="' + toLocalInput(Date.now()) + '" />',
       ok: '保存',
       onOk: function () {
         var t = parseLocalInput($('startInput').value);
@@ -557,16 +554,16 @@
         state.manualStreakStartSetAt = Date.now();
         var changed = applyStreak(true);
         save(); renderHome();
-        toast(changed && state.streakStart !== t ? '已保存。之后有会重置的破戒，连续天数从那次算起' : '开始时间已更新');
+        toast(changed && state.streakStart !== t ? '已保存。天数从最近一次会重置的破戒算起' : '开始时间已更新');
       }
     });
   });
 
   /* ---------------- SOS 急救 ---------------- */
   var BREATH = {
-    box: { desc: '吸气 4 秒 · 屏息 4 秒 · 呼气 4 秒 · 屏息 4 秒，共 4 轮（约 64 秒）', rounds: 4,
+    box: { desc: '吸气 4 秒，屏息 4 秒，呼气 4 秒，屏息 4 秒，共 4 轮。', rounds: 4,
       phases: [['吸气', 4, 'in'], ['屏息', 4, 'hold'], ['呼气', 4, 'out'], ['屏息', 4, 'hold']] },
-    '478': { desc: '吸气 4 秒 · 屏息 7 秒 · 缓慢呼气 8 秒，共 4 轮（约 76 秒）', rounds: 4,
+    '478': { desc: '吸气 4 秒，屏息 7 秒，呼气 8 秒，共 4 轮。', rounds: 4,
       phases: [['吸气', 4, 'in'], ['屏息', 7, 'hold'], ['呼气', 8, 'out']] }
   };
   var breathMode = 'box', breathTimer = null, sosLogged = false;
@@ -600,7 +597,7 @@
     var idx = -1, left = 0, elapsed = 0;
     circle.style.transitionDuration = '0.6s';
     circle.style.transform = 'scale(.55)';
-    var hints = { prep: '找一个舒服的姿势，放松肩膀', in: '用鼻子慢慢吸气，感受腹部鼓起', hold: '轻轻屏住呼吸，保持放松', out: '用嘴缓慢呼气，把紧张一起呼出去' };
+    var hints = { prep: '准备', in: '吸气', hold: '屏住', out: '呼气' };
 
     function nextPhase() {
       idx++;
@@ -633,12 +630,9 @@
   function showActions() {
     showSosStep('sosActions');
     renderActionList();
-    var q = pick(D.quotes);
-    $('quoteText').textContent = '“' + q.q + '”';
-    $('quoteSrc').textContent = '—— ' + q.s;
     $('reasonsView').innerHTML = state.reasons.length
       ? state.reasons.map(function (r) { return '<li>' + ic('sparkle', 'tint-blue') + '<span>' + esc(r) + '</span></li>'; }).join('')
-      : '<li>' + ic('sparkle', 'tint-blue') + '<span>还没有写下理由 —— 可以在「设置」里添加对你重要的理由。</span></li>';
+      : '<li class="muted"><span>还没有理由。到设置里添加。</span></li>';
   }
   function renderActionList() {
     $('actionList').innerHTML = shuffle(D.actions).slice(0, 3).map(function (a) {
@@ -812,8 +806,8 @@
     var can = moodWrite || types.length > 0;
     var tsPreview = parseLocalInput($('actTime') && $('actTime').value);
     var movesStreak = types.length && relapseResets(types) && isFinite(tsPreview) && previewStart(tsPreview, types) !== state.streakStart;
-    var hint = types.length ? resetHint(types) : '不选行为时，只记录这一天的心情。时间和触发因素会在选了行为后一起保存。';
-    if (prev && actDraft.mood === prev.mood && !types.length) hint = '这天的心情已是「' + ((moodByValue(prev.mood) || {}).t || '') + '」。可以改心情，或选一个行为类型。';
+    var hint = types.length ? resetHint(types) : '不选行为，只记心情。';
+    if (prev && actDraft.mood === prev.mood && !types.length) hint = '心情已是「' + ((moodByValue(prev.mood) || {}).t || '') + '」。可改心情，或选行为。';
     $('actHint').textContent = hint;
     $('btnSaveAct').disabled = !can;
     var label = '选择心情或行为';
@@ -878,14 +872,14 @@
       } else save();
       closeAct();
       refreshAfterAct();
-      if (result && result.changed) toast('已记录。连续天数已重新计算');
-      else if (result) toast('已记录，连续天数不变');
+      if (result && result.changed) toast('已记录，天数已重算');
+      else if (result) toast('已记录');
       else toast(prev ? '心情已更新' : '心情已记下');
     }
     if (types.length && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
       openModal({
         title: '这次会重置戒色天数',
-        html: '<p>所选行为里有会重置天数的类型。保存后，当前连续天数将从这次重新计算，历史和最佳纪录都会保留。</p>',
+        html: '<p>保存后连续天数从这次重算。历史和最佳纪录保留。</p>',
         ok: '保存并重新计算', warm: true, onOk: write
       });
       return;
@@ -946,7 +940,7 @@
     (r.triggers || []).forEach(function (t) { trigMap[t] = true; });
     openModal({
       title: '编辑这条记录',
-      html: '<p class="small muted">改时间、类型、触发因素或备注后，会按当前的重置规则重新计算连续天数。不重置的类型仍留在日历和时间轴上。</p>' +
+      html: '<p class="small muted">保存后按当前规则重算连续天数。</p>' +
         '<label class="field"><span>发生时间</span><input type="datetime-local" id="edTime" value="' + toLocalInput(r.ts) + '" max="' + toLocalInput(Date.now() + 60000) + '" /></label>' +
         '<div class="field"><span>类型（可多选）</span><div class="tags" id="edTypes">' + typeButtons(typeMap, 'data-ed-type') + '</div></div>' +
         '<div class="field"><span>触发因素（可多选）</span><div class="tags" id="edTriggers">' + D.triggers.map(function (t) {
@@ -977,7 +971,7 @@
         if (dayKey) renderDaySheet();
         renderHistory();
         if (current === 'home') renderHome();
-        toast(changed ? '记录已更新，连续天数已重新计算' : '记录已更新');
+        toast(changed ? '已更新，天数已重算' : '已更新');
       }
     });
   }
@@ -991,7 +985,7 @@
       }))
       .sort(function (a, b) { return b.ts - a.ts; });
     $('historyCount').textContent = '共 ' + items.length + ' 条';
-    if (!items.length) { $('historyList').innerHTML = emptyState('notebook', '还没有记录。每一次坚持和复盘都会出现在这里。'); return; }
+    if (!items.length) { $('historyList').innerHTML = emptyState('notebook', '还没有记录'); return; }
     $('historyList').innerHTML = items.slice(0, 80).map(function (it) {
       var r = it.r;
       if (it.type === 'urge') {
@@ -1022,7 +1016,7 @@
       var dk = b.dataset.date;
       openModal({
         title: '删除这天的打卡？',
-        html: '<p>会去掉 ' + esc(dk) + ' 的心情打卡，无法从这里撤销。</p>',
+        html: '<p>去掉 ' + esc(dk) + ' 的心情，不能撤销。</p>',
         ok: '删除', danger: true,
         onOk: function () {
           delete state.checkins[dk];
@@ -1037,7 +1031,7 @@
     }
     openModal({
       title: '删除这条记录？',
-      html: '<p>删除后无法恢复。' + (type === 'relapse' ? '如果这条破戒原本会重置天数，删掉之后会按剩下的记录重新计算连续天数。' : '') + '</p>',
+      html: '<p>删除后不能恢复。' + (type === 'relapse' ? '会按剩下的记录重算天数。' : '') + '</p>',
       ok: '删除', danger: true,
       onOk: function () {
         var arr = type === 'relapse' ? state.relapses : state.urges;
@@ -1079,7 +1073,7 @@
     var tc = {};
     state.relapses.forEach(function (x) { x.triggers.forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
     var trows = Object.keys(tc).map(function (k) { return [k, tc[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
-    $('triggerChart').innerHTML = trows.length ? hbars(trows) : emptyState('zap', '暂无数据。记录破戒时选择触发因素，这里会帮你找到规律。');
+    $('triggerChart').innerHTML = trows.length ? hbars(trows) : emptyState('zap', '还没有数据');
 
     // 时段分布（SVG 分组柱状图）
     var rb = [0, 0, 0, 0, 0, 0], ub = [0, 0, 0, 0, 0, 0];
@@ -1106,22 +1100,18 @@
     var mc = {};
     Object.keys(state.checkins).forEach(function (k) { var m = state.checkins[k].mood; mc[m] = (mc[m] || 0) + 1; });
     var mrows = D.moods.map(function (m) { return ['<span class="mood-tint" data-mood="' + m.v + '">' + ic(m.icon) + '</span>' + m.t, mc[m.v] || 0]; });
-    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '每天打卡并选择心情后，这里会显示你的心情分布。');
+    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '还没有打卡');
 
     // 建议
     var ins = [];
     if (r) {
       var peak = rb.indexOf(Math.max.apply(null, rb));
-      ins.push(['clock', '你的高风险时段是<b>' + BUCKETS[peak][0] + '（' + BUCKETS[peak][1] + '-' + (BUCKETS[peak][1] + 4) + ' 点）</b>。可以提前为这个时段安排运动、学习或与人相处的计划。']);
+      ins.push(['clock', '高风险时段：<b>' + BUCKETS[peak][0] + ' ' + BUCKETS[peak][1] + '–' + (BUCKETS[peak][1] + 4) + ' 点</b>']);
     }
-    if (trows.length) {
-      ins.push(['target', '最常见的触发因素是<b>「' + esc(trows[0][0]) + '」</b>。' + esc(D.triggerTips[trows[0][0]] || D.triggerTips['其他'])]);
-    }
-    if (u) ins.push(['shield-check', '你已经成功抵御了 <b>' + u + '</b> 次冲动，每一次都在强化新的习惯回路。']);
-    var cd = curMs() / DAY;
-    var w = milestoneWindow(cd);
-    ins.push(['sprout', '当前已坚持 <b>' + fmtDays(curMs()) + '</b> 天，下一个目标是 <b>' + w.next + ' 天</b>。专注于今天就好。']);
-    if (!r && !u) ins.push(['notebook', '数据越多，分析越准确。遇到冲动时使用急救功能，或诚实记录每一次失误，都能帮助你更了解自己。']);
+    if (trows.length) ins.push(['target', '最常见触发：<b>' + esc(trows[0][0]) + '</b>']);
+    if (u) ins.push(['shield-check', '已抵御 <b>' + u + '</b> 次']);
+    var w = milestoneWindow(curMs() / DAY);
+    ins.push(['sprout', '已戒 <b>' + fmtDays(curMs()) + '</b> 天，下一档 <b>' + w.next + '</b> 天']);
     $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + ic(x[0]) + '</span><div>' + x[1] + '</div></div>'; }).join('');
   }
 
@@ -1185,7 +1175,7 @@
   var SETTINGS_PAGES = {
     account: '账号与资料',
     goal: '目标天数',
-    resets: '破戒类型与重置规则',
+    resets: '重置规则',
     theme: '外观',
     reasons: '我坚持的理由',
     data: '数据与同步',
@@ -1208,7 +1198,7 @@
     if ($('settingsMe')) $('settingsMe').classList.toggle('hidden', !isRoot);
     var settingsScreen = $('screen-settings');
     if (settingsScreen) settingsScreen.classList.toggle('settings-root', isRoot);
-    if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '属于你的空间' : (SETTINGS_PAGES[settingsView] || '设置');
+    if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '设置' : (SETTINGS_PAGES[settingsView] || '设置');
   }
   function showSettings(view, opts) {
     opts = opts || {};
@@ -1242,7 +1232,7 @@
       var on = !!state.resetTypes[t.id];
       var locked = t.id === 'masturbation';
       return '<div class="reset-row" data-type="' + t.id + '"><span class="type-ico">' + ic(t.icon) + '</span><div class="reset-copy"><b>' + esc(t.label) + '</b><p>' +
-        (locked ? '自慰始终会重置戒色天数，不能关闭。' : (on ? '重置戒色天数' : '不重置天数，仍显示在日历和时间轴')) +
+        (locked ? '自慰会重置天数，不能关闭。' : (on ? '重置天数' : '不重置天数')) +
         '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(t.label) + '：重置戒色天数" data-reset-type="' + t.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
     }).join('');
   }
@@ -1276,7 +1266,7 @@
     renderThemeControl();
     $('reasonsEdit').innerHTML = state.reasons.length
       ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
-      : '<li class="muted"><span>还没有理由，写下第一条吧。</span></li>';
+      : '<li class="muted"><span>还没有理由</span></li>';
     updateSettingsChrome();
   }
   if ($('settingsRoot')) $('settingsRoot').addEventListener('click', function (e) {
@@ -1298,7 +1288,7 @@
     renderResetToggles();
     updateSettingsChrome();
     if (current === 'home') renderHome();
-    toast(changed ? '已更新，连续天数已重新计算' : '已更新重置规则');
+    toast(changed ? '已更新，天数已重算' : '已更新');
   });
   window.addEventListener('popstate', function () {
     if ((location.hash || '') === '#admin') return;
@@ -1342,7 +1332,7 @@
     a.download = 'zenflow-backup-' + dateKey(Date.now()) + '.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-    toast('备份文件已导出');
+    toast('已导出');
   });
   $('btnImport').addEventListener('click', function () { $('importFile').click(); });
   $('importFile').addEventListener('change', function () {
@@ -1359,7 +1349,7 @@
       } catch (e) { toast('导入失败：' + (e.message || '文件无法解析')); return; }
       openModal({
         title: '导入备份？',
-        html: '<p>备份包含 ' + Object.keys(parsed.checkins).length + ' 次打卡、' + parsed.urges.length + ' 次抵御冲动、' + parsed.relapses.length + ' 条破戒记录。</p><p>导入将<b>覆盖</b>当前所有数据。</p>',
+        html: '<p>' + Object.keys(parsed.checkins).length + ' 次打卡，' + parsed.urges.length + ' 次抵御，' + parsed.relapses.length + ' 条破戒。导入会覆盖当前数据。</p>',
         ok: '覆盖导入',
         onOk: function () { state = parsed; state.streakStartSetAt = Date.now(); save({ replaceAll: true }); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
@@ -1369,15 +1359,15 @@
   $('btnReset').addEventListener('click', function () {
     openModal({
       title: '重置所有数据？',
-      html: '<p>这会清空打卡、记录、理由等全部数据，且<b>无法撤销</b>。建议先导出备份。</p><p>请输入「重置」确认：</p><input type="text" id="resetConfirm" placeholder="重置" />',
+      html: '<p>会清空打卡、记录和理由，不能撤销。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
       ok: '确认重置', danger: true,
       onOk: function () {
-        if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」以确认'); return false; }
+        if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」'); return false; }
         state = defaultState(); save({ replaceAll: true });
         calOffset = 0;
         if (actDay) closeAct();
         if (dayKey) closeDay();
-        renderSettings(); toast('已重置，新的开始');
+        renderSettings(); toast('已重置');
       }
     });
   });
@@ -1416,7 +1406,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '21';
+  var APP_VERSION = '22';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
