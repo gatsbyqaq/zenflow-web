@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"28";
+  --zf-css:"29";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -983,6 +983,7 @@ body.auth-ready #authBoot{display:none!important}
 .set-label{margin:14px 4px 8px;font-size:13px;font-weight:700;color:var(--muted)}
 .set-label:first-child{margin-top:0}
 .set-group{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 4px}
+.set-group + .set-group{margin-top:16px}
 .set-row{
   width:100%;display:flex;align-items:center;gap:12px;text-align:left;
   background:transparent;border:none;border-bottom:1px solid var(--line);
@@ -1004,6 +1005,7 @@ a.set-row{color:inherit;text-decoration:none}
 .set-row-text b{font-size:15px;font-weight:700}
 .set-row-text small{font-size:12px;font-weight:500;color:var(--muted)}
 .set-chev{width:18px;height:18px;color:var(--muted);flex-shrink:0;stroke-width:2}
+.set-row .btn{flex-shrink:0;margin:0}
 .set-row-danger b,.set-row-danger .row-ic{color:var(--warm)}
 .ri-pink{background:color-mix(in srgb,var(--pink) 14%,var(--card));color:var(--pink)}
 .ri-amber{background:color-mix(in srgb,var(--amber) 16%,var(--card));color:var(--amber)}

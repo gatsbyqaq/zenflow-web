@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=28'; s.async = true;
+      s.src = 'vendor/supabase.js?v=29'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -384,6 +384,7 @@
     if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步' : '数据只在这台设备'; pp.classList.toggle('synced', !!logged); }
     renderSideUser();
     if (window.ZenFlowCore && window.ZenFlowCore.updateSettingsChrome) window.ZenFlowCore.updateSettingsChrome();
+    renderDataSync();
   }
 
   /* ---------------- 设置 → 账号与同步 ---------------- */
@@ -394,6 +395,9 @@
     return d.toDateString() === now.toDateString() ? '今天 ' + hm : (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
   }
   function renderAccount(statusOnly) {
+    try { renderAccountBody(statusOnly); } finally { renderDataSync(); }
+  }
+  function renderAccountBody(statusOnly) {
     var body = $('accountBody'); if (!body) return;
     if (statusOnly && user()) { var st = $('acctSync'); if (st) { st.innerHTML = syncLine(); return; } }
     if (!configured) {
@@ -421,11 +425,29 @@
     var handle = shownHandle();
     var h = '<div class="acct-head">' + avatarHtml(shownAvatar(), name, 'story-avatar acct-avatar') + '<div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
       (handle ? '<span class="acct-handle">' + esc(handle) + '</span>' : '') +
-      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(userContact()) + '</span></div></div>' +
-      '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
-      '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
-      '<p class="muted small">退出在设置列表底部。</p>';
+      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(userContact()) + '</span></div></div>';
     body.innerHTML = h;
+  }
+  function renderDataSync() {
+    var sub = $('dataSyncSub');
+    var btn = $('btnSyncNow');
+    if (!sub) return;
+    if (!configured) {
+      sub.textContent = '未开启';
+      if (btn) btn.classList.add('hidden');
+      return;
+    }
+    if (!user()) {
+      sub.textContent = '未登录';
+      if (btn) btn.classList.add('hidden');
+      return;
+    }
+    if (btn) btn.classList.remove('hidden');
+    var s = sync.status;
+    if (s === 'syncing') sub.textContent = '正在同步';
+    else if (s === 'error') sub.textContent = '失败' + (sync.error ? '：' + sync.error : '');
+    else if (s === 'offline') sub.textContent = '离线';
+    else sub.textContent = '上次 ' + fmtTime(sync.at);
   }
   function syncLine() {
     var s = sync.status;

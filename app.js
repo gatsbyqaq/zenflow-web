@@ -192,10 +192,11 @@
     return '会重置戒色天数（' + which.join('、') + '）';
   }
   function resetSummary() {
-    var on = lapseTypes().filter(function (t) { return state.resetTypes[t.id]; });
-    if (on.length === lapseTypes().length) return '全部类型都会重置';
-    if (!on.length) return '只有自慰会重置';
-    return on.map(function (t) { return t.label; }).join('、') + ' 会重置';
+    var types = lapseTypes();
+    var on = types.filter(function (t) { return state.resetTypes[t.id]; });
+    if (on.length === types.length && types.length) return '全部重置';
+    if (on.length > 1) return '自慰等 ' + on.length + ' 项重置';
+    return '仅自慰重置';
   }
   function commitRelapse(opts) {
     var row = {
@@ -1177,9 +1178,8 @@
     goal: '目标天数',
     resets: '重置规则',
     theme: '外观',
-    reasons: '我坚持的理由',
-    data: '数据与同步',
-    privacy: '数据与隐私',
+    reasons: '理由',
+    data: '数据',
     about: '关于'
   };
   var settingsView = 'root';
@@ -1187,6 +1187,7 @@
     var m = (location.hash || '').match(/^#settings(?:\/([a-z]+))?$/);
     if (!m) return null;
     if (!m[1]) return 'root';
+    if (m[1] === 'privacy') return 'data';
     return SETTINGS_PAGES[m[1]] ? m[1] : 'root';
   }
   function applySettingsDom() {
@@ -1233,7 +1234,7 @@
       var on = !!state.resetTypes[t.id];
       var locked = t.id === 'masturbation';
       return '<div class="reset-row" data-type="' + t.id + '"><span class="type-ico">' + ic(t.icon) + '</span><div class="reset-copy"><b>' + esc(t.label) + '</b><p>' +
-        (locked ? '自慰会重置天数，不能关闭。' : (on ? '重置天数' : '不重置天数')) +
+        (locked ? '不能关闭' : (on ? '重置天数' : '不重置天数')) +
         '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(t.label) + '：重置戒色天数" data-reset-type="' + t.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
     }).join('');
   }
@@ -1250,7 +1251,7 @@
           var handle = st.profile && st.profile.handle;
           var phone = st.phone ? (String(st.phone).charAt(0) === '+' ? st.phone : ('+' + st.phone)) : '';
           acct = handle ? ('@' + handle) : (st.email || phone || '已登录');
-        } else acct = '登录并同步';
+        } else acct = '未登录';
       }
       $('settingsAccountSub').textContent = acct;
     }
@@ -1327,16 +1328,6 @@
     save(); renderSettings();
   });
 
-  $('btnExport').addEventListener('click', function () {
-    var data = JSON.stringify({ app: 'ZenFlow', exportedAt: new Date().toISOString(), data: state, settings: { theme: getTheme() } }, null, 2);
-    var blob = new Blob([data], { type: 'application/json' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'zenflow-backup-' + dateKey(Date.now()) + '.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-    toast('已导出');
-  });
   $('btnImport').addEventListener('click', function () { $('importFile').click(); });
   $('importFile').addEventListener('change', function () {
     var f = this.files[0]; this.value = '';
@@ -1351,8 +1342,8 @@
         if (obj && obj.settings && /^(system|light|dark)$/.test(obj.settings.theme)) importedTheme = obj.settings.theme;
       } catch (e) { toast('导入失败：' + (e.message || '文件无法解析')); return; }
       openModal({
-        title: '导入备份？',
-        html: '<p>' + Object.keys(parsed.checkins).length + ' 次打卡，' + parsed.urges.length + ' 次抵御，' + parsed.relapses.length + ' 条破戒。导入会覆盖当前数据。</p>',
+        title: '导入数据？',
+        html: '<p>' + Object.keys(parsed.checkins).length + ' 次打卡，' + parsed.urges.length + ' 次抵御，' + parsed.relapses.length + ' 条破戒。会覆盖当前记录。</p>',
         ok: '覆盖导入',
         onOk: function () { state = parsed; state.streakStartSetAt = Date.now(); save({ replaceAll: true }); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
@@ -1361,8 +1352,8 @@
   });
   $('btnReset').addEventListener('click', function () {
     openModal({
-      title: '重置所有数据？',
-      html: '<p>会清空打卡、记录和理由，不能撤销。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
+      title: '重置本机数据？',
+      html: '<p>会清空打卡、记录和理由。登录时会覆盖云端。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
       ok: '确认重置', danger: true,
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」'); return false; }
@@ -1409,7 +1400,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '28';
+  var APP_VERSION = '29';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

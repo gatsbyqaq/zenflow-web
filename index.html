@@ -33,7 +33,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=28" />
+  <link rel="stylesheet" href="styles.css?v=29" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -147,7 +147,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=28" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=29" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -162,7 +162,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=28" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=29" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <p class="eyebrow" id="greeting">你好</p>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -449,7 +449,7 @@
           </button>
           <button class="set-row" type="button" data-settings="resets">
             <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span>
-            <span class="set-row-text"><b>重置规则</b><small id="settingsResetSub">全部类型都会重置</small></span>
+            <span class="set-row-text"><b>重置规则</b><small id="settingsResetSub">全部重置</small></span>
             <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
           </button>
         </div>
@@ -463,26 +463,20 @@
           </button>
           <button class="set-row" type="button" data-settings="reasons">
             <span class="row-ic ri-pink"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg></span>
-            <span class="set-row-text"><b>我坚持的理由</b><small id="settingsReasonSub">0 条</small></span>
+            <span class="set-row-text"><b>理由</b><small id="settingsReasonSub">0 条</small></span>
             <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
           </button>
         </div>
 
-        <p class="set-label">数据</p>
         <div class="set-group">
-          <button class="set-row" type="button" data-settings="privacy">
-            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
-            <span class="set-row-text"><b>数据与隐私</b><small>导出、注销与说明</small></span>
-            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-          </button>
           <button class="set-row" type="button" data-settings="data">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-hard-drive"/></svg></span>
-            <span class="set-row-text"><b>数据与同步</b><small>导出、导入与重置</small></span>
+            <span class="set-row-text"><b>数据</b><small>同步、导出、注销</small></span>
             <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
           </button>
           <button class="set-row" type="button" data-settings="about">
             <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span>
-            <span class="set-row-text"><b>关于</b><small>版本与说明</small></span>
+            <span class="set-row-text"><b>关于</b><small>版本与隐私</small></span>
             <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
           </button>
         </div>
@@ -506,8 +500,7 @@
       <div class="settings-page hidden" data-settings-page="account">
         <div class="card account-card" id="accountCard">
           <div class="card-title">
-            <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号与同步</h2>
-            <span class="sync-pill" id="syncPill"><svg class="ic" aria-hidden="true"><use href="#i-cloud-off"/></svg>本机模式</span>
+            <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号</h2>
           </div>
           <div id="accountBody"><p class="muted small">未登录。数据只在这台设备。</p></div>
         </div>
@@ -545,7 +538,7 @@
       <div class="settings-page hidden" data-settings-page="goal">
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-target"/></svg>目标天数</h2>
-          <p class="muted small">圆环按已戒天数 / 目标天数显示。默认 30 天。</p>
+          <p class="muted small">默认 30 天。</p>
           <div class="tags" id="goalPresets"></div>
           <div class="add-row">
             <input type="number" id="goalInput" min="1" max="3650" step="1" inputmode="numeric" aria-label="目标天数" />
@@ -557,7 +550,7 @@
       <div class="settings-page hidden" data-settings-page="resets">
         <div class="card">
           <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-flame"/></svg>重置规则</h2>
-          <p class="muted small">打开会清零连续天数。关掉仍记在日历上，但不打断天数。</p>
+          <p class="muted small">打开会清零天数。关掉只记在日历上。</p>
           <div id="resetTypeList" class="reset-list"></div>
         </div>
       </div>
@@ -578,7 +571,7 @@
 
       <div class="settings-page hidden" data-settings-page="reasons">
         <div class="card">
-          <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>我坚持的理由</h2>
+          <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>理由</h2>
           <ul class="reasons-edit" id="reasonsEdit"></ul>
           <div class="add-row">
             <input type="text" id="reasonInput" maxlength="60" placeholder="写一条" />
@@ -588,40 +581,27 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="data">
-        <div class="card">
-          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-hard-drive"/></svg>数据与同步</h2>
-          <p class="muted small">这里是本机备份。同步状态在账号与资料。</p>
-          <div class="setting-row">
-            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span><div><b>导出数据</b><p class="muted small">下载 JSON</p></div>
-            <button class="btn btn-ghost" id="btnExport" type="button">导出</button>
-          </div>
-          <div class="setting-row">
-            <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span><div><b>导入数据</b><p class="muted small">会覆盖当前数据</p></div>
-            <button class="btn btn-ghost" id="btnImport" type="button">导入</button>
-            <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
-          </div>
-          <div class="setting-row">
-            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></span><div><b class="danger-text">重置所有数据</b><p class="muted small">清空，无法撤销</p></div>
-            <button class="btn btn-danger" id="btnReset" type="button">重置</button>
+        <div class="set-group">
+          <div class="set-row">
+            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-cloud-check"/></svg></span>
+            <span class="set-row-text"><b>同步</b><small id="dataSyncSub">未登录</small></span>
+            <button class="btn btn-ghost btn-sm hidden" type="button" id="btnSyncNow">立即同步</button>
           </div>
         </div>
-        <div class="card">
-          <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私</h2>
-          <p class="small">本机模式只在这台设备。登录后同步。打卡和记录只有你能看。</p>
-        </div>
-      </div>
-
-      <div class="settings-page hidden" data-settings-page="privacy">
         <div class="set-group">
           <button class="set-row" type="button" id="btnExportAccount">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span>
             <span class="set-row-text"><b>导出数据</b><small>下载 JSON</small></span>
           </button>
-          <a class="set-row" href="privacy.html">
-            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
-            <span class="set-row-text"><b>隐私说明</b><small>存储、查看与删除</small></span>
-            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-          </a>
+          <button class="set-row" type="button" id="btnImport">
+            <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span>
+            <span class="set-row-text"><b>导入数据</b><small>覆盖当前记录</small></span>
+          </button>
+          <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
+          <button class="set-row" type="button" id="btnReset">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></span>
+            <span class="set-row-text"><b>重置本机数据</b><small>清空打卡和记录</small></span>
+          </button>
         </div>
         <div class="set-group hidden" id="privacyDeleteRow">
           <button class="set-row set-row-danger" type="button" id="btnDeleteAccount">
@@ -632,10 +612,17 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="about">
+        <div class="set-group">
+          <a class="set-row" href="privacy.html">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <span class="set-row-text"><b>隐私说明</b><small>存储、查看与删除</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </a>
+        </div>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v28</p>
+          <p class="small muted app-version" id="appVersion">版本 v29</p>
         </div>
       </div>
       </div>
@@ -645,7 +632,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=28" alt="" class="side-logo" />
+      <img src="icon.svg?v=29" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -697,7 +684,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=28" alt="" class="auth-logo" />
+        <img src="icon.svg?v=29" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -900,7 +887,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=28"></script>
+<script src="config.js?v=29"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -909,10 +896,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=28"></script>
-<script src="streak.js?v=28"></script>
-<script src="app.js?v=28"></script>
-<script src="cloud.js?v=28"></script>
-<script src="admin.js?v=28"></script>
+<script src="data.js?v=29"></script>
+<script src="streak.js?v=29"></script>
+<script src="app.js?v=29"></script>
+<script src="cloud.js?v=29"></script>
+<script src="admin.js?v=29"></script>
 </body>
 </html>
