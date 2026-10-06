@@ -984,6 +984,7 @@ body.auth-ready #authBoot{display:none!important}
 .set-label:first-child{margin-top:0}
 .set-group{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 4px}
 .set-group + .set-group{margin-top:16px}
+.settings-page > .set-group{margin-bottom:12px}
 .set-row{
   width:100%;display:flex;align-items:center;gap:12px;text-align:left;
   background:transparent;border:none;border-bottom:1px solid var(--line);
