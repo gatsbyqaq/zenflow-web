@@ -132,7 +132,7 @@ select code, expires_at from public.create_invites(5, 0, '朋友');  -- 0 = 永�
 
 ### 产品行为
 - 已配置 `config.js` 时：未登录只能看到登录门禁，不能使用主应用
-- 手机号默认。已有账号只填手机号和验证码。新用户在发送前填写昵称、@ID 和邀请码，写入 `options.data`，由 `handle_new_user` 校验
+- `PHONE_LOGIN_ENABLED` 为 `false` 时登录页只有邮箱。为 `true` 时手机号默认：已有账号只填手机号和验证码，新用户在发送前填写昵称、@ID 和邀请码，写入 `options.data`，由 `handle_new_user` 校验
 - 只填手机号就注册的新用户 `invite_ok=false`，进入「完成注册」补邀请码和 @ID
 - 邮箱+邀请码注册：metadata 带 `invite_code`、`display_name` 和 `handle`。触发器校验失败会返回 `HANDLE_INVALID` 或 `HANDLE_TAKEN`
 - 已通过邀请但 `handle` 仍为空的账号会先被要求设置 @ID

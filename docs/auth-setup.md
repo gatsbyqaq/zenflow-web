@@ -51,7 +51,7 @@ Captcha 一旦在 Supabase 打开，登录、注册、发验证码、重置密�
 
 ## 5. 登录方式
 
-- 默认是手机号。国家区号默认 +86，可改其他区号，提交前规范成 E.164。
+- `config.js` 的 `PHONE_LOGIN_ENABLED` 为 `false` 时登录页只显示邮箱；改为 `true` 后手机号重新作为默认页。
 - 已有账号：手机号 + 短信验证码。
 - 新用户：先填昵称、@ID、邀请码，再获取验证码。这些字段放在 `signInWithOtp` 的 `options.data` 里。
-- 邮箱密码仍在「邮箱」一页，同样会带 captchaToken。
+- 邮箱登录和注册始终可用，同样会带 captchaToken。手机号关闭时没有「手机号 / 邮箱」切换。

@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=23'; s.async = true;
+      s.src = 'vendor/supabase.js?v=24'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -462,6 +462,10 @@
 
   /* ---------------- 登录 / 注册面板 / 门禁 ---------------- */
   var authChannel = 'phone';
+  function phoneLoginEnabled() {
+    var c = window.ZENFLOW_CONFIG || {};
+    return c.PHONE_LOGIN_ENABLED !== false;
+  }
   var emailMode = 'login';
   var phoneMode = 'login'; // login | register | code
   var phoneIntent = 'login';
@@ -588,7 +592,9 @@
     if (foot) foot.textContent = '验证码只用于登录。';
   }
   function setChannel(ch) {
+    if (!phoneLoginEnabled()) ch = 'email';
     authChannel = ch === 'email' ? 'email' : 'phone';
+    if ($('authSeg')) $('authSeg').classList.toggle('hidden', !phoneLoginEnabled());
     document.querySelectorAll('#authSeg .seg-btn').forEach(function (b) {
       if (!b.dataset.channel) return;
       var on = b.dataset.channel === authChannel;
@@ -655,7 +661,10 @@
   }
   function openAuth(mode) {
     if (!configured) { openSetup(); return; }
-    if (mode === 'register') { setChannel('phone'); setPhoneMode('register'); }
+    if (!phoneLoginEnabled()) {
+      setChannel('email');
+      setEmailMode(mode === 'register' ? 'register' : 'login');
+    } else if (mode === 'register') { setChannel('phone'); setPhoneMode('register'); }
     else if (mode === 'email') { setChannel('email'); setEmailMode('login'); }
     else { setChannel('phone'); setPhoneMode(phoneMode === 'code' ? 'code' : 'login'); }
     if ($('loginMsg')) $('loginMsg').textContent = '';
@@ -759,18 +768,20 @@
   function showLoginGate() {
     var already = gateMode === 'login';
     gateMode = 'login';
+    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
+    $('formInviteGate').classList.add('hidden');
+    if (!already) {
+      setPhoneMode('login');
+      setEmailMode('login');
+      setChannel(phoneLoginEnabled() ? 'phone' : 'email');
+    } else {
+      if ($('authSeg')) $('authSeg').classList.toggle('hidden', !phoneLoginEnabled());
+      ensureCaptcha();
+    }
     document.body.classList.remove('auth-booting');
     document.body.classList.add('auth-gated');
     document.body.classList.add('auth-ready');
     $('authMask').classList.remove('hidden');
-    $('authSeg').classList.remove('hidden');
-    if ($('authMainPane')) $('authMainPane').classList.remove('hidden');
-    $('formInviteGate').classList.add('hidden');
-    if (!already) {
-      setChannel('phone');
-      setPhoneMode('login');
-      setEmailMode('login');
-    } else ensureCaptcha();
   }
   function clearGate() {
     gateMode = 'none';
@@ -1690,7 +1701,7 @@
     clearAuthFields();
     setPhoneMode('login');
     setEmailMode('login');
-    setChannel('phone');
+    setChannel(phoneLoginEnabled() ? 'phone' : 'email');
     renderAccount();
     renderChrome();
     updateGate();
