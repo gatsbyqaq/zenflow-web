@@ -69,6 +69,10 @@
       goalSetAt: 0,
       displayName: '',
       displayNameSetAt: 0,
+      resetTypes: window.ZFStreak.defaultResetTypes(),
+      resetTypesSetAt: 0,
+      manualStreakStart: 0,
+      manualStreakStartSetAt: 0,
       // 云同步用：开始时间最后一次被设置的时间；已删除条目的墓碑（避免同步时被另一台设备"复活"）
       streakStartSetAt: now,
       removed: { ids: {}, reasons: {}, checkins: {} }   // ids: { id: 删除时间 }；reasons / checkins: { 键: 删除时间（负数 = 之后又重新添加） }
@@ -117,6 +121,18 @@
     s.displayName = o.displayName ? String(o.displayName).trim().slice(0, 20) : '';
     s.displayNameSetAt = (typeof o.displayNameSetAt === 'number' && isFinite(o.displayNameSetAt) && o.displayNameSetAt > 0) ? o.displayNameSetAt : 0;
     s.streakStartSetAt = typeof o.streakStartSetAt === 'number' && isFinite(o.streakStartSetAt) ? o.streakStartSetAt : 0;
+    s.resetTypes = window.ZFStreak.normalizeResetTypes(o.resetTypes);
+    s.resetTypesSetAt = (typeof o.resetTypesSetAt === 'number' && isFinite(o.resetTypesSetAt) && o.resetTypesSetAt > 0) ? o.resetTypesSetAt : 0;
+    if (typeof o.manualStreakStart === 'number' && isFinite(o.manualStreakStart) && o.manualStreakStart > 0) {
+      s.manualStreakStart = Math.min(o.manualStreakStart, Date.now());
+      s.manualStreakStartSetAt = (typeof o.manualStreakStartSetAt === 'number' && isFinite(o.manualStreakStartSetAt) && o.manualStreakStartSetAt > 0) ? o.manualStreakStartSetAt : 0;
+    } else if (!Object.prototype.hasOwnProperty.call(o, 'manualStreakStart') && window.ZFStreak.looksLikeManualStart(s)) {
+      s.manualStreakStart = s.streakStart;
+      s.manualStreakStartSetAt = s.streakStartSetAt || s.streakStart || 1;
+    } else {
+      s.manualStreakStart = 0;
+      s.manualStreakStartSetAt = (typeof o.manualStreakStartSetAt === 'number' && isFinite(o.manualStreakStartSetAt) && o.manualStreakStartSetAt > 0) ? o.manualStreakStartSetAt : 0;
+    }
     var rm = o.removed && typeof o.removed === 'object' ? o.removed : {};
     ['ids', 'reasons', 'checkins'].forEach(function (k) {
       var src = rm[k] && typeof rm[k] === 'object' ? rm[k] : {};
@@ -145,6 +161,49 @@
 
   function curMs() { return Math.max(0, Date.now() - state.streakStart); }
   function bestMs() { return Math.max(state.bestStreakMs, curMs()); }
+  function applyStreak(touchSetAt) {
+    var next = window.ZFStreak.computeStreakStart(state);
+    var changed = next !== state.streakStart;
+    state.streakStart = next;
+    state.bestStreakMs = window.ZFStreak.historicalBest(state);
+    if (touchSetAt && changed) state.streakStartSetAt = Date.now();
+    return changed;
+  }
+  function relapseResets(types) { return window.ZFStreak.relapseResets({ types: types }, state.resetTypes); }
+  function endedStreakMs(ts, types, ignoreId) { return window.ZFStreak.endedStreakMs(state, ts, types, ignoreId); }
+  function previewStart(ts, types) {
+    var clone = {
+      createdAt: state.createdAt,
+      manualStreakStart: state.manualStreakStart,
+      resetTypes: state.resetTypes,
+      relapses: state.relapses.concat([{ ts: ts, types: types }])
+    };
+    return window.ZFStreak.computeStreakStart(clone);
+  }
+  function resetHint(types) {
+    if (!types.length) return '';
+    if (!relapseResets(types)) return '不会重置戒色天数，仍会显示在日历和时间轴上';
+    var which = types.filter(function (id) { return state.resetTypes[id]; }).map(function (id) { return typeById(id).label; });
+    return '会重置戒色天数（' + which.join('、') + '）';
+  }
+  function resetSummary() {
+    var on = lapseTypes().filter(function (t) { return state.resetTypes[t.id]; });
+    if (on.length === lapseTypes().length) return '全部类型都会重置';
+    if (!on.length) return '只有自慰会重置';
+    return on.map(function (t) { return t.label; }).join('、') + ' 会重置';
+  }
+  function commitRelapse(opts) {
+    var row = {
+      id: uid(), ts: opts.ts, triggers: opts.triggers || [], types: opts.types,
+      other: opts.other || '', note: opts.note || '',
+      streakMs: endedStreakMs(opts.ts, opts.types),
+      editedAt: Date.now()
+    };
+    state.relapses.push(row);
+    var changed = applyStreak(true);
+    save();
+    return { changed: changed, resets: relapseResets(opts.types) };
+  }
 
   /* ---------------- 通用 UI ---------------- */
   var toastTimer;
@@ -161,8 +220,11 @@
     document.body.style.top = -lockedY + 'px';
     document.body.classList.add('scroll-locked');
   }
+  function overlayOpen() {
+    return ($('actMask') && !$('actMask').classList.contains('hidden')) || ($('dayMask') && !$('dayMask').classList.contains('hidden')) || ($('modalMask') && !$('modalMask').classList.contains('hidden'));
+  }
   function unlockScroll() {
-    if (lockedY === null) return;
+    if (lockedY === null || overlayOpen()) return;
     document.body.classList.remove('scroll-locked');
     document.body.style.top = '';
     window.scrollTo(0, lockedY);
@@ -211,6 +273,15 @@
   var current = 'home';
   function go(tab) {
     if (current === 'sos' && tab !== 'sos') resetSos();
+    if ($('actMask') && !$('actMask').classList.contains('hidden')) closeAct();
+    if (dayKey) closeDay();
+    if (current === 'settings' && tab !== 'settings' && settingsView !== 'root') {
+      settingsView = 'root';
+      applySettingsDom();
+      if (/^#settings/.test(location.hash) && location.hash !== '#admin') {
+        try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
+      }
+    }
     current = tab;
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
     document.querySelectorAll('.tab').forEach(function (b) {
@@ -233,8 +304,16 @@
   // 键盘：Esc 关闭弹窗；1–4 切换页面、S 打开急救（输入框内或按住修饰键时不触发）
   document.addEventListener('keydown', function (e) {
     var modalOpen = !$('modalMask').classList.contains('hidden');
-    if (e.key === 'Escape') { if (modalOpen) { e.preventDefault(); closeModal(); } return; }
-    if (modalOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    var actOpen = $('actMask') && !$('actMask').classList.contains('hidden');
+    var dayOpen = $('dayMask') && !$('dayMask').classList.contains('hidden');
+    if (e.key === 'Escape') {
+      if (modalOpen) { e.preventDefault(); closeModal(); return; }
+      if (actOpen) { e.preventDefault(); closeAct(); return; }
+      if (dayOpen) { e.preventDefault(); closeDay(); return; }
+      if (current === 'settings' && settingsView !== 'root') { e.preventDefault(); backSettings(); }
+      return;
+    }
+    if (modalOpen || actOpen || dayOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     var map = { '1': 'home', '2': 'log', '3': 'stats', '4': 'settings', 's': 'sos', 'S': 'sos' };
@@ -295,7 +374,6 @@
     return ['夜深了，放下手机早点睡', 'moon'];
   }
 
-  var selMood = null;
   function renderHome() {
     var g = greeting();
     $('greeting').innerHTML = ic(g[1], 'tint-amber') + ' ' + g[0];
@@ -305,44 +383,42 @@
     var now = new Date();
     $('todayDate').textContent = (now.getMonth() + 1) + '月' + now.getDate() + '日 星期' + '日一二三四五六'[now.getDay()];
     updateTimer();
-    renderCheckin();
+    renderActEntry();
     renderCalendar();
     renderBadges();
     var dayIdx = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY);
     $('dailyTip').textContent = D.tips[dayIdx % D.tips.length];
   }
 
-  function renderCheckin() {
-    var today = state.checkins[dateKey(Date.now())];
-    $('checkinArea').classList.toggle('hidden', !!today);
-    $('checkinDone').classList.toggle('hidden', !today);
-    if (today) {
-      var m = D.moods.filter(function (x) { return x.v === today.mood; })[0] || D.moods[2];
-      var msg = today.mood >= 4 ? '状态不错，继续保持！' : today.mood === 3 ? '平稳也是一种力量。' : '辛苦了，照顾好自己，今天能打卡已经很棒了。';
-      $('checkinDone').setAttribute('data-mood', m.v);
-      $('checkinDone').innerHTML = '<span class="e">' + ic(m.icon) + '</span><div><b>今日已打卡 · ' + m.t + '</b><p class="small muted" style="margin:2px 0 0">' + msg + '</p></div>';
-      return;
-    }
-    var html = D.moods.map(function (m) {
-      return '<button class="mood' + (selMood === m.v ? ' sel' : '') + '" data-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
-    }).join('');
-    $('moodPicker').innerHTML = html;
-    $('btnCheckin').disabled = !selMood;
-    $('btnCheckin').innerHTML = selMood ? ic('check') + '完成今日打卡' : '选择心情后打卡';
+  function moodByValue(v) {
+    return D.moods.filter(function (x) { return x.v === v; })[0] || null;
   }
-  $('moodPicker').addEventListener('click', function (e) {
-    var b = e.target.closest('.mood'); if (!b) return;
-    selMood = +b.dataset.mood; renderCheckin();
-  });
-  $('btnCheckin').addEventListener('click', function () {
+  function renderActEntry() {
+    var box = $('actSummary'); if (!box) return;
     var k = dateKey(Date.now());
-    if (state.checkins[k]) { toast('今天已经打过卡啦'); return; }
-    if (!selMood) return;
-    state.checkins[k] = { mood: selMood, ts: Date.now() };
-    if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
-    selMood = null; save();
-    toast('打卡成功，又是认真生活的一天');
-    renderHome();
+    var today = state.checkins[k];
+    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
+    var html = '';
+    if (today) {
+      var m = moodByValue(today.mood) || D.moods[2];
+      html += '<div class="act-status" data-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span><div><b>心情 · ' + esc(m.t) + '</b>' +
+        (today.note ? '<div class="small muted">' + esc(today.note) + '</div>' : '') + '</div></div>';
+    }
+    if (rels.length) {
+      html += '<div class="today-rel">' + rels.map(function (r) {
+        var primary = (normalizeTypes(r.types)[0]) || '';
+        var t = primary && typeById(primary);
+        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? ' · 会重置天数' : ' · 不重置天数') + '</div></div></button>';
+      }).join('') + '</div>';
+    }
+    if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录。点下面一次记下心情，需要的话再标上行为。</p>';
+    else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></p>';
+    box.innerHTML = html;
+  }
+  $('checkinCard').addEventListener('click', function (e) {
+    if (e.target.closest('#btnOpenAct')) { openAct(dateKey(Date.now())); return; }
+    var open = e.target.closest('[data-open-day]');
+    if (open) openDay(open.dataset.openDay);
   });
 
   var calOffset = 0;
@@ -388,7 +464,9 @@
       } else if (relapseDays[k]) {
         marks = '<span class="cal-types"><span class="cal-mark legacy" title="破戒">' + ic('cloud-rain') + '</span></span>';
       }
-      html += '<div class="' + cls + '" title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + marks + '</div>';
+      var future = k > todayK;
+      var tag = future ? 'div' : 'button';
+      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + marks + '</' + tag + '>';
     }
     $('calGrid').innerHTML = html;
     $('calLegend').innerHTML = lapseTypes().map(function (t) {
@@ -397,6 +475,11 @@
   }
   $('calPrev').addEventListener('click', function () { calOffset--; renderCalendar(); });
   $('calNext').addEventListener('click', function () { if (calOffset < 0) { calOffset++; renderCalendar(); } });
+  $('calGrid').addEventListener('click', function (e) {
+    var cell = e.target.closest('[data-date]');
+    if (!cell) return;
+    openDay(cell.dataset.date);
+  });
 
   function renderBadges() {
     var cd = curMs() / DAY, bd = bestMs() / DAY;
@@ -420,6 +503,7 @@
     save();
     if (current === 'home') updateTimer();
     if (current === 'settings') renderGoalControl();
+    updateSettingsChrome();
     toast('目标已设为 ' + n + ' 天');
     return true;
   }
@@ -451,13 +535,17 @@
   $('btnAdjustStart').addEventListener('click', function () {
     openModal({
       title: '调整开始时间',
-      html: '<p>如果你是之前就开始坚持的，可以在这里设置真实的开始时间。</p><input type="datetime-local" id="startInput" value="' + toLocalInput(state.streakStart) + '" max="' + toLocalInput(Date.now()) + '" />',
+      html: '<p>如果你是之前就开始坚持的，可以在这里设置真实的开始时间。若这之后还有会重置天数的破戒，连续天数仍从最近的那一次算起。</p><input type="datetime-local" id="startInput" value="' + toLocalInput(state.streakStart) + '" max="' + toLocalInput(Date.now()) + '" />',
       ok: '保存',
       onOk: function () {
         var t = parseLocalInput($('startInput').value);
         if (!isFinite(t)) { toast('请选择有效的时间'); return false; }
         if (t > Date.now()) { toast('开始时间不能晚于现在'); return false; }
-        state.streakStart = t; state.streakStartSetAt = Date.now(); save(); renderHome(); toast('开始时间已更新');
+        state.manualStreakStart = t;
+        state.manualStreakStartSetAt = Date.now();
+        var changed = applyStreak(true);
+        save(); renderHome();
+        toast(changed && state.streakStart !== t ? '已保存。之后有会重置的破戒，连续天数从那次算起' : '开始时间已更新');
       }
     });
   });
@@ -555,7 +643,7 @@
   $('btnShuffle').addEventListener('click', renderActionList);
   $('btnSosClose1').addEventListener('click', resetSos);
   $('btnSosClose2').addEventListener('click', resetSos);
-  $('btnSosRelapse').addEventListener('click', function () { go('log'); });
+  $('btnSosRelapse').addEventListener('click', function () { go('home'); openAct(dateKey(Date.now())); });
   $('btnMadeIt').addEventListener('click', function () {
     if (!sosLogged) {
       state.urges.push({ id: uid(), ts: Date.now() });
@@ -566,45 +654,12 @@
   });
 
   /* ---------------- 记录 ---------------- */
-  var selTriggers = {};
-  var selTypes = {};
-  var editDate = dateKey(Date.now());
-  var dayMood = null;
+  var dayKey = null;
+  var actDay = null;
+  var actDraft = { mood: null, types: {}, triggers: {} };
 
   function selectedTypes(map) { return lapseTypes().filter(function (t) { return map[t.id]; }).map(function (t) { return t.id; }); }
-  function renderTypeTags() {
-    $('typeTags').innerHTML = typeButtons(selTypes, 'data-lapse');
-  }
-  function renderLog() {
-    $('relapseTime').value = toLocalInput(Date.now());
-    $('relapseTime').max = toLocalInput(Date.now() + 60000);
-    if ($('editDate')) {
-      $('editDate').max = dateKey(Date.now());
-      if (!editDate || editDate > dateKey(Date.now())) editDate = dateKey(Date.now());
-      $('editDate').value = editDate;
-      if (dayMood == null && state.checkins[editDate]) dayMood = state.checkins[editDate].mood;
-    }
-    renderTypeTags();
-    renderTriggerTags();
-    renderDayEditor();
-    renderHistory();
-  }
-  function renderTriggerTags() {
-    $('triggerTags').innerHTML = D.triggers.map(function (t) {
-      return '<button type="button" class="tag' + (selTriggers[t] ? ' sel' : '') + '" data-t="' + t + '">' + esc(t) + '</button>';
-    }).join('');
-    $('otherTrigger').classList.toggle('hidden', !selTriggers['其他']);
-  }
-  $('typeTags').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-lapse]'); if (!b) return;
-    selTypes[b.dataset.lapse] = !selTypes[b.dataset.lapse];
-    renderTypeTags();
-  });
-  $('triggerTags').addEventListener('click', function (e) {
-    var b = e.target.closest('.tag'); if (!b) return;
-    var t = b.dataset.t; selTriggers[t] = !selTriggers[t];
-    renderTriggerTags();
-  });
+  function renderLog() { renderHistory(); }
 
   function refreshChrome() {
     if (window.ZFCloud && window.ZFCloud.refreshChrome) window.ZFCloud.refreshChrome();
@@ -616,116 +671,244 @@
     return map;
   }
 
-  $('btnLogRelapse').addEventListener('click', function () {
-    var ts = parseLocalInput($('relapseTime').value);
-    if (!isFinite(ts)) { toast('请选择发生时间'); return; }
-    if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
-    var types = selectedTypes(selTypes);
-    if (!types.length) { toast('请至少选择一个类型'); return; }
-    var triggers = D.triggers.filter(function (t) { return selTriggers[t]; });
-    var other = selTriggers['其他'] ? $('otherTrigger').value.trim() : '';
-    var note = $('relapseNote').value.trim();
-    var resets = ts > state.streakStart;
-    openModal({
-      title: '确认记录？',
-      html: resets
-        ? '<p>记录后，当前的连续天数（' + fmtDays(ts - state.streakStart) + ' 天）将从这一刻重新计算，历史记录和最佳纪录都会保留。</p><p>一次失误不会抹去你之前的努力。休息一下，然后重新出发。</p>'
-        : '<p>这个时间早于当前连续记录的开始时间，将只添加到历史记录中，不会影响当前连续天数。</p>',
-      ok: resets ? '记录并重新开始' : '添加记录',
-      warm: true,
-      onOk: function () {
-        var streak = resets ? ts - state.streakStart : 0;
-        state.relapses.push({ id: uid(), ts: ts, triggers: triggers, types: types, other: other, note: note, streakMs: streak, editedAt: Date.now() });
-        if (resets) {
-          state.bestStreakMs = Math.max(state.bestStreakMs, streak);
-          state.streakStart = ts; state.streakStartSetAt = Date.now();
-        }
-        save();
-        selTriggers = {}; selTypes = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
-        renderLog();
-        toast(resets ? '已记录。新的开始，从现在起' : '已添加到历史记录');
-      }
-    });
+  if ($('btnOpenActLog')) $('btnOpenActLog').addEventListener('click', function () { openAct(dateKey(Date.now())); });
+  if ($('btnGotoCal')) $('btnGotoCal').addEventListener('click', function () {
+    go('home');
+    var el = $('calCard');
+    if (el && el.scrollIntoView) setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 40);
   });
 
-  function syncDayMood() {
-    var c = state.checkins[editDate];
-    dayMood = c ? c.mood : null;
+  function atLocal(k, hh, mm) {
+    var p = k.split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2], hh || 0, mm || 0, 0, 0).getTime();
   }
-  function renderDayEditor() {
-    var box = $('dayEditor'); if (!box) return;
-    var k = editDate;
+  function fmtDayTitle(k) {
+    var p = k.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    var y = d.getFullYear() === new Date().getFullYear() ? '' : (d.getFullYear() + '年');
+    return y + (d.getMonth() + 1) + '月' + d.getDate() + '日 星期' + '日一二三四五六'[d.getDay()];
+  }
+  function hm(ts) { var d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function minuteOf(ts) { var d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); }
+  function dayEvents(k) {
+    var events = [];
     var c = state.checkins[k];
-    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; });
-    var html = '<p class="field-label">这天的打卡</p><div class="moods day-moods" id="dayMoods">';
-    html += D.moods.map(function (m) {
-      return '<button type="button" class="mood' + (dayMood === m.v ? ' sel' : '') + '" data-day-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
-    }).join('');
-    html += '</div><label class="field"><span>这天的备注</span><textarea id="dayNote" rows="2" maxlength="500" placeholder="可选。例如：晚上状态不错，提前放下了手机。">' + esc(c && c.note || '') + '</textarea></label>';
-    html += '<div class="day-actions"><button class="btn btn-primary" type="button" id="btnSaveDayCheckin">' + ic('check') + '保存这天的打卡</button>';
-    if (c) html += '<button class="btn btn-ghost" type="button" id="btnClearDayCheckin">清除打卡</button>';
-    html += '<button class="btn btn-ghost" type="button" id="btnPrefillRelapse">' + ic('pen-line') + '把破戒时间设为这天</button></div>';
-    html += '<p class="field-label">这天的破戒记录</p>';
-    if (!rels.length) html += emptyState('notebook', '这天还没有破戒记录。在下方选择类型，并把发生时间设为这一天即可补记。');
-    else html += '<div class="history day-history">' + rels.map(function (r) { return relapseItem(r); }).join('') + '</div>';
-    box.innerHTML = html;
+    if (c) {
+      var ts = (c.ts && dateKey(c.ts) === k) ? c.ts : atLocal(k, 12, 0);
+      events.push({ kind: 'checkin', ts: ts, mood: c.mood, note: c.note || '' });
+    }
+    state.relapses.forEach(function (r) {
+      if (dateKey(r.ts) === k) events.push({ kind: 'relapse', ts: r.ts, r: r });
+    });
+    events.sort(function (a, b) { return a.ts - b.ts; });
+    return events;
   }
-  $('editDate').addEventListener('change', function () {
-    var v = this.value;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > dateKey(Date.now())) { toast('只能选择今天或更早的日期'); this.value = editDate; return; }
-    editDate = v; syncDayMood(); renderDayEditor();
-  });
-  $('dayEditor').addEventListener('click', function (e) {
-    var moodBtn = e.target.closest('[data-day-mood]');
-    if (moodBtn) {
-      dayMood = +moodBtn.dataset.dayMood;
-      var draftNote = $('dayNote') ? $('dayNote').value : '';
-      renderDayEditor();
-      if ($('dayNote')) $('dayNote').value = draftNote;
-      return;
-    }
-    if (e.target.closest('.h-del')) { onHistoryClick(e); return; }
-    if (e.target.closest('#btnSaveDayCheckin')) { saveDayCheckin(); return; }
-    if (e.target.closest('#btnClearDayCheckin')) { clearDayCheckin(); return; }
-    if (e.target.closest('#btnPrefillRelapse')) {
-      $('relapseTime').value = editDate + 'T12:00';
-      var card = $('relapseTime').closest('.card');
-      if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      toast('发生时间已设为 ' + editDate + ' 12:00，选择类型后即可记录');
-      return;
-    }
-    var editBtn = e.target.closest('[data-edit="relapse"]');
-    if (editBtn) openRelapseEditor(editBtn.dataset.id);
-  });
-
-  function saveDayCheckin() {
-    if (!dayMood) { toast('请先选择这天的心情'); return; }
-    var k = editDate;
-    var prev = state.checkins[k];
-    var note = ($('dayNote') && $('dayNote').value || '').trim();
-    var row = { mood: dayMood, ts: (prev && prev.ts) || Date.parse(k + 'T12:00:00'), editedAt: Date.now() };
-    if (note) row.note = note;
-    state.checkins[k] = row;
-    if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
-    save();
-    renderDayEditor(); renderHistory();
-    toast(k === dateKey(Date.now()) ? '今日打卡已保存' : '已保存 ' + k + ' 的打卡');
+  function timelineHtml(k) {
+    var events = dayEvents(k);
+    var ticks = '<span class="day-tl-tick start">00:00</span><span class="day-tl-tick mid">12:00</span><span class="day-tl-tick end">24:00</span>';
+    var used = [];
+    var dots = events.map(function (ev) {
+      var p = Math.max(0, Math.min(100, minuteOf(ev.ts) / 1440 * 100));
+      var lane = 0;
+      while (used.some(function (u) { return u.lane === lane && Math.abs(u.p - p) < 5; })) lane++;
+      if (lane > 1) lane = 1;
+      used.push({ lane: lane, p: p });
+      var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
+      return '<span class="day-tl-dot' + (ev.kind === 'relapse' ? ' relapse' : '') + (lane ? ' lane1' : '') + '" style="left:' + p.toFixed(2) + '%" data-type="' + esc(primary) + '" title="' + esc(hm(ev.ts) + (ev.kind === 'checkin' ? ' 打卡' : ' 破戒')) + '"></span>';
+    }).join('');
+    var list = events.length ? events.map(function (ev) {
+      var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
+      var body;
+      if (ev.kind === 'checkin') {
+        var m = D.moods.filter(function (x) { return x.v === ev.mood; })[0] || D.moods[2];
+        body = '<b>心情打卡 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
+      } else {
+        var r = ev.r;
+        body = '<b>破戒' + (relapseResets(r.types) ? '' : ' · 不重置天数') + '</b>' +
+          (typeChips(r.types) ? '<div class="h-tags">' + typeChips(r.types) + '</div>' : '<div class="small muted">未标类型（仍会计入重置）</div>') +
+          ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (t) { return t === '其他' && r.other ? '其他：' + r.other : t; }).join('、')) + '</div>' : '') +
+          (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
+      }
+      return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + (ev.kind === 'relapse' ? ' relapse' : '') + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + '</div></li>';
+    }).join('') : '<li class="day-tl-item"><span class="day-tl-time">—</span><span class="day-tl-node"></span><div class="day-tl-card"><span class="muted small">这一天还没有记录。用下面的「记录行为」补上。</span></div></li>';
+    return '<p class="field-label">线性图 · 00:00–24:00</p><div class="day-tl-bar" role="img" aria-label="当天 0 点到 24 点的事件"><div class="day-tl-rail"></div>' + ticks + dots + '</div><ol class="day-tl-list">' + list + '</ol>';
+  }
+  function renderDaySheet() {
+    if (!dayKey) return;
+    $('dayTitle').textContent = fmtDayTitle(dayKey);
+    var k = dayKey;
+    var c = state.checkins[k];
+    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
+    var html = timelineHtml(k);
+    html += '<button class="btn btn-primary btn-block" type="button" id="btnOpenActFromDay">' + ic('pen-line') + '记录行为</button>';
+    if (c) html += '<button class="btn-link center-block" type="button" id="btnClearDayCheckin">清除这天的心情</button>';
+    if (rels.length) html += '<div class="day-section"><p class="field-label">已记下的行为</p><div class="history">' + rels.map(relapseItem).join('') + '</div></div>';
+    $('dayBody').innerHTML = html;
+  }
+  function openDay(k) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能查看未来的日期'); return; }
+    dayKey = k;
+    $('dayMask').classList.remove('hidden');
+    lockScroll();
+    renderDaySheet();
+  }
+  function closeDay() {
+    if (!$('dayMask') || $('dayMask').classList.contains('hidden')) return;
+    $('dayMask').classList.add('hidden');
+    dayKey = null;
+    unlockScroll();
+    if (current === 'home') renderHome();
+    else if (current === 'log') renderHistory();
   }
   function clearDayCheckin() {
-    var k = editDate;
-    if (!state.checkins[k]) return;
+    var k = dayKey;
+    if (!k || !state.checkins[k]) return;
     openModal({
-      title: '清除这天的打卡？',
-      html: '<p>会去掉 ' + esc(k) + ' 的心情打卡。破戒记录不受影响。</p>',
+      title: '清除这天的心情？',
+      html: '<p>会去掉 ' + esc(k) + ' 的心情。行为记录不受影响。</p>',
       ok: '清除', danger: true,
       onOk: function () {
         delete state.checkins[k];
         state.removed.checkins[k] = Date.now();
-        dayMood = null;
-        save(); renderDayEditor(); renderHistory(); toast('已清除打卡');
+        save();
+        renderDaySheet();
+        if (current === 'home') renderHome();
+        if (current === 'log') renderHistory();
+        toast('已清除心情');
       }
     });
   }
+  function actWillWriteMood(prev, note, types) {
+    if (!actDraft.mood) return false;
+    if (!prev || prev.mood !== actDraft.mood) return true;
+    return !types.length && !!note && note !== (prev.note || '');
+  }
+  function renderActForm() {
+    if (!actDay || !$('actMoods')) return;
+    var prev = state.checkins[actDay];
+    $('actMoods').innerHTML = D.moods.map(function (m) {
+      return '<button type="button" class="mood' + (actDraft.mood === m.v ? ' sel' : '') + '" data-act-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
+    }).join('');
+    $('actTypes').innerHTML = typeButtons(actDraft.types, 'data-act-type');
+    $('actTriggers').innerHTML = D.triggers.map(function (t) {
+      return '<button type="button" class="tag' + (actDraft.triggers[t] ? ' sel' : '') + '" data-act-trigger="' + esc(t) + '">' + esc(t) + '</button>';
+    }).join('');
+    $('actOther').classList.toggle('hidden', !actDraft.triggers['其他']);
+    var types = selectedTypes(actDraft.types);
+    var note = ($('actNote') && $('actNote').value || '').trim();
+    var moodWrite = actWillWriteMood(prev, note, types);
+    var can = moodWrite || types.length > 0;
+    var tsPreview = parseLocalInput($('actTime') && $('actTime').value);
+    var movesStreak = types.length && relapseResets(types) && isFinite(tsPreview) && previewStart(tsPreview, types) !== state.streakStart;
+    var hint = types.length ? resetHint(types) : '不选行为时，只记录这一天的心情。时间和触发因素会在选了行为后一起保存。';
+    if (prev && actDraft.mood === prev.mood && !types.length) hint = '这天的心情已是「' + ((moodByValue(prev.mood) || {}).t || '') + '」。可以改心情，或选一个行为类型。';
+    $('actHint').textContent = hint;
+    $('btnSaveAct').disabled = !can;
+    var label = '选择心情或行为';
+    if (movesStreak) label = '保存，并重新计算天数';
+    else if (types.length) label = '保存（天数不变）';
+    else if (moodWrite) label = prev ? '更新心情' : '保存心情';
+    $('btnSaveAct').innerHTML = (can ? ic('check') : '') + label;
+  }
+  function openAct(k) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能记录未来的日期'); return; }
+    var c = state.checkins[k];
+    actDay = k;
+    actDraft = { mood: c ? c.mood : null, types: {}, triggers: {} };
+    $('actWhen').textContent = (k === dateKey(Date.now()) ? '今天 · ' : '') + fmtDayTitle(k);
+    $('actTime').value = k === dateKey(Date.now()) ? toLocalInput(Date.now()) : (k + 'T12:00');
+    $('actTime').max = toLocalInput(Date.now() + 60000);
+    $('actNote').value = '';
+    $('actOther').value = '';
+    $('actMask').classList.remove('hidden');
+    lockScroll();
+    renderActForm();
+  }
+  function closeAct() {
+    if (!$('actMask') || $('actMask').classList.contains('hidden')) return;
+    $('actMask').classList.add('hidden');
+    actDay = null;
+    unlockScroll();
+  }
+  function refreshAfterAct() {
+    if (dayKey) renderDaySheet();
+    if (current === 'home') renderHome();
+    if (current === 'log') renderHistory();
+    if (current === 'stats') renderStats();
+  }
+  function saveAct() {
+    if (!actDay) return;
+    var k = actDay;
+    var prev = state.checkins[k];
+    var note = ($('actNote').value || '').trim();
+    var types = selectedTypes(actDraft.types);
+    var moodWrite = actWillWriteMood(prev, note, types);
+    if (!moodWrite && !types.length) { toast('先选择心情，或选择行为类型'); return; }
+    var ts = parseLocalInput($('actTime').value);
+    if (!isFinite(ts)) { toast('请选择时间'); return; }
+    if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
+    if (dateKey(ts) !== k) { toast('时间需要在这一天'); return; }
+    var triggers = D.triggers.filter(function (t) { return actDraft.triggers[t]; });
+    var other = actDraft.triggers['其他'] ? $('actOther').value.trim() : '';
+    function write() {
+      if (moodWrite) {
+        var row = { mood: actDraft.mood, ts: (prev && prev.ts) || ts, editedAt: Date.now() };
+        if (types.length) {
+          if (prev && prev.note) row.note = prev.note;
+        } else if (note) row.note = note;
+        else if (prev && prev.note) row.note = prev.note;
+        state.checkins[k] = row;
+        if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
+      }
+      var result = null;
+      if (types.length) {
+        result = commitRelapse({ ts: ts, types: types, triggers: triggers, other: other, note: note });
+      } else save();
+      closeAct();
+      refreshAfterAct();
+      if (result && result.changed) toast('已记录。连续天数已重新计算');
+      else if (result) toast('已记录，连续天数不变');
+      else toast(prev ? '心情已更新' : '心情已记下');
+    }
+    if (types.length && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
+      openModal({
+        title: '这次会重置戒色天数',
+        html: '<p>所选行为里有会重置天数的类型。保存后，当前连续天数将从这次重新计算，历史和最佳纪录都会保留。</p>',
+        ok: '保存并重新计算', warm: true, onOk: write
+      });
+      return;
+    }
+    write();
+  }
+  $('actClose').addEventListener('click', closeAct);
+  $('actMask').addEventListener('click', function (e) { if (e.target === this) closeAct(); });
+  $('actBody').addEventListener('click', function (e) {
+    var moodBtn = e.target.closest('[data-act-mood]');
+    if (moodBtn) {
+      var v = +moodBtn.dataset.actMood;
+      actDraft.mood = actDraft.mood === v ? null : v;
+      renderActForm();
+      return;
+    }
+    var tp = e.target.closest('[data-act-type]');
+    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; renderActForm(); return; }
+    var tr = e.target.closest('[data-act-trigger]');
+    if (tr) {
+      var name = tr.getAttribute('data-act-trigger');
+      actDraft.triggers[name] = !actDraft.triggers[name];
+      renderActForm();
+    }
+  });
+  $('actNote').addEventListener('input', function () { if (actDay) renderActForm(); });
+  $('actTime').addEventListener('change', function () { if (actDay) renderActForm(); });
+  $('btnSaveAct').addEventListener('click', saveAct);
+  $('dayClose').addEventListener('click', closeDay);
+  $('dayMask').addEventListener('click', function (e) { if (e.target === this) closeDay(); });
+  $('dayBody').addEventListener('click', function (e) {
+    if (e.target.closest('#btnOpenActFromDay')) { openAct(dayKey); return; }
+    if (e.target.closest('#btnClearDayCheckin')) { clearDayCheckin(); return; }
+    if (e.target.closest('.h-del') || e.target.closest('[data-edit]')) onHistoryClick(e);
+  });
 
   function relapseItem(r) {
     var tags = typeChips(r.types);
@@ -751,7 +934,7 @@
     (r.triggers || []).forEach(function (t) { trigMap[t] = true; });
     openModal({
       title: '编辑这条记录',
-      html: '<p class="small muted">可以改时间、类型、触发因素和备注，用来补记或更正。若这条记录就是当前连续天数的起点，起点会跟着新时间移动；其它历史记录不会重算整段连续天数。</p>' +
+      html: '<p class="small muted">改时间、类型、触发因素或备注后，会按当前的重置规则重新计算连续天数。不重置的类型仍留在日历和时间轴上。</p>' +
         '<label class="field"><span>发生时间</span><input type="datetime-local" id="edTime" value="' + toLocalInput(r.ts) + '" max="' + toLocalInput(Date.now() + 60000) + '" /></label>' +
         '<div class="field"><span>类型（可多选）</span><div class="tags" id="edTypes">' + typeButtons(typeMap, 'data-ed-type') + '</div></div>' +
         '<div class="field"><span>触发因素（可多选）</span><div class="tags" id="edTriggers">' + D.triggers.map(function (t) {
@@ -770,20 +953,19 @@
         var triggers = D.triggers.filter(function (t) { return trigSel[t]; });
         var other = trigSel['其他'] ? $('edOther').value.trim() : '';
         var note = $('edNote').value.trim();
-        var wasAnchor = Math.abs(r.ts - state.streakStart) < 1500;
         r.ts = ts;
         r.types = types;
         r.triggers = triggers;
         r.other = other;
         r.note = note;
+        r.streakMs = endedStreakMs(ts, types, r.id);
         r.editedAt = Date.now();
-        if (wasAnchor) {
-          state.streakStart = ts;
-          state.streakStartSetAt = Date.now();
-        }
+        var changed = applyStreak(true);
         save();
-        renderDayEditor(); renderHistory();
-        toast('记录已更新');
+        if (dayKey) renderDaySheet();
+        renderHistory();
+        if (current === 'home') renderHome();
+        toast(changed ? '记录已更新，连续天数已重新计算' : '记录已更新');
       }
     });
   }
@@ -819,14 +1001,7 @@
     var edit = e.target.closest('[data-edit]');
     if (edit) {
       if (edit.dataset.edit === 'relapse') openRelapseEditor(edit.dataset.id);
-      else if (edit.dataset.edit === 'checkin') {
-        editDate = edit.dataset.date;
-        if ($('editDate')) $('editDate').value = editDate;
-        syncDayMood();
-        renderDayEditor();
-        var card = $('dayCard');
-        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      else if (edit.dataset.edit === 'checkin') openDay(edit.dataset.date);
       return;
     }
     var b = e.target.closest('.h-del'); if (!b) return;
@@ -840,22 +1015,29 @@
         onOk: function () {
           delete state.checkins[dk];
           state.removed.checkins[dk] = Date.now();
-          if (editDate === dk) dayMood = null;
-          save(); renderDayEditor(); renderHistory(); toast('已删除');
+          if (dayKey === dk) renderDaySheet();
+          save(); renderHistory();
+          if (current === 'home') renderHome();
+          toast('已删除');
         }
       });
       return;
     }
     openModal({
       title: '删除这条记录？',
-      html: '<p>删除后无法恢复。' + (type === 'relapse' ? '（不会改变当前连续天数）' : '') + '</p>',
+      html: '<p>删除后无法恢复。' + (type === 'relapse' ? '如果这条破戒原本会重置天数，删掉之后会按剩下的记录重新计算连续天数。' : '') + '</p>',
       ok: '删除', danger: true,
       onOk: function () {
         var arr = type === 'relapse' ? state.relapses : state.urges;
         var i = arr.findIndex(function (x) { return x.id === id; });
         if (i >= 0) arr.splice(i, 1);
         state.removed.ids[id] = Date.now();
-        save(); renderDayEditor(); renderHistory(); toast('已删除');
+        if (type === 'relapse') applyStreak(true);
+        save();
+        if (dayKey) renderDaySheet();
+        renderHistory();
+        if (current === 'home') renderHome();
+        toast('已删除');
       }
     });
   }
@@ -957,6 +1139,7 @@
     if (md) md.setAttribute('content', t === 'system' ? THEME_COLOR.dark : THEME_COLOR[t]);
     if (mc) mc.setAttribute('content', t === 'system' ? 'light dark' : t);
     renderThemeControl();
+    updateSettingsChrome();
   }
   function setTheme(t, animate) {
     if (t !== 'light' && t !== 'dark') t = 'system';
@@ -971,7 +1154,7 @@
       b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
     var isDark = t === 'dark' || (t === 'system' && sysDark && sysDark.matches);
-    $('themeHint').textContent = t === 'system' ? ('当前系统：' + (isDark ? '深色' : '浅色')) : '';
+    if ($('themeHint')) $('themeHint').textContent = t === 'system' ? ('当前系统：' + (isDark ? '深色' : '浅色')) : '';
   }
   ['themeSeg'].forEach(function (id) {
     var el = $(id); if (!el) return;
@@ -986,14 +1169,133 @@
     if (sysDark.addEventListener) sysDark.addEventListener('change', onSys); else if (sysDark.addListener) sysDark.addListener(onSys);
   }
 
-  /* ---------------- 设置 ---------------- */
+  /* ---------------- 设置（二级菜单） ---------------- */
+  var SETTINGS_PAGES = {
+    account: '账号与资料',
+    goal: '目标天数',
+    resets: '破戒类型与重置规则',
+    theme: '外观',
+    reasons: '我坚持的理由',
+    data: '数据与同步',
+    about: '关于'
+  };
+  var settingsView = 'root';
+  function settingsViewFromHash() {
+    var m = (location.hash || '').match(/^#settings(?:\/([a-z]+))?$/);
+    if (!m) return null;
+    if (!m[1]) return 'root';
+    return SETTINGS_PAGES[m[1]] ? m[1] : 'root';
+  }
+  function applySettingsDom() {
+    var isRoot = settingsView === 'root';
+    if ($('settingsRoot')) $('settingsRoot').classList.toggle('hidden', !isRoot);
+    document.querySelectorAll('.settings-page').forEach(function (p) {
+      p.classList.toggle('hidden', p.dataset.settingsPage !== settingsView);
+    });
+    if ($('settingsBack')) $('settingsBack').classList.toggle('hidden', isRoot);
+    if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '属于你的空间' : (SETTINGS_PAGES[settingsView] || '设置');
+  }
+  function showSettings(view, opts) {
+    opts = opts || {};
+    if (view !== 'root' && !SETTINGS_PAGES[view]) view = 'root';
+    settingsView = view;
+    applySettingsDom();
+    if (view === 'resets') renderResetToggles();
+    if (view === 'goal') renderGoalControl();
+    updateSettingsChrome();
+    if (!opts.silent) {
+      var hash = view === 'root' ? '#settings' : ('#settings/' + view);
+      var url = location.pathname + location.search + hash;
+      try {
+        if (opts.replace) history.replaceState({ zfSettings: view, zfEntry: !!opts.entry }, '', url);
+        else history.pushState({ zfSettings: view }, '', url);
+      } catch (e) {}
+    }
+    window.scrollTo(0, 0);
+  }
+  function backSettings() {
+    if (settingsView === 'root') return;
+    if (history.state && history.state.zfSettings && history.state.zfSettings !== 'root' && !history.state.zfEntry) {
+      history.back();
+      return;
+    }
+    showSettings('root', { replace: true });
+  }
+  function renderResetToggles() {
+    var box = $('resetTypeList'); if (!box) return;
+    box.innerHTML = lapseTypes().map(function (t) {
+      var on = !!state.resetTypes[t.id];
+      var locked = t.id === 'masturbation';
+      return '<div class="reset-row" data-type="' + t.id + '"><span class="type-ico">' + ic(t.icon) + '</span><div class="reset-copy"><b>' + esc(t.label) + '</b><p>' +
+        (locked ? '自慰始终会重置戒色天数，不能关闭。' : (on ? '重置戒色天数' : '不重置天数，仍显示在日历和时间轴')) +
+        '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(t.label) + '：重置戒色天数" data-reset-type="' + t.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
+    }).join('');
+  }
+  function updateSettingsChrome() {
+    if (!state) return;
+    var st = window.ZFCloud && window.ZFCloud.status && window.ZFCloud.status();
+    if ($('settingsAdminRow')) $('settingsAdminRow').classList.toggle('hidden', !(st && st.profile && st.profile.is_admin));
+    if ($('settingsLogoutRow')) $('settingsLogoutRow').classList.toggle('hidden', !(st && st.loggedIn));
+    if ($('settingsAccountSub')) {
+      $('settingsAccountSub').textContent = (!st || !st.configured) ? '本机模式' : (st.loggedIn ? (st.email || '已登录') : '登录并同步');
+    }
+    if ($('settingsGoalSub')) $('settingsGoalSub').textContent = (state.goalDays || 30) + ' 天';
+    if ($('settingsResetSub')) $('settingsResetSub').textContent = resetSummary();
+    if ($('settingsThemeSub')) {
+      var theme = getTheme();
+      $('settingsThemeSub').textContent = theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统';
+    }
+    if ($('settingsReasonSub')) $('settingsReasonSub').textContent = state.reasons.length + ' 条';
+  }
   function renderSettings() {
+    applySettingsDom();
     renderGoalControl();
+    renderResetToggles();
+    renderThemeControl();
     if ($('displayNameInput') && document.activeElement !== $('displayNameInput')) $('displayNameInput').value = state.displayName || '';
     $('reasonsEdit').innerHTML = state.reasons.length
       ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由，写下第一条吧。</span></li>';
+    updateSettingsChrome();
   }
+  if ($('settingsRoot')) $('settingsRoot').addEventListener('click', function (e) {
+    var row = e.target.closest('[data-settings]');
+    if (!row) return;
+    showSettings(row.dataset.settings);
+  });
+  if ($('settingsBack')) $('settingsBack').addEventListener('click', backSettings);
+  if ($('resetTypeList')) $('resetTypeList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-reset-type]');
+    if (!b || b.disabled) return;
+    var id = b.getAttribute('data-reset-type');
+    if (id === 'masturbation') return;
+    state.resetTypes[id] = !state.resetTypes[id];
+    state.resetTypes.masturbation = true;
+    state.resetTypesSetAt = Date.now();
+    var changed = applyStreak(true);
+    save();
+    renderResetToggles();
+    updateSettingsChrome();
+    if (current === 'home') renderHome();
+    toast(changed ? '已更新，连续天数已重新计算' : '已更新重置规则');
+  });
+  window.addEventListener('popstate', function () {
+    if ((location.hash || '') === '#admin') return;
+    var v = settingsViewFromHash();
+    if (v) {
+      settingsView = v;
+      if (current !== 'settings') go('settings');
+      else applySettingsDom();
+      if (v === 'resets') renderResetToggles();
+      updateSettingsChrome();
+      return;
+    }
+    if (current === 'settings' && settingsView !== 'root') {
+      settingsView = 'root';
+      applySettingsDom();
+      updateSettingsChrome();
+    }
+  });
   $('btnSaveDisplayName').addEventListener('click', function () {
     var v = $('displayNameInput').value.trim().slice(0, 20);
     state.displayName = v;
@@ -1058,7 +1360,10 @@
       ok: '确认重置', danger: true,
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」以确认'); return false; }
-        state = defaultState(); save({ replaceAll: true }); selTriggers = {}; selMood = null; calOffset = 0;
+        state = defaultState(); save({ replaceAll: true });
+        calOffset = 0;
+        if (actDay) closeAct();
+        if (dayKey) closeDay();
         renderSettings(); toast('已重置，新的开始');
       }
     });
@@ -1076,6 +1381,14 @@
     }
   }, 1000);
   renderHome();
+  var bootSettings = settingsViewFromHash();
+  if (bootSettings) {
+    settingsView = bootSettings;
+    go('settings');
+    try {
+      history.replaceState({ zfSettings: bootSettings, zfEntry: true }, '', location.pathname + location.search + (bootSettings === 'root' ? '#settings' : '#settings/' + bootSettings));
+    } catch (e) {}
+  }
 
   // PWA：仅在 http(s) 下启用，避免 file:// 打开时报错
   if (/^https?:$/.test(location.protocol)) {
@@ -1090,7 +1403,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '17';
+  var APP_VERSION = '19';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -1112,7 +1425,14 @@
     sanitize: sanitize,
     defaultState: defaultState,
     // 用云端合并结果替换本地状态并刷新当前页面（不会再次触发上传）
-    replaceState: function (s) { state = sanitize(s); save({ fromCloud: true }); if (current !== 'sos') render(current); },
+    replaceState: function (s) {
+      state = sanitize(s);
+      save({ fromCloud: true });
+      if (dayKey && $('dayMask') && !$('dayMask').classList.contains('hidden')) renderDaySheet();
+      if (current !== 'sos') render(current);
+      updateSettingsChrome();
+    },
+    updateSettingsChrome: updateSettingsChrome,
     toast: toast, openModal: openModal, closeModal: closeModal, lockScroll: lockScroll, unlockScroll: unlockScroll,
     esc: esc, ic: ic, fmtDT: fmtDT, current: function () { return current; }
   };
