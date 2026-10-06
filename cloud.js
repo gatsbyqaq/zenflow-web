@@ -106,7 +106,9 @@
     var takeA = a.streakStartSetAt > b.streakStartSetAt || (a.streakStartSetAt === b.streakStartSetAt && a.streakStart >= b.streakStart);
     var goalA = (a.goalSetAt || 0) >= (b.goalSetAt || 0);
     var nameA = (a.displayNameSetAt || 0) >= (b.displayNameSetAt || 0);
-    return {
+    var resetA = (a.resetTypesSetAt || 0) >= (b.resetTypesSetAt || 0);
+    var manualA = (a.manualStreakStartSetAt || 0) >= (b.manualStreakStartSetAt || 0);
+    var merged = {
       version: 1,
       createdAt: Math.min(a.createdAt, b.createdAt),
       streakStart: takeA ? a.streakStart : b.streakStart,
@@ -116,12 +118,25 @@
       goalSetAt: Math.max(a.goalSetAt || 0, b.goalSetAt || 0),
       displayName: nameA ? a.displayName : b.displayName,
       displayNameSetAt: Math.max(a.displayNameSetAt || 0, b.displayNameSetAt || 0),
+      resetTypes: resetA ? a.resetTypes : b.resetTypes,
+      resetTypesSetAt: Math.max(a.resetTypesSetAt || 0, b.resetTypesSetAt || 0),
+      manualStreakStart: manualA ? (a.manualStreakStart || 0) : (b.manualStreakStart || 0),
+      manualStreakStartSetAt: Math.max(a.manualStreakStartSetAt || 0, b.manualStreakStartSetAt || 0),
       checkins: checkins,
       relapses: byId(a.relapses, b.relapses),
       urges: byId(a.urges, b.urges),
       reasons: reasons,
       removed: removed
     };
+    if (window.ZFStreak) {
+      var computed = window.ZFStreak.computeStreakStart(merged);
+      if (computed !== merged.streakStart) {
+        merged.streakStart = computed;
+        merged.streakStartSetAt = Math.max(merged.streakStartSetAt || 0, Date.now());
+      }
+      merged.bestStreakMs = window.ZFStreak.historicalBest(merged);
+    }
+    return merged;
   }
 
   /* ---------------- 加载 Supabase ---------------- */
@@ -129,7 +144,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=17'; s.async = true;
+      s.src = 'vendor/supabase.js?v=18'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -259,6 +274,7 @@
     var pp = document.querySelector('#screen-home .privacy-pill');
     if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步到你的账号' : '所有数据只保存在本机浏览器中'; pp.classList.toggle('synced', !!logged); }
     renderSideUser();
+    if (window.ZenFlowCore && window.ZenFlowCore.updateSettingsChrome) window.ZenFlowCore.updateSettingsChrome();
   }
 
   /* ---------------- 设置 → 账号与同步 ---------------- */
@@ -297,16 +313,8 @@
       (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div>' +
       '<button class="icon-btn" id="btnEditName" aria-label="修改昵称" title="修改昵称">' + ic('pen-line') + '</button></div>' +
       '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
-      '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button>' +
-      '<button class="btn btn-danger" id="btnLogout">' + ic('log-out') + '退出登录</button></div>';
-    if (profile && profile.is_admin) {
-      h += '<div class="invite-admin"><div class="card-title"><h3>' + ic('layout-dashboard', 'h-ic tint-amber') + '管理后台</h3></div>' +
-        '<p class="muted small">查看用户、邀请码与活跃概览。也可在地址栏打开 <code>#admin</code>。</p>' +
-        '<div class="acct-actions"><button class="btn btn-primary" id="btnOpenAdmin">' + ic('layout-dashboard') + '打开管理后台</button></div>' +
-        '<div class="card-title" style="margin-top:14px"><h3>' + ic('ticket', 'h-ic tint-amber') + '快捷邀请码</h3>' +
-        '<button class="btn btn-ghost btn-sm" id="btnNewInvites">' + ic('ticket') + '生成 3 个</button></div>' +
-        '<div id="inviteList">' + inviteListHtml() + '</div><p class="muted small">新邀请码 30 天内有效；完整管理请用管理后台。</p></div>';
-    }
+      '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
+      '<p class="muted small">退出登录在设置列表最下方。管理员入口也在设置列表里。</p>';
     body.innerHTML = h;
   }
   function syncLine() {

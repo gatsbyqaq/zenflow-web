@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=17" />
+  <link rel="stylesheet" href="styles.css?v=18" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -213,20 +213,37 @@
 
       <div class="home-side">
 
-      <div class="card">
+      <div class="card" id="checkinCard">
         <div class="card-title">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-check"/></svg>今日打卡</h2>
           <span class="muted small" id="todayDate"></span>
         </div>
-        <div id="checkinArea">
-          <p class="muted small">此刻的心情如何？</p>
-          <div class="moods" id="moodPicker"></div>
-          <button class="btn btn-primary btn-block" id="btnCheckin" disabled>选择心情后打卡</button>
+        <p class="muted small">记下今天的心情，也可以同时记一次破戒。只做其中一件也可以。</p>
+        <p class="field-label">今天的心情</p>
+        <div class="moods" id="moodPicker"></div>
+        <p class="field-label">破戒（可选，可多选）</p>
+        <div class="tags" id="checkinTypes"></div>
+        <div id="checkinRelapseExtra" class="hidden">
+          <label class="field">
+            <span>发生时间</span>
+            <input type="datetime-local" id="checkinTime" />
+          </label>
+          <div class="field">
+            <span>触发因素（可多选）</span>
+            <div class="tags" id="checkinTriggers"></div>
+            <input type="text" id="checkinOther" class="hidden" maxlength="20" placeholder="其他触发因素" />
+          </div>
+          <label class="field">
+            <span>备注（可选）</span>
+            <textarea id="checkinNote" rows="2" maxlength="500" placeholder="当时发生了什么？"></textarea>
+          </label>
         </div>
-        <div id="checkinDone" class="checkin-done hidden"></div>
+        <p class="small muted" id="checkinHint"></p>
+        <button class="btn btn-primary btn-block" id="btnCheckin" type="button" disabled>选择心情或破戒类型</button>
+        <div id="todayRelapseList"></div>
       </div>
 
-      <div class="card">
+      <div class="card" id="calCard">
         <div class="card-title">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>打卡日历</h2>
           <div class="cal-nav">
@@ -237,6 +254,7 @@
         </div>
         <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
         <div class="cal-grid" id="calGrid"></div>
+        <p class="muted small cal-hint">点某一天，查看心情、破戒和当天的线性图。</p>
         <div class="cal-legend" id="calLegend"></div>
       </div>
 
@@ -363,12 +381,8 @@
         <div class="card-title">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>补记某一天</h2>
         </div>
-        <p class="muted small">可以回头修改任意一天的打卡和破戒内容，用来补上漏记的记录。</p>
-        <label class="field">
-          <span>日期</span>
-          <input type="date" id="editDate" />
-        </label>
-        <div id="dayEditor"></div>
+        <p class="muted small">补记已经并进日历。点首页日历上的日期，就能看那一天的心情、破戒和 00:00–24:00 线性图，并直接修改。</p>
+        <button class="btn btn-ghost btn-block" type="button" id="btnGotoCal"><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>打开日历</button>
       </div>
       <div class="card">
         <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-pen-line"/></svg>记录一次破戒</h2>
@@ -389,7 +403,8 @@
           <span>备注 / 复盘（可选）</span>
           <textarea id="relapseNote" rows="3" maxlength="500" placeholder="当时发生了什么？下次可以怎么提前应对？"></textarea>
         </label>
-        <button class="btn btn-warm btn-block" id="btnLogRelapse">记录并重新开始</button>
+        <p class="small muted" id="logResetHint"></p>
+        <button class="btn btn-warm btn-block" id="btnLogRelapse" type="button">记录破戒</button>
       </div>
       </div>
 
@@ -445,97 +460,181 @@
       </div>
     </section>
 
-    <!-- ========== 设置 ========== -->
+    <!-- ========== 设置（Instagram 式二级菜单） ========== -->
     <section class="screen" id="screen-settings" data-screen="settings">
-      <header class="page-head">
+      <header class="page-head settings-head">
+        <button class="icon-btn settings-back hidden" id="settingsBack" type="button" aria-label="返回"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
         <div>
-          <p class="eyebrow">设置</p>
-          <h1>属于你的空间</h1>
+          <p class="eyebrow" id="settingsEyebrow">设置</p>
+          <h1 id="settingsTitle">属于你的空间</h1>
         </div>
       </header>
 
-      <div class="settings-cols">
-      <div class="set-col">
-      <div class="card account-card" id="accountCard">
-        <div class="card-title">
-          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号与同步</h2>
-          <span class="sync-pill" id="syncPill"><svg class="ic" aria-hidden="true"><use href="#i-cloud-off"/></svg>本机模式</span>
+      <div class="settings-wrap">
+      <div id="settingsRoot">
+        <p class="set-label">账号</p>
+        <div class="set-group">
+          <button class="set-row" type="button" data-settings="account">
+            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg></span>
+            <span class="set-row-text"><b>账号与资料</b><small id="settingsAccountSub">本机模式</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
         </div>
-        <div id="accountBody"><p class="muted small">未登录：所有数据只保存在这台设备上。</p></div>
-      </div>
-      <div class="card">
-        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-target"/></svg>目标天数</h2>
-        <p class="muted small">首页圆环按「已戒天数 / 目标天数」填充。还没有设过目标时，默认是 30 天。</p>
-        <div class="tags" id="goalPresets"></div>
-        <div class="add-row">
-          <input type="number" id="goalInput" min="1" max="3650" step="1" inputmode="numeric" aria-label="目标天数" />
-          <button class="btn btn-primary" id="btnSaveGoal" type="button">保存</button>
+
+        <p class="set-label">戒色</p>
+        <div class="set-group">
+          <button class="set-row" type="button" data-settings="goal">
+            <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg></span>
+            <span class="set-row-text"><b>目标天数</b><small id="settingsGoalSub">30 天</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button class="set-row" type="button" data-settings="resets">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span>
+            <span class="set-row-text"><b>破戒类型与重置规则</b><small id="settingsResetSub">全部类型都会重置</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+
+        <p class="set-label">偏好</p>
+        <div class="set-group">
+          <button class="set-row" type="button" data-settings="theme">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-sun-moon"/></svg></span>
+            <span class="set-row-text"><b>外观</b><small id="settingsThemeSub">跟随系统</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button class="set-row" type="button" data-settings="reasons">
+            <span class="row-ic ri-pink"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg></span>
+            <span class="set-row-text"><b>我坚持的理由</b><small id="settingsReasonSub">0 条</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+
+        <p class="set-label">数据</p>
+        <div class="set-group">
+          <button class="set-row" type="button" data-settings="data">
+            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-hard-drive"/></svg></span>
+            <span class="set-row-text"><b>数据与同步</b><small>导出、导入与重置</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+          <button class="set-row" type="button" data-settings="about">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg></span>
+            <span class="set-row-text"><b>关于</b><small>版本与说明</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+
+        <div class="set-group hidden" id="settingsAdminRow">
+          <button class="set-row" type="button" id="btnOpenAdmin">
+            <span class="row-ic ri-amber"><svg class="ic" aria-hidden="true"><use href="#i-layout-dashboard"/></svg></span>
+            <span class="set-row-text"><b>管理后台</b><small>用户、邀请码与维护</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+
+        <div class="set-group hidden" id="settingsLogoutRow">
+          <button class="set-row set-row-danger" type="button" id="btnLogout">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-log-out"/></svg></span>
+            <span class="set-row-text"><b>退出登录</b><small>这台设备上的记录会保留</small></span>
+          </button>
         </div>
       </div>
 
-      <div class="card">
-        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>显示名称</h2>
-        <p class="muted small">显示在桌面侧栏底部。登录后如果账号里有昵称，优先用昵称。</p>
-        <div class="add-row">
-          <input type="text" id="displayNameInput" maxlength="20" placeholder="怎么称呼你" autocomplete="nickname" />
-          <button class="btn btn-primary" id="btnSaveDisplayName" type="button">保存</button>
+      <div class="settings-page hidden" data-settings-page="account">
+        <div class="card account-card" id="accountCard">
+          <div class="card-title">
+            <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号与同步</h2>
+            <span class="sync-pill" id="syncPill"><svg class="ic" aria-hidden="true"><use href="#i-cloud-off"/></svg>本机模式</span>
+          </div>
+          <div id="accountBody"><p class="muted small">未登录：所有数据只保存在这台设备上。</p></div>
+        </div>
+        <div class="card">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>显示名称</h2>
+          <p class="muted small">显示在桌面侧栏底部。登录后如果账号里有昵称，优先用昵称。</p>
+          <div class="add-row">
+            <input type="text" id="displayNameInput" maxlength="20" placeholder="怎么称呼你" autocomplete="nickname" />
+            <button class="btn btn-primary" id="btnSaveDisplayName" type="button">保存</button>
+          </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">
-          <h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-sun-moon"/></svg>外观</h2>
-          <span class="muted small" id="themeHint"></span>
-        </div>
-        <div class="seg theme-seg" id="themeSeg" role="radiogroup" aria-label="外观">
-          <button class="seg-btn" data-theme-opt="system" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg>跟随系统</button>
-          <button class="seg-btn" data-theme-opt="light" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>浅色</button>
-          <button class="seg-btn" data-theme-opt="dark" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>深色</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>我坚持的理由</h2>
-        <p class="muted small">写下对你真正重要的理由。冲动来临时，急救页面会提醒你。</p>
-        <ul class="reasons-edit" id="reasonsEdit"></ul>
-        <div class="add-row">
-          <input type="text" id="reasonInput" maxlength="60" placeholder="例如：把精力留给学习和健身" />
-          <button class="btn btn-primary" id="btnAddReason">添加</button>
+      <div class="settings-page hidden" data-settings-page="goal">
+        <div class="card">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-target"/></svg>目标天数</h2>
+          <p class="muted small">首页圆环按「已戒天数 / 目标天数」填充。还没有设过目标时，默认是 30 天。</p>
+          <div class="tags" id="goalPresets"></div>
+          <div class="add-row">
+            <input type="number" id="goalInput" min="1" max="3650" step="1" inputmode="numeric" aria-label="目标天数" />
+            <button class="btn btn-primary" id="btnSaveGoal" type="button">保存</button>
+          </div>
         </div>
       </div>
 
-      <div class="card">
-        <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私说明</h2>
-        <p class="small">在未连接云端（本机模式）时，数据只保存在这台设备的 localStorage。启用云端后需要登录才能使用；登录后的数据经 HTTPS 同步到你的账号。</p>
-        <p class="small"><b>登录后（可选）</b>，数据会通过 HTTPS 同步到 ZenFlow 的 Supabase 数据库，数据库的行级安全策略保证只有你本人能读取和修改自己的数据。注册仅限邀请码。</p>
-      </div>
-      </div>
-
-      <div class="set-col">
-
-      <div class="card">
-        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-hard-drive"/></svg>数据管理</h2>
-        <div class="setting-row">
-          <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span><div><b>导出数据</b><p class="muted small">下载 JSON 备份文件</p></div>
-          <button class="btn btn-ghost" id="btnExport">导出</button>
-        </div>
-        <div class="setting-row">
-          <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span><div><b>导入数据</b><p class="muted small">从 JSON 备份恢复（会覆盖当前数据）</p></div>
-          <button class="btn btn-ghost" id="btnImport">导入</button>
-          <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
-        </div>
-        <div class="setting-row">
-          <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></span><div><b class="danger-text">重置所有数据</b><p class="muted small">清空全部记录，无法撤销</p></div>
-          <button class="btn btn-danger" id="btnReset">重置</button>
+      <div class="settings-page hidden" data-settings-page="resets">
+        <div class="card">
+          <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-flame"/></svg>哪些类型会重置戒色天数</h2>
+          <p class="muted small">打开表示这种破戒会把连续天数清零。关掉的类型仍会出现在日历和当天的线性图上，但不会打断连续天数。默认全部打开。</p>
+          <div id="resetTypeList" class="reset-list"></div>
         </div>
       </div>
 
-      <div class="card">
-        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
-        <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
-        <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-        <p class="small muted app-version" id="appVersion">版本 v17</p>
+      <div class="settings-page hidden" data-settings-page="theme">
+        <div class="card">
+          <div class="card-title">
+            <h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-sun-moon"/></svg>外观</h2>
+            <span class="muted small" id="themeHint"></span>
+          </div>
+          <div class="seg theme-seg" id="themeSeg" role="radiogroup" aria-label="外观">
+            <button class="seg-btn" data-theme-opt="system" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-contrast"/></svg>跟随系统</button>
+            <button class="seg-btn" data-theme-opt="light" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg>浅色</button>
+            <button class="seg-btn" data-theme-opt="dark" role="radio"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>深色</button>
+          </div>
+        </div>
       </div>
+
+      <div class="settings-page hidden" data-settings-page="reasons">
+        <div class="card">
+          <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>我坚持的理由</h2>
+          <p class="muted small">写下对你真正重要的理由。冲动来临时，急救页面会提醒你。</p>
+          <ul class="reasons-edit" id="reasonsEdit"></ul>
+          <div class="add-row">
+            <input type="text" id="reasonInput" maxlength="60" placeholder="例如：把精力留给学习和健身" />
+            <button class="btn btn-primary" id="btnAddReason" type="button">添加</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page hidden" data-settings-page="data">
+        <div class="card">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-hard-drive"/></svg>数据与同步</h2>
+          <p class="muted small">登录后的同步状态在「账号与资料」里。这里管理这台设备上的备份。</p>
+          <div class="setting-row">
+            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span><div><b>导出数据</b><p class="muted small">下载 JSON 备份文件</p></div>
+            <button class="btn btn-ghost" id="btnExport" type="button">导出</button>
+          </div>
+          <div class="setting-row">
+            <span class="row-ic ri-teal"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span><div><b>导入数据</b><p class="muted small">从 JSON 备份恢复（会覆盖当前数据）</p></div>
+            <button class="btn btn-ghost" id="btnImport" type="button">导入</button>
+            <input type="file" id="importFile" accept="application/json,.json" class="hidden" />
+          </div>
+          <div class="setting-row">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"/></svg></span><div><b class="danger-text">重置所有数据</b><p class="muted small">清空全部记录，无法撤销</p></div>
+            <button class="btn btn-danger" id="btnReset" type="button">重置</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私说明</h2>
+          <p class="small">在未连接云端（本机模式）时，数据只保存在这台设备的 localStorage。启用云端后需要登录才能使用；登录后的数据经 HTTPS 同步到你的账号。</p>
+          <p class="small">登录后，数据会通过 HTTPS 同步到 ZenFlow 的 Supabase 数据库，行级安全策略保证只有你本人能读取和修改自己的数据。注册仅限邀请码。</p>
+        </div>
+      </div>
+
+      <div class="settings-page hidden" data-settings-page="about">
+        <div class="card">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
+          <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
+          <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
+          <p class="small muted app-version" id="appVersion">版本 v18</p>
+        </div>
       </div>
       </div>
     </section>
@@ -646,6 +745,18 @@
     </div>
   </div>
 
+  <!-- 某一天的详情：心情、破戒、线性图 -->
+  <div class="sheet-mask hidden" id="dayMask">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dayTitle">
+      <header class="sheet-head">
+        <button class="icon-btn" id="dayClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+        <h2 id="dayTitle">这一天</h2>
+        <span class="sheet-head-sp"></span>
+      </header>
+      <div class="sheet-body" id="dayBody"></div>
+    </div>
+  </div>
+
   <!-- 弹窗 -->
   <div class="modal-mask hidden" id="modalMask">
     <div class="modal" role="dialog" aria-modal="true">
@@ -660,7 +771,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=17"></script>
+<script src="config.js?v=18"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -669,9 +780,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=17"></script>
-<script src="app.js?v=17"></script>
-<script src="cloud.js?v=17"></script>
-<script src="admin.js?v=17"></script>
+<script src="data.js?v=18"></script>
+<script src="streak.js?v=18"></script>
+<script src="app.js?v=18"></script>
+<script src="cloud.js?v=18"></script>
+<script src="admin.js?v=18"></script>
 </body>
 </html>
