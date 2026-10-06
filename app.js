@@ -226,8 +226,11 @@
     document.body.style.top = -lockedY + 'px';
     document.body.classList.add('scroll-locked');
   }
+  function cropSheetOpen() {
+    return window.ZFCloud && window.ZFCloud.cropOpen && window.ZFCloud.cropOpen();
+  }
   function overlayOpen() {
-    return ($('actMask') && !$('actMask').classList.contains('hidden')) || ($('dayMask') && !$('dayMask').classList.contains('hidden')) || ($('modalMask') && !$('modalMask').classList.contains('hidden'));
+    return ($('actMask') && !$('actMask').classList.contains('hidden')) || ($('dayMask') && !$('dayMask').classList.contains('hidden')) || ($('modalMask') && !$('modalMask').classList.contains('hidden')) || cropSheetOpen();
   }
   function unlockScroll() {
     if (lockedY === null || overlayOpen()) return;
@@ -279,6 +282,7 @@
   var current = 'home';
   function go(tab) {
     if (current === 'sos' && tab !== 'sos') resetSos();
+    if (cropSheetOpen()) window.ZFCloud.closeCrop();
     if ($('actMask') && !$('actMask').classList.contains('hidden')) closeAct();
     if (dayKey) closeDay();
     if (current === 'settings' && tab !== 'settings' && settingsView !== 'root') {
@@ -312,14 +316,16 @@
     var modalOpen = !$('modalMask').classList.contains('hidden');
     var actOpen = $('actMask') && !$('actMask').classList.contains('hidden');
     var dayOpen = $('dayMask') && !$('dayMask').classList.contains('hidden');
+    var cropOpen = cropSheetOpen();
     if (e.key === 'Escape') {
+      if (cropOpen) { e.preventDefault(); window.ZFCloud.closeCrop(); return; }
       if (modalOpen) { e.preventDefault(); closeModal(); return; }
       if (actOpen) { e.preventDefault(); closeAct(); return; }
       if (dayOpen) { e.preventDefault(); closeDay(); return; }
       if (current === 'settings' && settingsView !== 'root') { e.preventDefault(); backSettings(); }
       return;
     }
-    if (modalOpen || actOpen || dayOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    if (modalOpen || actOpen || dayOpen || cropOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     var map = { '1': 'home', '2': 'log', '3': 'stats', '4': 'settings', 's': 'sos', 'S': 'sos' };
@@ -1410,7 +1416,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '20';
+  var APP_VERSION = '21';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

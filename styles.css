@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"20";
+  --zf-css:"21";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -911,6 +911,43 @@ body.auth-ready #authBoot{display:none!important}
 .avatar-edit-actions{display:flex;flex-wrap:wrap;gap:8px}
 .avatar-edit-actions .btn{display:inline-flex;align-items:center;gap:6px;margin:0}
 .avatar-edit-actions .ic{width:16px;height:16px}
+.crop-mask{z-index:62;background:rgba(0,0,0,.62)}
+.crop-sheet{width:min(420px,100%)}
+.crop-head{padding-top:calc(10px + var(--safe-t))}
+.crop-text{
+  min-width:64px;height:40px;padding:0 2px;border:none;background:none;color:var(--text);
+  font:600 16px/1 var(--sans);text-align:left;
+}
+.crop-text:disabled{opacity:.45}
+.crop-text-done{color:var(--primary);text-align:right}
+.crop-stage{
+  position:relative;width:100%;aspect-ratio:1;background:#000;overflow:hidden;
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;
+}
+.crop-stage:active{cursor:grabbing}
+.crop-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.crop-dim{
+  position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.55), inset 0 0 0 1.5px rgba(255,255,255,.92);
+}
+.crop-controls{display:flex;align-items:center;gap:12px;padding:14px 18px 4px}
+.crop-zoom-ic{width:16px;text-align:center;color:var(--muted);font-size:18px;font-weight:600;flex-shrink:0}
+.crop-controls input[type="range"]{
+  -webkit-appearance:none;appearance:none;flex:1;height:28px;margin:0;background:transparent;touch-action:pan-x;
+}
+.crop-controls input[type="range"]::-webkit-slider-runnable-track{height:2px;background:var(--line-strong);border-radius:99px}
+.crop-controls input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-8px;border-radius:50%;
+  background:var(--text);border:none;box-shadow:0 0 0 1px rgba(0,0,0,.15);
+}
+.crop-controls input[type="range"]::-moz-range-track{height:2px;background:var(--line-strong);border-radius:99px;border:none}
+.crop-controls input[type="range"]::-moz-range-thumb{
+  width:18px;height:18px;border-radius:50%;background:var(--text);border:none;
+}
+.crop-hint{margin:2px 16px 16px;text-align:center;font-size:12px;font-weight:500;color:var(--muted)}
+@media (min-width:720px){
+  .crop-head{padding-top:12px}
+}
 .set-label{margin:14px 4px 8px;font-size:13px;font-weight:700;color:var(--muted)}
 .set-label:first-child{margin-top:0}
 .set-group{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 4px}

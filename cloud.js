@@ -147,7 +147,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=20'; s.async = true;
+      s.src = 'vendor/supabase.js?v=21'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -814,31 +814,303 @@
       removeBtn.classList.toggle('hidden', !canRemove);
     }
   }
-  function fileToSquareBlob(file) {
+  var ORIENT_TEST = 'data:image/jpeg;base64,/9j/4QAiRXhpZgAASUkqAAgAAAABABIBAwABAAAABgAAAAAAAAD/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD4H8Q/8h/Uv+vmX/0M0UUV/ptkP/Ipwn/XuH/pKPAzr/kZ4r/r5P8A9KZ//9k=';
+  var autoOrientPromise = null;
+  var crop = { source: null, iw: 0, ih: 0, x: 0, y: 0, zoom: 1, stage: 0, pointers: {}, pinch: null };
+
+  function cropOpen() {
+    var mask = $('cropMask');
+    return !!(mask && !mask.classList.contains('hidden'));
+  }
+  function clampNum(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function browserAutoOrients() {
+    if (!autoOrientPromise) {
+      autoOrientPromise = new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () { resolve(img.naturalWidth === 1 && img.naturalHeight === 2); };
+        img.onerror = function () { resolve(true); };
+        img.src = ORIENT_TEST;
+      });
+    }
+    return autoOrientPromise;
+  }
+  function readExifOrientation(file) {
+    var type = (file && file.type) || '';
+    var name = (file && file.name) || '';
+    if (!/jpe?g$/i.test(type) && !/\.jpe?g$/i.test(name)) return Promise.resolve(1);
+    var slice = file.slice(0, 262144);
+    var read = slice.arrayBuffer ? slice.arrayBuffer() : new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(new Error('exif')); };
+      reader.readAsArrayBuffer(slice);
+    });
+    return read.then(function (buf) { return parseExifOrientation(new DataView(buf)); }, function () { return 1; });
+  }
+  function parseExifOrientation(view) {
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return 1;
+    var offset = 2;
+    while (offset + 4 < view.byteLength) {
+      if (view.getUint8(offset) !== 0xFF) break;
+      var marker = view.getUint8(offset + 1);
+      if (marker === 0xD9 || marker === 0xDA) break;
+      if (marker === 0x00 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) { offset += 2; continue; }
+      var size = view.getUint16(offset + 2);
+      if (size < 2) break;
+      if (marker === 0xE1) {
+        var start = offset + 4;
+        if (start + 8 <= view.byteLength && view.getUint32(start) === 0x45786966 && view.getUint16(start + 4) === 0) {
+          return readTiffOrientation(view, start + 6);
+        }
+      }
+      offset += 2 + size;
+    }
+    return 1;
+  }
+  function readTiffOrientation(view, tiff) {
+    if (tiff + 8 > view.byteLength) return 1;
+    var endian = view.getUint16(tiff);
+    if (endian !== 0x4949 && endian !== 0x4D4D) return 1;
+    var le = endian === 0x4949;
+    var u16 = function (o) { return view.getUint16(o, le); };
+    var u32 = function (o) { return view.getUint32(o, le); };
+    if (u16(tiff + 2) !== 42) return 1;
+    var ifd = tiff + u32(tiff + 4);
+    if (ifd + 2 > view.byteLength) return 1;
+    var count = u16(ifd);
+    for (var i = 0; i < count; i++) {
+      var entry = ifd + 2 + i * 12;
+      if (entry + 12 > view.byteLength) break;
+      if (u16(entry) === 0x0112) {
+        var val = u16(entry + 8);
+        return val >= 1 && val <= 8 ? val : 1;
+      }
+    }
+    return 1;
+  }
+  function applyOrientation(ctx, o, cw, ch) {
+    switch (o) {
+      case 2: ctx.transform(-1, 0, 0, 1, cw, 0); break;
+      case 3: ctx.transform(-1, 0, 0, -1, cw, ch); break;
+      case 4: ctx.transform(1, 0, 0, -1, 0, ch); break;
+      case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+      case 6: ctx.transform(0, 1, -1, 0, cw, 0); break;
+      case 7: ctx.transform(0, -1, -1, 0, cw, ch); break;
+      case 8: ctx.transform(0, -1, 1, 0, 0, ch); break;
+      default: break;
+    }
+  }
+  function loadImageElement(file) {
     return new Promise(function (resolve, reject) {
-      if (!file) return reject(new Error('没有选择图片'));
-      if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return reject(new Error('请选择 PNG、JPG、WebP 或 GIF'));
-      if (file.size > 12 * 1024 * 1024) return reject(new Error('原图太大，请换一张小一点的'));
       var url = URL.createObjectURL(file);
       var img = new Image();
-      img.onload = function () {
-        var s = 256;
-        var canvas = document.createElement('canvas');
-        canvas.width = s; canvas.height = s;
-        var ctx = canvas.getContext('2d');
-        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        var side = Math.min(w, h);
-        ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, s, s);
-        URL.revokeObjectURL(url);
-        var finish = function (blob) { blob ? resolve(blob) : reject(new Error('无法处理这张图片')); };
-        if (!canvas.toBlob) return reject(new Error('浏览器不支持图片处理'));
-        canvas.toBlob(function (blob) {
-          if (blob) return finish(blob);
-          canvas.toBlob(finish, 'image/jpeg', 0.86);
-        }, 'image/webp', 0.86);
-      };
+      img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
       img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('无法读取图片')); };
       img.src = url;
+    });
+  }
+  function rasterizeOriented(img, orientation) {
+    var sw = img.naturalWidth || img.width;
+    var sh = img.naturalHeight || img.height;
+    if (!sw || !sh) throw new Error('无法读取图片');
+    var swapped = orientation >= 5 && orientation <= 8;
+    var ow = swapped ? sh : sw;
+    var oh = swapped ? sw : sh;
+    var fit = Math.min(1, 1600 / Math.max(ow, oh));
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(ow * fit));
+    canvas.height = Math.max(1, Math.round(oh * fit));
+    var ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (fit !== 1) ctx.scale(fit, fit);
+    applyOrientation(ctx, orientation, ow, oh);
+    ctx.drawImage(img, 0, 0);
+    return canvas;
+  }
+  function acceptableAvatarFile(file) {
+    if (!file) return '没有选择图片';
+    var type = file.type || '';
+    var name = file.name || '';
+    var ok = /^image\/(png|jpeg|webp|gif)$/.test(type) || (!type && /\.(png|jpe?g|webp|gif)$/i.test(name));
+    if (!ok) return '请选择 PNG、JPG、WebP 或 GIF';
+    if (file.size > 12 * 1024 * 1024) return '原图太大，请换一张小一点的';
+    return '';
+  }
+  function coverScale() {
+    var S = crop.stage || 1;
+    return Math.max(S / crop.iw, S / crop.ih);
+  }
+  function clampCrop() {
+    var S = crop.stage;
+    var sc = coverScale() * crop.zoom;
+    var minX = S - crop.iw * sc;
+    var minY = S - crop.ih * sc;
+    if (crop.x > 0) crop.x = 0;
+    if (crop.y > 0) crop.y = 0;
+    if (crop.x < minX) crop.x = minX;
+    if (crop.y < minY) crop.y = minY;
+  }
+  function drawCrop() {
+    var canvas = $('cropView');
+    var S = crop.stage;
+    if (!canvas || !S || !crop.source) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var px = Math.max(1, Math.round(S * dpr));
+    if (canvas.width !== px || canvas.height !== px) { canvas.width = px; canvas.height = px; }
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, S, S);
+    var sc = coverScale() * crop.zoom;
+    ctx.drawImage(crop.source, crop.x, crop.y, crop.iw * sc, crop.ih * sc);
+  }
+  function syncCropSlider() {
+    var slider = $('cropZoom');
+    if (slider) slider.value = String(crop.zoom);
+  }
+  function zoomCropAround(nextZoom, px, py) {
+    var oldScale = coverScale() * crop.zoom;
+    var zoom = clampNum(nextZoom, 1, 4);
+    var newScale = coverScale() * zoom;
+    if (!(oldScale > 0)) return;
+    var ix = (px - crop.x) / oldScale;
+    var iy = (py - crop.y) / oldScale;
+    crop.zoom = zoom;
+    crop.x = px - ix * newScale;
+    crop.y = py - iy * newScale;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+  }
+  function resetCropLayout() {
+    var stage = $('cropStage');
+    var S = stage ? stage.clientWidth : 0;
+    if (!S || !crop.source) return false;
+    crop.stage = S;
+    crop.zoom = 1;
+    var sc = coverScale();
+    crop.x = (S - crop.iw * sc) / 2;
+    crop.y = (S - crop.ih * sc) / 2;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+    return true;
+  }
+  function cropPointerPos(e) {
+    var rect = $('cropStage').getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function cropPointerList() {
+    var out = [];
+    Object.keys(crop.pointers).forEach(function (id) { out.push(crop.pointers[id]); });
+    return out;
+  }
+  function beginPinch() {
+    var pts = cropPointerList();
+    if (pts.length < 2) { crop.pinch = null; return; }
+    crop.pinch = {
+      dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+      zoom: crop.zoom,
+      midX: (pts[0].x + pts[1].x) / 2,
+      midY: (pts[0].y + pts[1].y) / 2,
+      x: crop.x,
+      y: crop.y
+    };
+  }
+  function applyPinch() {
+    var pts = cropPointerList();
+    if (pts.length < 2 || !crop.pinch) return;
+    var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+    var midX = (pts[0].x + pts[1].x) / 2;
+    var midY = (pts[0].y + pts[1].y) / 2;
+    var next = clampNum(crop.pinch.zoom * (dist / crop.pinch.dist), 1, 4);
+    var oldScale = coverScale() * crop.pinch.zoom;
+    var newScale = coverScale() * next;
+    var ix = (crop.pinch.midX - crop.pinch.x) / oldScale;
+    var iy = (crop.pinch.midY - crop.pinch.y) / oldScale;
+    crop.zoom = next;
+    crop.x = midX - ix * newScale;
+    crop.y = midY - iy * newScale;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+  }
+  function exportCropBlob() {
+    return new Promise(function (resolve, reject) {
+      if (!crop.source || !crop.stage) return reject(new Error('请先调整裁剪区域'));
+      var S = crop.stage;
+      var sc = coverScale() * crop.zoom;
+      var srcX = -crop.x / sc;
+      var srcY = -crop.y / sc;
+      var srcS = S / sc;
+      if (srcX < 0) srcX = 0;
+      if (srcY < 0) srcY = 0;
+      if (srcX + srcS > crop.iw) srcX = Math.max(0, crop.iw - srcS);
+      if (srcY + srcS > crop.ih) srcY = Math.max(0, crop.ih - srcS);
+      var out = document.createElement('canvas');
+      out.width = 256;
+      out.height = 256;
+      var ctx = out.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(crop.source, srcX, srcY, srcS, srcS, 0, 0, 256, 256);
+      if (!out.toBlob) return reject(new Error('浏览器不支持图片处理'));
+      out.toBlob(function (blob) {
+        if (blob) return resolve(blob);
+        out.toBlob(function (jpeg) { jpeg ? resolve(jpeg) : reject(new Error('无法处理这张图片')); }, 'image/jpeg', 0.9);
+      }, 'image/webp', 0.9);
+    });
+  }
+  function closeCrop() {
+    var mask = $('cropMask');
+    var was = mask && !mask.classList.contains('hidden');
+    if (mask) mask.classList.add('hidden');
+    crop.source = null;
+    crop.pointers = {};
+    crop.pinch = null;
+    var done = $('cropDone');
+    if (done) { done.disabled = false; done.textContent = '完成'; }
+    if (was && Z && Z.unlockScroll) Z.unlockScroll();
+  }
+  function openAvatarCrop(file) {
+    var problem = acceptableAvatarFile(file);
+    if (problem) return Promise.reject(new Error(problem));
+    return Promise.all([readExifOrientation(file), browserAutoOrients(), loadImageElement(file)]).then(function (parts) {
+      var orientation = parts[1] ? 1 : (parts[0] || 1);
+      var source = rasterizeOriented(parts[2], orientation);
+      crop.source = source;
+      crop.iw = source.width;
+      crop.ih = source.height;
+      crop.pointers = {};
+      crop.pinch = null;
+      var mask = $('cropMask');
+      if (!mask) throw new Error('无法打开裁剪');
+      mask.classList.remove('hidden');
+      if (Z && Z.lockScroll) Z.lockScroll();
+      return new Promise(function (resolve) {
+        var tries = 0;
+        var tick = function () {
+          if (resetCropLayout()) return resolve();
+          if (++tries > 12) return resolve();
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    });
+  }
+  function finishCrop() {
+    var btn = $('cropDone');
+    if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
+    return exportCropBlob().then(function (blob) {
+      return applyAvatarBlob(blob);
+    }).then(function () {
+      closeCrop();
+    }).catch(function (err) {
+      if (btn && cropOpen()) { btn.disabled = false; btn.textContent = '完成'; }
+      throw err;
     });
   }
   function blobToDataUrl(blob) {
@@ -864,8 +1136,7 @@
     if (!path || !sb) return Promise.resolve();
     return sb.storage.from('avatars').remove([path]).then(function () {}, function () {});
   }
-  async function applyAvatarFile(file) {
-    var blob = await fileToSquareBlob(file);
+  async function applyAvatarBlob(blob) {
     if (!loggedProfile()) {
       var dataUrl = await blobToDataUrl(blob);
       if (dataUrl.length > 180000) throw new Error('处理后的图片仍然太大，请换一张');
@@ -1024,7 +1295,76 @@
     if (!file) return;
     var btn = $('btnAvatarChange');
     if (btn) busy(btn, true, '处理中…');
-    applyAvatarFile(file).catch(function (err) { Z.toast(cn(err)); }).then(function () { if (btn) busy(btn, false); });
+    openAvatarCrop(file).catch(function (err) { Z.toast(cn(err)); }).then(function () { if (btn) busy(btn, false); });
+  });
+  if ($('cropCancel')) $('cropCancel').addEventListener('click', closeCrop);
+  if ($('cropDone')) $('cropDone').addEventListener('click', function () {
+    finishCrop().catch(function (err) { Z.toast(cn(err)); });
+  });
+  if ($('cropMask')) $('cropMask').addEventListener('click', function (e) { if (e.target === this) closeCrop(); });
+  if ($('cropZoom')) $('cropZoom').addEventListener('input', function () {
+    if (!cropOpen() || !crop.stage) return;
+    var z = parseFloat(this.value);
+    if (!isFinite(z)) return;
+    zoomCropAround(z, crop.stage / 2, crop.stage / 2);
+  });
+  if ($('cropStage')) {
+    var stage = $('cropStage');
+    stage.addEventListener('pointerdown', function (e) {
+      if (!cropOpen()) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      crop.pointers[e.pointerId] = cropPointerPos(e);
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      if (Object.keys(crop.pointers).length >= 2) beginPinch();
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!cropOpen() || !crop.pointers[e.pointerId]) return;
+      var prev = crop.pointers[e.pointerId];
+      var pos = cropPointerPos(e);
+      crop.pointers[e.pointerId] = pos;
+      if (Object.keys(crop.pointers).length >= 2) applyPinch();
+      else {
+        crop.x += pos.x - prev.x;
+        crop.y += pos.y - prev.y;
+        clampCrop();
+        drawCrop();
+      }
+      e.preventDefault();
+    });
+    function endCropPointer(e) {
+      if (!crop.pointers[e.pointerId]) return;
+      delete crop.pointers[e.pointerId];
+      crop.pinch = null;
+      if (Object.keys(crop.pointers).length >= 2) beginPinch();
+    }
+    stage.addEventListener('pointerup', endCropPointer);
+    stage.addEventListener('pointercancel', endCropPointer);
+    stage.addEventListener('wheel', function (e) {
+      if (!cropOpen() || !crop.stage) return;
+      e.preventDefault();
+      var rect = stage.getBoundingClientRect();
+      var delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 16;
+      else if (e.deltaMode === 2) delta *= stage.clientHeight;
+      zoomCropAround(crop.zoom * Math.exp(-delta * 0.0016), e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+    stage.addEventListener('touchmove', function (e) { if (cropOpen()) e.preventDefault(); }, { passive: false });
+  }
+  window.addEventListener('resize', function () {
+    if (!cropOpen() || !crop.stage) return;
+    var stageEl = $('cropStage');
+    var S = stageEl ? stageEl.clientWidth : 0;
+    if (!S || S === crop.stage) { drawCrop(); return; }
+    var k = S / crop.stage;
+    crop.x *= k;
+    crop.y *= k;
+    crop.stage = S;
+    clampCrop();
+    drawCrop();
+  });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (name) {
+    document.addEventListener(name, function (e) { if (cropOpen()) e.preventDefault(); }, { passive: false });
   });
   if ($('btnAvatarRemove')) $('btnAvatarRemove').addEventListener('click', function () {
     Z.openModal({
@@ -1042,7 +1382,9 @@
     status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; },
-    refreshChrome: renderChrome
+    refreshChrome: renderChrome,
+    cropOpen: cropOpen,
+    closeCrop: closeCrop
   };
   renderChrome(); renderAccount();
   if (!configured) {

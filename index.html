@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -622,7 +622,7 @@
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
           <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-          <p class="small muted app-version" id="appVersion">版本 v20</p>
+          <p class="small muted app-version" id="appVersion">版本 v21</p>
         </div>
       </div>
       </div>
@@ -750,6 +750,27 @@
     </div>
   </div>
 
+  <!-- 头像圆形裁剪 -->
+  <div class="sheet-mask crop-mask hidden" id="cropMask">
+    <div class="sheet crop-sheet" role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+      <header class="sheet-head crop-head">
+        <button class="crop-text" id="cropCancel" type="button">取消</button>
+        <h2 id="cropTitle">裁剪头像</h2>
+        <button class="crop-text crop-text-done" id="cropDone" type="button">完成</button>
+      </header>
+      <div class="crop-stage" id="cropStage">
+        <canvas id="cropView"></canvas>
+        <div class="crop-dim" aria-hidden="true"></div>
+      </div>
+      <div class="crop-controls">
+        <span class="crop-zoom-ic" aria-hidden="true">−</span>
+        <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1" aria-label="缩放" />
+        <span class="crop-zoom-ic" aria-hidden="true">+</span>
+      </div>
+      <p class="crop-hint">拖动调整位置，捏合、滚轮或滑杆缩放</p>
+    </div>
+  </div>
+
   <!-- 记录行为：心情 + 可选行为类型，一次保存 -->
   <div class="sheet-mask act-mask hidden" id="actMask">
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="actTitle">
@@ -809,7 +830,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=20"></script>
+<script src="config.js?v=21"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -818,10 +839,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=20"></script>
-<script src="streak.js?v=20"></script>
-<script src="app.js?v=20"></script>
-<script src="cloud.js?v=20"></script>
-<script src="admin.js?v=20"></script>
+<script src="data.js?v=21"></script>
+<script src="streak.js?v=21"></script>
+<script src="app.js?v=21"></script>
+<script src="cloud.js?v=21"></script>
+<script src="admin.js?v=21"></script>
 </body>
 </html>
