@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=24'; s.async = true;
+      s.src = 'vendor/supabase.js?v=25'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -493,12 +493,13 @@
         render: function (el, siteKey) {
           return window.hcaptcha.render(el, {
             sitekey: siteKey,
-            callback: function (token) { captchaToken = token || ''; },
-            'expired-callback': function () { captchaToken = ''; },
-            'error-callback': function () { captchaToken = ''; }
+            callback: function (token) { setCaptchaToken(token); },
+            'expired-callback': function () { setCaptchaToken(''); },
+            'error-callback': function () { setCaptchaToken(''); }
           });
         },
-        reset: function (id) { if (window.hcaptcha && id != null) window.hcaptcha.reset(id); }
+        reset: function (id) { if (window.hcaptcha && id != null) window.hcaptcha.reset(id); },
+        remove: function (id) { if (window.hcaptcha && id != null) window.hcaptcha.remove(id); }
       };
     }
     return {
@@ -509,23 +510,51 @@
         return window.turnstile.render(el, {
           sitekey: siteKey,
           theme: 'auto',
-          callback: function (token) { captchaToken = token || ''; },
-          'expired-callback': function () { captchaToken = ''; },
-          'error-callback': function () { captchaToken = ''; }
+          callback: function (token) { setCaptchaToken(token); },
+          'expired-callback': function () { setCaptchaToken(''); },
+          'error-callback': function () { setCaptchaToken(''); }
         });
       },
-      reset: function (id) { if (window.turnstile && id != null) window.turnstile.reset(id); }
+      reset: function (id) { if (window.turnstile && id != null) window.turnstile.reset(id); },
+      remove: function (id) { if (window.turnstile && id != null) window.turnstile.remove(id); }
     };
   }
   function placeCaptcha(form) {
     var host = $('captchaHost');
     if (!host || !form) return;
     var anchor = form.querySelector('.auth-msg');
+    if (host.parentElement === form && (!anchor || host.nextElementSibling === anchor)) return;
     if (anchor) form.insertBefore(host, anchor);
     else form.appendChild(host);
+    /* 容器换表单后旧 iframe 会失效，拆掉再挂一次 */
+    if (captchaWidget != null) {
+      var api = captchaApi();
+      try { api.remove(captchaWidget); } catch (e) {}
+      captchaWidget = null;
+      captchaToken = '';
+      host.innerHTML = '';
+      paintCaptchaButtons();
+      ensureCaptcha();
+    }
+  }
+  function captchaWait() {
+    return captchaSettings().enabled && !captchaToken;
+  }
+  function setCaptchaToken(token) {
+    captchaToken = token || '';
+    paintCaptchaButtons();
+  }
+  function paintCaptchaButtons() {
+    var wait = captchaWait();
+    ['btnLogin', 'btnRegister', 'btnForgot', 'btnVerifySms'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.disabled = wait;
+    });
+    paintSmsButtons();
   }
   function resetCaptcha() {
     captchaToken = '';
+    paintCaptchaButtons();
     var api = captchaApi();
     if (captchaWidget != null) {
       try { api.reset(captchaWidget); } catch (e) { captchaWidget = null; }
@@ -540,9 +569,11 @@
       host.innerHTML = '';
       captchaToken = '';
       captchaWidget = null;
+      paintCaptchaButtons();
       return;
     }
     host.classList.remove('captcha-off');
+    paintCaptchaButtons();
     if (captchaWidget != null) return;
     if (captchaLoading) return;
     var api = captchaApi();
@@ -626,12 +657,13 @@
     var left = Math.max(0, Math.ceil((smsUntil - Date.now()) / 1000));
     var send = $('btnSendSms');
     var resend = $('btnResendSms');
+    var wait = captchaWait();
     if (send) {
-      send.disabled = left > 0;
+      send.disabled = left > 0 || wait;
       send.textContent = left > 0 ? (left + ' 秒') : '获取验证码';
     }
     if (resend) {
-      resend.disabled = left > 0;
+      resend.disabled = left > 0 || wait;
       resend.textContent = left > 0 ? (left + ' 秒') : '重新发送';
     }
     if (left > 0) {
@@ -1040,7 +1072,7 @@
       $('phoneCode').value = '';
       Z.toast(phoneIntent === 'register' ? '注册成功' : '登录成功');
     } catch (err) { msg('phoneCodeMsg', cn(err)); }
-    finally { resetCaptcha(); busy(btn, false); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
   }
   async function doLogin(e) {
     e.preventDefault();
@@ -1056,7 +1088,7 @@
       $('loginPassword').value = '';
       Z.toast('登录成功');
     } catch (err) { msg('loginMsg', cn(err)); }
-    finally { resetCaptcha(); busy(btn, false); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
   }
   async function doRegister(e) {
     e.preventDefault();
@@ -1085,7 +1117,7 @@
       else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '邮箱已注册，请登录');
       else msg('regMsg', '确认邮件已发到 ' + email + '。点开链接后再登录。', true);
     } catch (err) { msg('regMsg', cn(err)); }
-    finally { resetCaptcha(); busy(btn, false); }
+    finally { resetCaptcha(); busy(btn, false); paintCaptchaButtons(); }
   }
   async function doForgot() {
     var email = $('loginEmail').value.trim();
@@ -1098,7 +1130,7 @@
       if (r.error) throw r.error;
       msg('loginMsg', '如果邮箱已注册，重置邮件已发出。', true);
     } catch (err) { msg('loginMsg', cn(err)); }
-    finally { resetCaptcha(); btn.disabled = false; }
+    finally { resetCaptcha(); paintCaptchaButtons(); }
   }
   function promptNewPassword() {
     Z.openModal({

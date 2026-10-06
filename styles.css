@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"24";
+  --zf-css:"25";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -201,7 +201,7 @@ html,body{background-color:#fafafa}
   transition:background-color .15s ease,opacity .15s ease;
 }
 .btn:active,.icon-btn:active,.mood:active,.tag:active,.action:active,.seg-btn:active,.sos-banner:active,.tab:active,.btn-link:active{opacity:.72}
-.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled,.btn-link:disabled{opacity:.45;cursor:not-allowed}
 .btn-block{display:flex;align-items:center;justify-content:center;width:100%;margin-top:12px}
 .btn-lg{padding:12px 16px;font-size:15px}
 .btn-primary{color:var(--on-primary);background:var(--primary);border-color:transparent}
