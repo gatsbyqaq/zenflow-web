@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"27";
+  --zf-css:"28";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -191,12 +191,14 @@ html,body{background-color:#fafafa}
 :root[data-theme="dark"] .brand-logo,
 :root[data-theme="dark"] .side-logo,
 :root[data-theme="dark"] .auth-logo,
-:root[data-theme="dark"] .auth-boot-logo{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+:root[data-theme="dark"] .auth-boot-logo,
+:root[data-theme="dark"] .privacy-brand img{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]) .brand-logo,
   :root:not([data-theme="light"]) .side-logo,
   :root:not([data-theme="light"]) .auth-logo,
-  :root:not([data-theme="light"]) .auth-boot-logo{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+  :root:not([data-theme="light"]) .auth-boot-logo,
+  :root:not([data-theme="light"]) .privacy-brand img{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
 }
 .brand-tag{font-weight:500;font-size:12px;color:var(--muted);letter-spacing:0}
 
@@ -840,6 +842,8 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .auth-note{margin-top:12px}
 .auth-foot{display:flex;align-items:flex-start;justify-content:center;gap:6px;margin:18px 0 4px}
 .auth-foot .ic{width:14px;height:14px;margin-top:2px}
+.auth-privacy{margin:10px 0 0;text-align:center}
+.auth-privacy a{color:var(--muted);font-size:12px;font-weight:500;text-decoration:none}
 @media (min-width:560px){
   .auth-mask{align-items:center;padding:24px}
   .auth-sheet{border-radius:16px;padding:32px 28px 24px;max-height:min(88vh,720px);border:1px solid var(--line)}
@@ -910,6 +914,7 @@ body.auth-booting #authBoot{display:flex;visibility:visible;pointer-events:auto}
 @keyframes zf-boot-spin{to{transform:rotate(360deg)}}
 body.auth-gated{overflow:hidden}
 body.auth-gated #app > :not(#authMask):not(#modalMask):not(#authBoot){visibility:hidden;pointer-events:none}
+body.auth-gated #app > #toast.show{visibility:visible!important;z-index:90}
 body.auth-gated #authMask{visibility:visible;pointer-events:auto;z-index:80}
 body.auth-gated #authBoot{display:none!important}
 body.auth-gated .auth-close{display:none}
@@ -984,6 +989,17 @@ body.auth-ready #authBoot{display:none!important}
   padding:12px 14px;color:var(--text);font-size:15px;
 }
 .set-group .set-row:last-child{border-bottom:none}
+a.set-row{color:inherit;text-decoration:none}
+#privacyDeleteRow{margin-top:16px}
+.privacy-page{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;padding:calc(var(--safe-t) + 20px) 20px 48px;background:var(--bg);color:var(--text)}
+.privacy-back{display:inline-flex;align-items:center;color:var(--text);text-decoration:none;font-size:14px;font-weight:600}
+.privacy-brand{display:flex;flex-direction:column;align-items:center;margin:28px 0 28px}
+.privacy-brand img{width:56px;height:56px;border-radius:50%;margin:0 0 10px}
+.privacy-brand .wordmark{font-size:13px;letter-spacing:.12em}
+.privacy-doc h1{margin:0 0 4px;font-size:22px}
+.privacy-doc h2{margin:20px 0 6px;font-size:15px}
+.privacy-doc p{margin:0;font-size:14px;line-height:1.65;color:var(--text)}
+.privacy-date{margin:0 0 4px;font-size:12px;font-weight:500;color:var(--muted)}
 .set-row-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .set-row-text b{font-size:15px;font-weight:700}
 .set-row-text small{font-size:12px;font-weight:500;color:var(--muted)}

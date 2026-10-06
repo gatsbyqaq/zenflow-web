@@ -33,7 +33,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=27" />
+  <link rel="stylesheet" href="styles.css?v=28" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -131,6 +131,7 @@
 <symbol id="i-sunset" viewBox="0 0 24 24"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></symbol>
 <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
 <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></symbol>
+<symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
 <symbol id="i-trees" viewBox="0 0 24 24"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19v3"/><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/></symbol>
 <symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
 <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></symbol>
@@ -146,7 +147,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=27" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=28" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -161,7 +162,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=27" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=28" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <p class="eyebrow" id="greeting">你好</p>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -469,6 +470,11 @@
 
         <p class="set-label">数据</p>
         <div class="set-group">
+          <button class="set-row" type="button" data-settings="privacy">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <span class="set-row-text"><b>数据与隐私</b><small>导出、注销与说明</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
           <button class="set-row" type="button" data-settings="data">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-hard-drive"/></svg></span>
             <span class="set-row-text"><b>数据与同步</b><small>导出、导入与重置</small></span>
@@ -601,7 +607,27 @@
         </div>
         <div class="card">
           <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-lock"/></svg>隐私</h2>
-          <p class="small">本机模式只存在这台设备。登录后经 HTTPS 同步，只有你能看自己的数据。</p>
+          <p class="small">本机模式只在这台设备。登录后同步。打卡和记录只有你能看。</p>
+        </div>
+      </div>
+
+      <div class="settings-page hidden" data-settings-page="privacy">
+        <div class="set-group">
+          <button class="set-row" type="button" id="btnExportAccount">
+            <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></span>
+            <span class="set-row-text"><b>导出数据</b><small>下载 JSON</small></span>
+          </button>
+          <a class="set-row" href="privacy.html">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
+            <span class="set-row-text"><b>隐私说明</b><small>存储、查看与删除</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </a>
+        </div>
+        <div class="set-group hidden" id="privacyDeleteRow">
+          <button class="set-row set-row-danger" type="button" id="btnDeleteAccount">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-trash-2"/></svg></span>
+            <span class="set-row-text"><b>注销账号</b><small>永久删除账号和云端数据</small></span>
+          </button>
         </div>
       </div>
 
@@ -609,7 +635,7 @@
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v27</p>
+          <p class="small muted app-version" id="appVersion">版本 v28</p>
         </div>
       </div>
       </div>
@@ -619,7 +645,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=27" alt="" class="side-logo" />
+      <img src="icon.svg?v=28" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -671,7 +697,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=27" alt="" class="auth-logo" />
+        <img src="icon.svg?v=28" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -790,6 +816,7 @@
       </form>
 
       <p class="auth-foot muted small"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span id="authFootText">验证码只用于登录。</span></p>
+      <p class="auth-privacy"><a href="privacy.html">隐私说明</a></p>
     </div>
   </div>
 
@@ -873,7 +900,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=27"></script>
+<script src="config.js?v=28"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -882,10 +909,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=27"></script>
-<script src="streak.js?v=27"></script>
-<script src="app.js?v=27"></script>
-<script src="cloud.js?v=27"></script>
-<script src="admin.js?v=27"></script>
+<script src="data.js?v=28"></script>
+<script src="streak.js?v=28"></script>
+<script src="app.js?v=28"></script>
+<script src="cloud.js?v=28"></script>
+<script src="admin.js?v=28"></script>
 </body>
 </html>

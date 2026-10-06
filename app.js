@@ -1179,6 +1179,7 @@
     theme: '外观',
     reasons: '我坚持的理由',
     data: '数据与同步',
+    privacy: '数据与隐私',
     about: '关于'
   };
   var settingsView = 'root';
@@ -1241,6 +1242,7 @@
     var st = window.ZFCloud && window.ZFCloud.status && window.ZFCloud.status();
     if ($('settingsAdminRow')) $('settingsAdminRow').classList.toggle('hidden', !(st && st.profile && st.profile.is_admin));
     if ($('settingsLogoutRow')) $('settingsLogoutRow').classList.toggle('hidden', !(st && st.loggedIn));
+    if ($('privacyDeleteRow')) $('privacyDeleteRow').classList.toggle('hidden', !(st && st.loggedIn));
     if ($('settingsAccountSub')) {
       var acct = '本机模式';
       if (st && st.configured) {
@@ -1407,7 +1409,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '27';
+  var APP_VERSION = '28';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

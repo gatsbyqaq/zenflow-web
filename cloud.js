@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=27'; s.async = true;
+      s.src = 'vendor/supabase.js?v=28'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -230,6 +230,7 @@
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络失败';
     if (/NOT_ADMIN/.test(m)) return '需要管理员';
+    if (/ADMIN_CANNOT_DELETE/.test(m)) return '管理员账号不能注销';
     if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
     if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB';
     if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
@@ -1667,7 +1668,7 @@
       var parts = path.split('/');
       var base = parts[parts.length - 1] || '';
       if (!base) return true;
-      if (/^(index\.html|styles\.css|data\.js|streak\.js|app\.js|cloud\.js|admin\.js|config\.js|sw\.js|manifest\.json)$/i.test(base)) return true;
+      if (/^(index\.html|privacy\.html|styles\.css|data\.js|streak\.js|app\.js|cloud\.js|admin\.js|config\.js|sw\.js|manifest\.json)$/i.test(base)) return true;
       if (/^icon.*\.(svg|png)$/i.test(base)) return true;
       if (parts.length >= 2 && parts[parts.length - 2] === 'vendor' && base === 'supabase.js') return true;
       return false;
@@ -1741,8 +1742,9 @@
       onOk: function () { doLogout(); }
     });
   }
-  async function doLogout() {
-    if (wipeLock) return;
+  async function doLogout(opts) {
+    opts = opts || {};
+    if (wipeLock && !opts.keepLock) return;
     wipeLock = true;
     suppressSignedOut = true;
     clearTimeout(pushTimer);
@@ -1778,7 +1780,146 @@
     renderChrome();
     updateGate();
     wipeLock = false;
-    Z.toast(err ? '已退出本机' : '已退出');
+    Z.toast(opts.toast || (err ? '已退出本机' : '已退出'));
+  }
+
+  function exportStamp(d) {
+    d = d || new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return String(d.getFullYear()) + p(d.getMonth() + 1) + p(d.getDate());
+  }
+  function downloadJson(obj, name) {
+    var blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  }
+  function themeSetting() {
+    try {
+      var t = localStorage.getItem('zenflow_theme');
+      return t === 'light' || t === 'dark' ? t : 'system';
+    } catch (e) { return 'system'; }
+  }
+  function profileExport() {
+    var p = profile || {};
+    return {
+      display_name: p.display_name || '',
+      handle: p.handle || '',
+      avatar_url: p.avatar_url || '',
+      created_at: p.created_at || null
+    };
+  }
+  async function buildExport() {
+    var local = Z.sanitize(Z.getState());
+    var data = local;
+    var source = 'local';
+    var note = '';
+    if (!sb || !user()) {
+      note = '未登录，只有本机数据。';
+    } else {
+      try {
+        var uid = user().id;
+        var r = await sb.from('user_data').select('data,updated_at').eq('user_id', uid).maybeSingle();
+        if (r.error) throw r.error;
+        if (!profile) {
+          var pr = await sb.from('profiles').select('display_name,handle,avatar_url,created_at').eq('id', uid).maybeSingle();
+          if (!pr.error && pr.data) profile = pr.data;
+        }
+        var remote = r.data && r.data.data ? Z.sanitize(r.data.data) : null;
+        var lastUid = null, pullRemote = false;
+        try {
+          lastUid = localStorage.getItem(LAST_UID_KEY);
+          pullRemote = localStorage.getItem(PULL_REMOTE_KEY) === '1';
+        } catch (e) {}
+        var choice = chooseSync(local, remote, lastUid, uid, pullRemote, false);
+        data = choice === 'remote' ? (remote || local) : choice === 'local' ? local : merge(local, remote);
+        source = remote ? 'cloud+local' : 'local';
+      } catch (e) {
+        data = local;
+        source = 'local';
+        note = '未能读取云端，可能缺少只在云端的数据。';
+      }
+    }
+    var out = {
+      app: 'ZenFlow',
+      exportedAt: new Date().toISOString(),
+      source: source,
+      profile: profileExport(),
+      data: data,
+      settings: { theme: themeSetting() }
+    };
+    if (note) out.note = note;
+    return out;
+  }
+  async function exportAccountData() {
+    var pack = await buildExport();
+    downloadJson(pack, 'zenflow-export-' + exportStamp() + '.json');
+    Z.toast(pack.note || '已导出');
+  }
+  async function removeMyAvatarFiles(uid) {
+    try {
+      var bucket = sb.storage.from('avatars');
+      var offset = 0;
+      var names = [];
+      while (offset < 1000) {
+        var listed = await bucket.list(uid, { limit: 100, offset: offset });
+        if (!listed || listed.error) break;
+        var batch = listed.data || [];
+        batch.forEach(function (f) {
+          if (f && f.name && f.id) names.push(uid + '/' + f.name);
+        });
+        if (batch.length < 100) break;
+        offset += batch.length;
+      }
+      if (names.length) await bucket.remove(names);
+    } catch (e) {}
+  }
+  function confirmDeleteAccount() {
+    Z.openModal({
+      title: '注销账号',
+      ok: '继续',
+      danger: true,
+      html: '<p>会永久删除账号和全部云端数据，不能恢复。</p><button class="btn btn-ghost btn-block" type="button" id="btnExportBeforeDelete">先导出数据</button>',
+      onOk: function () { setTimeout(confirmDeleteHandle, 0); }
+    });
+  }
+  function confirmDeleteHandle() {
+    var handle = (profile && profile.handle) || '';
+    Z.openModal({
+      title: '确认注销',
+      ok: '注销',
+      danger: true,
+      html: '<p>输入你的 @ID。</p><input type="text" id="deleteHandleConfirm" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="@ID" />',
+      onOk: function () {
+        var typed = normalizeHandleInput($('deleteHandleConfirm') && $('deleteHandleConfirm').value);
+        if (!handle || typed !== handle) { Z.toast('@ID 不正确'); return false; }
+        deleteMyAccount();
+      }
+    });
+  }
+  async function deleteMyAccount() {
+    if (wipeLock) return;
+    if (!sb || !user()) { Z.toast('请先登录'); return; }
+    wipeLock = true;
+    suppressSignedOut = true;
+    clearTimeout(pushTimer);
+    pending = false;
+    replaceAllPending = false;
+    try {
+      await removeMyAvatarFiles(user().id);
+      var r = await sb.rpc('delete_my_account');
+      if (r.error) throw r.error;
+    } catch (err) {
+      wipeLock = false;
+      suppressSignedOut = false;
+      Z.toast(cn(err));
+      return;
+    }
+    await doLogout({ toast: '账号已注销', keepLock: true });
   }
 
   /* ---------------- 事件 ---------------- */
@@ -1793,6 +1934,13 @@
       case 'btnSyncNow': syncNow(); break;
       case 'btnLogout':
         confirmLogout();
+        break;
+      case 'btnExportAccount':
+      case 'btnExportBeforeDelete':
+        exportAccountData();
+        break;
+      case 'btnDeleteAccount':
+        confirmDeleteAccount();
         break;
       case 'btnNewInvites':
         t.disabled = true;

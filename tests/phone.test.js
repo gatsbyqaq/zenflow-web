@@ -63,5 +63,7 @@ assert.strictEqual(ctx.cn({ message: 'Token has expired or is invalid', code: 'o
 assert.strictEqual(ctx.cn({ message: 'For security purposes, you can only request this after 60 seconds.', code: 'over_sms_send_rate_limit' }), '操作太频繁');
 assert.strictEqual(ctx.cn({ message: 'Invalid phone number' }), '手机号不正确');
 assert.strictEqual(ctx.cn({ message: 'captcha protection: request disallowed (no captcha_token found)' }), '请完成验证');
+assert.strictEqual(ctx.cn({ message: 'ADMIN_CANNOT_DELETE', code: 'P0001' }), '管理员账号不能注销');
+assert.strictEqual(ctx.cn({ message: 'NOT_AUTHENTICATED' }), '请先登录');
 
 console.log('phone.test.js ok');
