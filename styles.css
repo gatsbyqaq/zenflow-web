@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"18";
+  --zf-css:"19";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -918,6 +918,15 @@ body.auth-ready #authBoot{display:none!important}
   position:fixed;inset:0;z-index:45;background:rgba(0,0,0,.45);
   display:flex;align-items:flex-end;justify-content:center;
 }
+.act-mask{z-index:48}
+.act-status{display:flex;align-items:center;gap:10px;padding:2px 0 12px}
+.act-status .e{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:color-mix(in srgb,currentColor 14%,var(--card));
+}
+.act-status .e .ic{width:18px;height:18px;stroke-width:2}
+.act-status b{font-size:15px}
+.act-entry-empty{margin:0 0 12px}
 .sheet{
   width:min(560px,100%);max-height:min(92vh,920px);background:var(--bg);color:var(--text);
   border-radius:16px 16px 0 0;display:flex;flex-direction:column;

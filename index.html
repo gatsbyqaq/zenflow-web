@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=18" />
+  <link rel="stylesheet" href="styles.css?v=19" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -215,32 +215,11 @@
 
       <div class="card" id="checkinCard">
         <div class="card-title">
-          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-check"/></svg>今日打卡</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-check"/></svg>今天</h2>
           <span class="muted small" id="todayDate"></span>
         </div>
-        <p class="muted small">记下今天的心情，也可以同时记一次破戒。只做其中一件也可以。</p>
-        <p class="field-label">今天的心情</p>
-        <div class="moods" id="moodPicker"></div>
-        <p class="field-label">破戒（可选，可多选）</p>
-        <div class="tags" id="checkinTypes"></div>
-        <div id="checkinRelapseExtra" class="hidden">
-          <label class="field">
-            <span>发生时间</span>
-            <input type="datetime-local" id="checkinTime" />
-          </label>
-          <div class="field">
-            <span>触发因素（可多选）</span>
-            <div class="tags" id="checkinTriggers"></div>
-            <input type="text" id="checkinOther" class="hidden" maxlength="20" placeholder="其他触发因素" />
-          </div>
-          <label class="field">
-            <span>备注（可选）</span>
-            <textarea id="checkinNote" rows="2" maxlength="500" placeholder="当时发生了什么？"></textarea>
-          </label>
-        </div>
-        <p class="small muted" id="checkinHint"></p>
-        <button class="btn btn-primary btn-block" id="btnCheckin" type="button" disabled>选择心情或破戒类型</button>
-        <div id="todayRelapseList"></div>
+        <div id="actSummary"></div>
+        <button class="btn btn-primary btn-block" id="btnOpenAct" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg>记录行为</button>
       </div>
 
       <div class="card" id="calCard">
@@ -254,7 +233,7 @@
         </div>
         <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
         <div class="cal-grid" id="calGrid"></div>
-        <p class="muted small cal-hint">点某一天，查看心情、破戒和当天的线性图。</p>
+        <p class="muted small cal-hint">点某一天查看线性图，并记录这一天的行为。</p>
         <div class="cal-legend" id="calLegend"></div>
       </div>
 
@@ -379,32 +358,11 @@
       </div>
       <div class="card" id="dayCard">
         <div class="card-title">
-          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>补记某一天</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-pen-line"/></svg>记录行为</h2>
         </div>
-        <p class="muted small">补记已经并进日历。点首页日历上的日期，就能看那一天的心情、破戒和 00:00–24:00 线性图，并直接修改。</p>
-        <button class="btn btn-ghost btn-block" type="button" id="btnGotoCal"><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>打开日历</button>
-      </div>
-      <div class="card">
-        <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-pen-line"/></svg>记录一次破戒</h2>
-        <label class="field">
-          <span>发生时间</span>
-          <input type="datetime-local" id="relapseTime" />
-        </label>
-        <div class="field">
-          <span>类型（可多选）</span>
-          <div class="tags" id="typeTags"></div>
-        </div>
-        <div class="field">
-          <span>触发因素（可多选）</span>
-          <div class="tags" id="triggerTags"></div>
-          <input type="text" id="otherTrigger" class="hidden" maxlength="20" placeholder="其他触发因素，例如：看到某类内容" />
-        </div>
-        <label class="field">
-          <span>备注 / 复盘（可选）</span>
-          <textarea id="relapseNote" rows="3" maxlength="500" placeholder="当时发生了什么？下次可以怎么提前应对？"></textarea>
-        </label>
-        <p class="small muted" id="logResetHint"></p>
-        <button class="btn btn-warm btn-block" id="btnLogRelapse" type="button">记录破戒</button>
+        <p class="muted small">心情和行为在同一张表单里。不选类型就只记心情；选了类型会同时记下一次破戒，是否重置天数跟设置里的规则走。</p>
+        <button class="btn btn-primary btn-block" type="button" id="btnOpenActLog"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg>记录今天</button>
+        <button class="btn btn-ghost btn-block" type="button" id="btnGotoCal"><svg class="ic" aria-hidden="true"><use href="#i-calendar-days"/></svg>去日历补记某一天</button>
       </div>
       </div>
 
@@ -633,7 +591,7 @@
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
           <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-          <p class="small muted app-version" id="appVersion">版本 v18</p>
+          <p class="small muted app-version" id="appVersion">版本 v19</p>
         </div>
       </div>
       </div>
@@ -745,6 +703,39 @@
     </div>
   </div>
 
+  <!-- 记录行为：心情 + 可选行为类型，一次保存 -->
+  <div class="sheet-mask act-mask hidden" id="actMask">
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="actTitle">
+      <header class="sheet-head">
+        <button class="icon-btn" id="actClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+        <h2 id="actTitle">记录行为</h2>
+        <span class="sheet-head-sp"></span>
+      </header>
+      <div class="sheet-body" id="actBody">
+        <p class="muted small" id="actWhen"></p>
+        <p class="field-label">心情</p>
+        <div class="moods" id="actMoods"></div>
+        <p class="field-label">行为（可选，可多选）</p>
+        <div class="tags" id="actTypes"></div>
+        <label class="field">
+          <span>时间</span>
+          <input type="datetime-local" id="actTime" />
+        </label>
+        <div class="field">
+          <span>触发因素（选了行为时一起保存）</span>
+          <div class="tags" id="actTriggers"></div>
+          <input type="text" id="actOther" class="hidden" maxlength="20" placeholder="其他触发因素" />
+        </div>
+        <label class="field">
+          <span>备注（可选）</span>
+          <textarea id="actNote" rows="2" maxlength="500" placeholder="当时发生了什么？"></textarea>
+        </label>
+        <p class="small muted" id="actHint"></p>
+        <button class="btn btn-primary btn-block" id="btnSaveAct" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 某一天的详情：心情、破戒、线性图 -->
   <div class="sheet-mask hidden" id="dayMask">
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dayTitle">
@@ -771,7 +762,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=18"></script>
+<script src="config.js?v=19"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -780,10 +771,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=18"></script>
-<script src="streak.js?v=18"></script>
-<script src="app.js?v=18"></script>
-<script src="cloud.js?v=18"></script>
-<script src="admin.js?v=18"></script>
+<script src="data.js?v=19"></script>
+<script src="streak.js?v=19"></script>
+<script src="app.js?v=19"></script>
+<script src="cloud.js?v=19"></script>
+<script src="admin.js?v=19"></script>
 </body>
 </html>

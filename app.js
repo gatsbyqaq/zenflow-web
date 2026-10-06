@@ -221,7 +221,7 @@
     document.body.classList.add('scroll-locked');
   }
   function overlayOpen() {
-    return ($('dayMask') && !$('dayMask').classList.contains('hidden')) || ($('modalMask') && !$('modalMask').classList.contains('hidden'));
+    return ($('actMask') && !$('actMask').classList.contains('hidden')) || ($('dayMask') && !$('dayMask').classList.contains('hidden')) || ($('modalMask') && !$('modalMask').classList.contains('hidden'));
   }
   function unlockScroll() {
     if (lockedY === null || overlayOpen()) return;
@@ -273,6 +273,8 @@
   var current = 'home';
   function go(tab) {
     if (current === 'sos' && tab !== 'sos') resetSos();
+    if ($('actMask') && !$('actMask').classList.contains('hidden')) closeAct();
+    if (dayKey) closeDay();
     if (current === 'settings' && tab !== 'settings' && settingsView !== 'root') {
       settingsView = 'root';
       applySettingsDom();
@@ -302,14 +304,16 @@
   // 键盘：Esc 关闭弹窗；1–4 切换页面、S 打开急救（输入框内或按住修饰键时不触发）
   document.addEventListener('keydown', function (e) {
     var modalOpen = !$('modalMask').classList.contains('hidden');
+    var actOpen = $('actMask') && !$('actMask').classList.contains('hidden');
     var dayOpen = $('dayMask') && !$('dayMask').classList.contains('hidden');
     if (e.key === 'Escape') {
       if (modalOpen) { e.preventDefault(); closeModal(); return; }
+      if (actOpen) { e.preventDefault(); closeAct(); return; }
       if (dayOpen) { e.preventDefault(); closeDay(); return; }
       if (current === 'settings' && settingsView !== 'root') { e.preventDefault(); backSettings(); }
       return;
     }
-    if (modalOpen || dayOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    if (modalOpen || actOpen || dayOpen || (window.ZFAdmin && window.ZFAdmin.isOpen && window.ZFAdmin.isOpen()) || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
     var t = e.target, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
     var map = { '1': 'home', '2': 'log', '3': 'stats', '4': 'settings', 's': 'sos', 'S': 'sos' };
@@ -370,9 +374,6 @@
     return ['夜深了，放下手机早点睡', 'moon'];
   }
 
-  var selMood = null;
-  var selCheckinTypes = {};
-  var selCheckinTriggers = {};
   function renderHome() {
     var g = greeting();
     $('greeting').innerHTML = ic(g[1], 'tint-amber') + ' ' + g[0];
@@ -382,129 +383,43 @@
     var now = new Date();
     $('todayDate').textContent = (now.getMonth() + 1) + '月' + now.getDate() + '日 星期' + '日一二三四五六'[now.getDay()];
     updateTimer();
-    renderCheckin();
+    renderActEntry();
     renderCalendar();
     renderBadges();
     var dayIdx = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY);
     $('dailyTip').textContent = D.tips[dayIdx % D.tips.length];
   }
 
-  function shownMood() {
-    var today = state.checkins[dateKey(Date.now())];
-    if (selMood != null) return selMood;
-    return today ? today.mood : null;
+  function moodByValue(v) {
+    return D.moods.filter(function (x) { return x.v === v; })[0] || null;
   }
-  function renderCheckinTriggers() {
-    var box = $('checkinTriggers'); if (!box) return;
-    box.innerHTML = D.triggers.map(function (t) {
-      return '<button type="button" class="tag' + (selCheckinTriggers[t] ? ' sel' : '') + '" data-ct="' + esc(t) + '">' + esc(t) + '</button>';
-    }).join('');
-    if ($('checkinOther')) $('checkinOther').classList.toggle('hidden', !selCheckinTriggers['其他']);
-  }
-  function renderCheckin() {
+  function renderActEntry() {
+    var box = $('actSummary'); if (!box) return;
     var k = dateKey(Date.now());
     var today = state.checkins[k];
-    var moodNow = shownMood();
-    $('moodPicker').innerHTML = D.moods.map(function (m) {
-      return '<button type="button" class="mood' + (moodNow === m.v ? ' sel' : '') + '" data-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
-    }).join('');
-    $('checkinTypes').innerHTML = typeButtons(selCheckinTypes, 'data-ctype');
-    var types = selectedTypes(selCheckinTypes);
-    $('checkinRelapseExtra').classList.toggle('hidden', !types.length);
-    if (types.length && $('checkinTime') && !$('checkinTime').value) $('checkinTime').value = toLocalInput(Date.now());
-    renderCheckinTriggers();
-    var moodChanged = !!(selMood && (!today || today.mood !== selMood));
-    var moodNew = !!(selMood && !today);
-    var hint = '';
-    if (today && !moodChanged) {
-      var saved = D.moods.filter(function (x) { return x.v === today.mood; })[0];
-      hint = '今天的心情已记下' + (saved ? ' · ' + saved.t : '') + '。可以改心情，或再记一次破戒。';
+    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
+    var html = '';
+    if (today) {
+      var m = moodByValue(today.mood) || D.moods[2];
+      html += '<div class="act-status" data-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span><div><b>心情 · ' + esc(m.t) + '</b>' +
+        (today.note ? '<div class="small muted">' + esc(today.note) + '</div>' : '') + '</div></div>';
     }
-    if (types.length) hint = (hint ? hint + ' ' : '') + resetHint(types);
-    $('checkinHint').textContent = hint;
-    var can = moodChanged || moodNew || types.length > 0;
-    $('btnCheckin').disabled = !can;
-    var label = '选择心情或破戒类型';
-    if (types.length && (moodNew || moodChanged)) label = relapseResets(types) ? '保存心情并记录破戒' : '保存心情，记录破戒（天数不变）';
-    else if (types.length) label = relapseResets(types) ? '记录破戒并重新计算天数' : '记录破戒（天数不变）';
-    else if (moodNew) label = '保存今日心情';
-    else if (moodChanged) label = '更新今日心情';
-    $('btnCheckin').innerHTML = (can ? ic('check') : '') + label;
-    var todays = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
-    $('todayRelapseList').innerHTML = todays.length
-      ? '<div class="today-rel"><p class="field-label">今天已记录的破戒</p>' + todays.map(function (r) {
-          return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc((normalizeTypes(r.types)[0]) || '') + '"><div class="h-ico">' + ic((normalizeTypes(r.types)[0] && typeById(normalizeTypes(r.types)[0])) ? typeById(normalizeTypes(r.types)[0]).icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '破戒') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? ' · 会重置天数' : ' · 不重置天数') + '</div></div></button>';
-        }).join('') + '<button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></div>'
-      : (today ? '<p class="small" style="margin-top:10px"><button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></p>' : '');
+    if (rels.length) {
+      html += '<div class="today-rel">' + rels.map(function (r) {
+        var primary = (normalizeTypes(r.types)[0]) || '';
+        var t = primary && typeById(primary);
+        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? ' · 会重置天数' : ' · 不重置天数') + '</div></div></button>';
+      }).join('') + '</div>';
+    }
+    if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录。点下面一次记下心情，需要的话再标上行为。</p>';
+    else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></p>';
+    box.innerHTML = html;
   }
-  $('moodPicker').addEventListener('click', function (e) {
-    var b = e.target.closest('.mood'); if (!b) return;
-    selMood = +b.dataset.mood; renderCheckin();
-  });
-  $('checkinTypes').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-ctype]'); if (!b) return;
-    selCheckinTypes[b.dataset.ctype] = !selCheckinTypes[b.dataset.ctype];
-    renderCheckin();
-  });
-  $('checkinTriggers').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-ct]'); if (!b) return;
-    selCheckinTriggers[b.dataset.ct] = !selCheckinTriggers[b.dataset.ct];
-    renderCheckinTriggers();
-  });
   $('checkinCard').addEventListener('click', function (e) {
+    if (e.target.closest('#btnOpenAct')) { openAct(dateKey(Date.now())); return; }
     var open = e.target.closest('[data-open-day]');
     if (open) openDay(open.dataset.openDay);
   });
-  function saveTodayCheckin(opts) {
-    opts = opts || {};
-    var k = dateKey(Date.now());
-    var types = selectedTypes(selCheckinTypes);
-    var today = state.checkins[k];
-    var moodChanged = !!(selMood && (!today || today.mood !== selMood));
-    if (!moodChanged && !types.length) { toast('先选择心情，或选择破戒类型'); return; }
-    var relapse = null;
-    if (types.length) {
-      var ts = parseLocalInput($('checkinTime').value);
-      if (!isFinite(ts)) { toast('请选择发生时间'); return; }
-      if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
-      if (dateKey(ts) !== k) { toast('打卡里的破戒请记在今天。其他日期请点日历。'); return; }
-      var triggers = D.triggers.filter(function (t) { return selCheckinTriggers[t]; });
-      relapse = {
-        ts: ts, types: types, triggers: triggers,
-        other: selCheckinTriggers['其他'] ? $('checkinOther').value.trim() : '',
-        note: $('checkinNote').value.trim()
-      };
-    }
-    function write() {
-      if (moodChanged) {
-        var row = { mood: selMood, ts: (today && today.ts) || Date.now(), editedAt: Date.now() };
-        if (today && today.note) row.note = today.note;
-        state.checkins[k] = row;
-        if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
-      }
-      var result = null;
-      if (relapse) result = commitRelapse(relapse);
-      else save();
-      selCheckinTypes = {}; selCheckinTriggers = {};
-      if ($('checkinOther')) $('checkinOther').value = '';
-      if ($('checkinNote')) $('checkinNote').value = '';
-      if ($('checkinTime')) $('checkinTime').value = '';
-      renderHome();
-      if (result && result.changed) toast(result.resets ? '已记录。连续天数已重新计算' : '已记录，连续天数不变');
-      else if (result) toast('已记录，连续天数不变');
-      else toast(today ? '今日心情已更新' : '心情已记下');
-    }
-    if (relapse && relapseResets(relapse.types) && previewStart(relapse.ts, relapse.types) !== state.streakStart) {
-      openModal({
-        title: '这次会重置戒色天数',
-        html: '<p>所选类型里有会重置天数的项。记录后，当前连续天数将从这次破戒重新计算，历史和最佳纪录都会保留。</p>',
-        ok: '记录并重新计算', warm: true, onOk: write
-      });
-      return;
-    }
-    write();
-  }
-  $('btnCheckin').addEventListener('click', function () { saveTodayCheckin(); });
 
   var calOffset = 0;
   function renderCalendar() {
@@ -728,7 +643,7 @@
   $('btnShuffle').addEventListener('click', renderActionList);
   $('btnSosClose1').addEventListener('click', resetSos);
   $('btnSosClose2').addEventListener('click', resetSos);
-  $('btnSosRelapse').addEventListener('click', function () { go('log'); });
+  $('btnSosRelapse').addEventListener('click', function () { go('home'); openAct(dateKey(Date.now())); });
   $('btnMadeIt').addEventListener('click', function () {
     if (!sosLogged) {
       state.urges.push({ id: uid(), ts: Date.now() });
@@ -739,41 +654,12 @@
   });
 
   /* ---------------- 记录 ---------------- */
-  var selTriggers = {};
-  var selTypes = {};
   var dayKey = null;
-  var dayDraft = { mood: null, note: '', types: {}, triggers: {}, time: '', relNote: '', other: '' };
+  var actDay = null;
+  var actDraft = { mood: null, types: {}, triggers: {} };
 
   function selectedTypes(map) { return lapseTypes().filter(function (t) { return map[t.id]; }).map(function (t) { return t.id; }); }
-  function renderTypeTags() {
-    $('typeTags').innerHTML = typeButtons(selTypes, 'data-lapse');
-    var types = selectedTypes(selTypes);
-    if ($('logResetHint')) $('logResetHint').textContent = types.length ? resetHint(types) : '选择类型后，这里会说明这次会不会重置戒色天数。';
-    if ($('btnLogRelapse')) $('btnLogRelapse').textContent = types.length && relapseResets(types) ? '记录并重新计算天数' : (types.length ? '记录破戒（天数不变）' : '记录破戒');
-  }
-  function renderLog() {
-    if ($('relapseTime') && !$('relapseTime').value) $('relapseTime').value = toLocalInput(Date.now());
-    if ($('relapseTime')) $('relapseTime').max = toLocalInput(Date.now() + 60000);
-    renderTypeTags();
-    renderTriggerTags();
-    renderHistory();
-  }
-  function renderTriggerTags() {
-    $('triggerTags').innerHTML = D.triggers.map(function (t) {
-      return '<button type="button" class="tag' + (selTriggers[t] ? ' sel' : '') + '" data-t="' + t + '">' + esc(t) + '</button>';
-    }).join('');
-    $('otherTrigger').classList.toggle('hidden', !selTriggers['其他']);
-  }
-  $('typeTags').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-lapse]'); if (!b) return;
-    selTypes[b.dataset.lapse] = !selTypes[b.dataset.lapse];
-    renderTypeTags();
-  });
-  $('triggerTags').addEventListener('click', function (e) {
-    var b = e.target.closest('.tag'); if (!b) return;
-    var t = b.dataset.t; selTriggers[t] = !selTriggers[t];
-    renderTriggerTags();
-  });
+  function renderLog() { renderHistory(); }
 
   function refreshChrome() {
     if (window.ZFCloud && window.ZFCloud.refreshChrome) window.ZFCloud.refreshChrome();
@@ -785,38 +671,7 @@
     return map;
   }
 
-  function finishRelapseForm(ts, types, triggers, other, note, done) {
-    function write() {
-      var result = commitRelapse({ ts: ts, types: types, triggers: triggers, other: other, note: note });
-      if (done) done(result);
-      toast(result.changed ? '已记录，连续天数已重新计算' : '已记录，连续天数不变');
-    }
-    if (relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
-      openModal({
-        title: '这次会重置戒色天数',
-        html: '<p>记录后，当前连续天数将从这次破戒重新计算。历史记录和最佳纪录都会保留。一次失误不会抹去你之前的努力。</p>',
-        ok: '记录并重新计算', warm: true, onOk: write
-      });
-      return;
-    }
-    write();
-  }
-  $('btnLogRelapse').addEventListener('click', function () {
-    var ts = parseLocalInput($('relapseTime').value);
-    if (!isFinite(ts)) { toast('请选择发生时间'); return; }
-    if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
-    var types = selectedTypes(selTypes);
-    if (!types.length) { toast('请至少选择一个类型'); return; }
-    var triggers = D.triggers.filter(function (t) { return selTriggers[t]; });
-    var other = selTriggers['其他'] ? $('otherTrigger').value.trim() : '';
-    var note = $('relapseNote').value.trim();
-    finishRelapseForm(ts, types, triggers, other, note, function () {
-      selTriggers = {}; selTypes = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
-      $('relapseTime').value = '';
-      renderLog();
-      if (dayKey) renderDaySheet();
-    });
-  });
+  if ($('btnOpenActLog')) $('btnOpenActLog').addEventListener('click', function () { openAct(dateKey(Date.now())); });
   if ($('btnGotoCal')) $('btnGotoCal').addEventListener('click', function () {
     go('home');
     var el = $('calCard');
@@ -848,12 +703,6 @@
     events.sort(function (a, b) { return a.ts - b.ts; });
     return events;
   }
-  function captureDayDraft() {
-    if ($('dayNote')) dayDraft.note = $('dayNote').value;
-    if ($('dayRelTime') && $('dayRelTime').value) dayDraft.time = $('dayRelTime').value;
-    if ($('dayRelNote')) dayDraft.relNote = $('dayRelNote').value;
-    if ($('dayRelOther')) dayDraft.other = $('dayRelOther').value;
-  }
   function timelineHtml(k) {
     var events = dayEvents(k);
     var ticks = '<span class="day-tl-tick start">00:00</span><span class="day-tl-tick mid">12:00</span><span class="day-tl-tick end">24:00</span>';
@@ -881,7 +730,7 @@
           (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
       }
       return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + (ev.kind === 'relapse' ? ' relapse' : '') + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + '</div></li>';
-    }).join('') : '<li class="day-tl-item"><span class="day-tl-time">—</span><span class="day-tl-node"></span><div class="day-tl-card"><span class="muted small">这一天还没有打卡或破戒。下面可以直接补上。</span></div></li>';
+    }).join('') : '<li class="day-tl-item"><span class="day-tl-time">—</span><span class="day-tl-node"></span><div class="day-tl-card"><span class="muted small">这一天还没有记录。用下面的「记录行为」补上。</span></div></li>';
     return '<p class="field-label">线性图 · 00:00–24:00</p><div class="day-tl-bar" role="img" aria-label="当天 0 点到 24 点的事件"><div class="day-tl-rail"></div>' + ticks + dots + '</div><ol class="day-tl-list">' + list + '</ol>';
   }
   function renderDaySheet() {
@@ -891,40 +740,14 @@
     var c = state.checkins[k];
     var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
     var html = timelineHtml(k);
-    html += '<div class="day-section"><p class="field-label">这天的心情</p><div class="moods">';
-    html += D.moods.map(function (m) {
-      return '<button type="button" class="mood' + (dayDraft.mood === m.v ? ' sel' : '') + '" data-day-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
-    }).join('');
-    html += '</div><label class="field"><span>备注</span><textarea id="dayNote" rows="2" maxlength="500" placeholder="可选。例如：晚上状态不错。">' + esc(dayDraft.note || '') + '</textarea></label>';
-    html += '<div class="day-actions"><button class="btn btn-primary" type="button" id="btnSaveDayCheckin">' + ic('check') + '保存心情</button>';
-    if (c) html += '<button class="btn btn-ghost" type="button" id="btnClearDayCheckin">清除打卡</button>';
-    html += '</div></div>';
-    html += '<div class="day-section"><p class="field-label">这天的破戒</p>';
-    html += rels.length ? '<div class="history">' + rels.map(relapseItem).join('') + '</div>' : '<p class="muted small">还没有破戒记录。</p>';
-    html += '<p class="field-label">补记一次破戒</p>';
-    html += '<label class="field"><span>发生时间</span><input type="datetime-local" id="dayRelTime" value="' + esc(dayDraft.time) + '" max="' + esc(toLocalInput(Date.now() + 60000)) + '" /></label>';
-    html += '<div class="field"><span>类型（可多选）</span><div class="tags" id="dayTypes">' + typeButtons(dayDraft.types, 'data-day-type') + '</div></div>';
-    html += '<p class="small muted">' + esc(resetHint(selectedTypes(dayDraft.types)) || '选择类型后会说明是否重置天数') + '</p>';
-    html += '<div class="field"><span>触发因素（可多选）</span><div class="tags" id="dayTriggers">' + D.triggers.map(function (t) {
-      return '<button type="button" class="tag' + (dayDraft.triggers[t] ? ' sel' : '') + '" data-day-trigger="' + esc(t) + '">' + esc(t) + '</button>';
-    }).join('') + '</div><input type="text" id="dayRelOther" class="' + (dayDraft.triggers['其他'] ? '' : 'hidden') + '" maxlength="20" placeholder="其他触发因素" value="' + esc(dayDraft.other || '') + '" /></div>';
-    html += '<label class="field"><span>备注</span><textarea id="dayRelNote" rows="2" maxlength="500">' + esc(dayDraft.relNote || '') + '</textarea></label>';
-    html += '<button class="btn btn-warm btn-block" type="button" id="btnAddDayRelapse">添加到这一天</button></div>';
+    html += '<button class="btn btn-primary btn-block" type="button" id="btnOpenActFromDay">' + ic('pen-line') + '记录行为</button>';
+    if (c) html += '<button class="btn-link center-block" type="button" id="btnClearDayCheckin">清除这天的心情</button>';
+    if (rels.length) html += '<div class="day-section"><p class="field-label">已记下的行为</p><div class="history">' + rels.map(relapseItem).join('') + '</div></div>';
     $('dayBody').innerHTML = html;
   }
   function openDay(k) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能查看未来的日期'); return; }
-    var c = state.checkins[k];
     dayKey = k;
-    dayDraft = {
-      mood: c ? c.mood : null,
-      note: (c && c.note) || '',
-      types: {},
-      triggers: {},
-      time: k === dateKey(Date.now()) ? toLocalInput(Date.now()) : (k + 'T12:00'),
-      relNote: '',
-      other: ''
-    };
     $('dayMask').classList.remove('hidden');
     lockScroll();
     renderDaySheet();
@@ -937,85 +760,153 @@
     if (current === 'home') renderHome();
     else if (current === 'log') renderHistory();
   }
-  function saveDayCheckin() {
-    if (!dayKey) return;
-    if (!dayDraft.mood) { toast('请先选择这天的心情'); return; }
-    var k = dayKey;
-    var prev = state.checkins[k];
-    var note = ($('dayNote') && $('dayNote').value || '').trim();
-    var ts = (prev && prev.ts) || (k === dateKey(Date.now()) ? Date.now() : atLocal(k, 12, 0));
-    var row = { mood: dayDraft.mood, ts: ts, editedAt: Date.now() };
-    if (note) row.note = note;
-    state.checkins[k] = row;
-    if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
-    dayDraft.note = note;
-    save();
-    renderDaySheet();
-    if (current === 'home') renderHome();
-    if (current === 'log') renderHistory();
-    toast('已保存这天的心情');
-  }
   function clearDayCheckin() {
     var k = dayKey;
     if (!k || !state.checkins[k]) return;
     openModal({
-      title: '清除这天的打卡？',
-      html: '<p>会去掉 ' + esc(k) + ' 的心情打卡。破戒记录不受影响。</p>',
+      title: '清除这天的心情？',
+      html: '<p>会去掉 ' + esc(k) + ' 的心情。行为记录不受影响。</p>',
       ok: '清除', danger: true,
       onOk: function () {
         delete state.checkins[k];
         state.removed.checkins[k] = Date.now();
-        dayDraft.mood = null;
-        dayDraft.note = '';
         save();
         renderDaySheet();
         if (current === 'home') renderHome();
         if (current === 'log') renderHistory();
-        toast('已清除打卡');
+        toast('已清除心情');
       }
     });
   }
-  function addDayRelapse() {
-    if (!dayKey) return;
-    captureDayDraft();
-    var ts = parseLocalInput(dayDraft.time);
-    if (!isFinite(ts)) { toast('请选择发生时间'); return; }
-    if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
-    if (dateKey(ts) !== dayKey) { toast('发生时间需要在这一天'); return; }
-    var types = selectedTypes(dayDraft.types);
-    if (!types.length) { toast('请至少选择一个类型'); return; }
-    var triggers = D.triggers.filter(function (t) { return dayDraft.triggers[t]; });
-    var other = dayDraft.triggers['其他'] ? dayDraft.other.trim() : '';
-    var note = dayDraft.relNote.trim();
-    finishRelapseForm(ts, types, triggers, other, note, function () {
-      dayDraft.types = {};
-      dayDraft.triggers = {};
-      dayDraft.relNote = '';
-      dayDraft.other = '';
-      dayDraft.time = dayKey === dateKey(Date.now()) ? toLocalInput(Date.now()) : (dayKey + 'T12:00');
-      renderDaySheet();
-      if (current === 'home') renderHome();
-      if (current === 'log') renderHistory();
-    });
+  function actWillWriteMood(prev, note, types) {
+    if (!actDraft.mood) return false;
+    if (!prev || prev.mood !== actDraft.mood) return true;
+    return !types.length && !!note && note !== (prev.note || '');
   }
+  function renderActForm() {
+    if (!actDay || !$('actMoods')) return;
+    var prev = state.checkins[actDay];
+    $('actMoods').innerHTML = D.moods.map(function (m) {
+      return '<button type="button" class="mood' + (actDraft.mood === m.v ? ' sel' : '') + '" data-act-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
+    }).join('');
+    $('actTypes').innerHTML = typeButtons(actDraft.types, 'data-act-type');
+    $('actTriggers').innerHTML = D.triggers.map(function (t) {
+      return '<button type="button" class="tag' + (actDraft.triggers[t] ? ' sel' : '') + '" data-act-trigger="' + esc(t) + '">' + esc(t) + '</button>';
+    }).join('');
+    $('actOther').classList.toggle('hidden', !actDraft.triggers['其他']);
+    var types = selectedTypes(actDraft.types);
+    var note = ($('actNote') && $('actNote').value || '').trim();
+    var moodWrite = actWillWriteMood(prev, note, types);
+    var can = moodWrite || types.length > 0;
+    var tsPreview = parseLocalInput($('actTime') && $('actTime').value);
+    var movesStreak = types.length && relapseResets(types) && isFinite(tsPreview) && previewStart(tsPreview, types) !== state.streakStart;
+    var hint = types.length ? resetHint(types) : '不选行为时，只记录这一天的心情。时间和触发因素会在选了行为后一起保存。';
+    if (prev && actDraft.mood === prev.mood && !types.length) hint = '这天的心情已是「' + ((moodByValue(prev.mood) || {}).t || '') + '」。可以改心情，或选一个行为类型。';
+    $('actHint').textContent = hint;
+    $('btnSaveAct').disabled = !can;
+    var label = '选择心情或行为';
+    if (movesStreak) label = '保存，并重新计算天数';
+    else if (types.length) label = '保存（天数不变）';
+    else if (moodWrite) label = prev ? '更新心情' : '保存心情';
+    $('btnSaveAct').innerHTML = (can ? ic('check') : '') + label;
+  }
+  function openAct(k) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能记录未来的日期'); return; }
+    var c = state.checkins[k];
+    actDay = k;
+    actDraft = { mood: c ? c.mood : null, types: {}, triggers: {} };
+    $('actWhen').textContent = (k === dateKey(Date.now()) ? '今天 · ' : '') + fmtDayTitle(k);
+    $('actTime').value = k === dateKey(Date.now()) ? toLocalInput(Date.now()) : (k + 'T12:00');
+    $('actTime').max = toLocalInput(Date.now() + 60000);
+    $('actNote').value = '';
+    $('actOther').value = '';
+    $('actMask').classList.remove('hidden');
+    lockScroll();
+    renderActForm();
+  }
+  function closeAct() {
+    if (!$('actMask') || $('actMask').classList.contains('hidden')) return;
+    $('actMask').classList.add('hidden');
+    actDay = null;
+    unlockScroll();
+  }
+  function refreshAfterAct() {
+    if (dayKey) renderDaySheet();
+    if (current === 'home') renderHome();
+    if (current === 'log') renderHistory();
+    if (current === 'stats') renderStats();
+  }
+  function saveAct() {
+    if (!actDay) return;
+    var k = actDay;
+    var prev = state.checkins[k];
+    var note = ($('actNote').value || '').trim();
+    var types = selectedTypes(actDraft.types);
+    var moodWrite = actWillWriteMood(prev, note, types);
+    if (!moodWrite && !types.length) { toast('先选择心情，或选择行为类型'); return; }
+    var ts = parseLocalInput($('actTime').value);
+    if (!isFinite(ts)) { toast('请选择时间'); return; }
+    if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
+    if (dateKey(ts) !== k) { toast('时间需要在这一天'); return; }
+    var triggers = D.triggers.filter(function (t) { return actDraft.triggers[t]; });
+    var other = actDraft.triggers['其他'] ? $('actOther').value.trim() : '';
+    function write() {
+      if (moodWrite) {
+        var row = { mood: actDraft.mood, ts: (prev && prev.ts) || ts, editedAt: Date.now() };
+        if (types.length) {
+          if (prev && prev.note) row.note = prev.note;
+        } else if (note) row.note = note;
+        else if (prev && prev.note) row.note = prev.note;
+        state.checkins[k] = row;
+        if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
+      }
+      var result = null;
+      if (types.length) {
+        result = commitRelapse({ ts: ts, types: types, triggers: triggers, other: other, note: note });
+      } else save();
+      closeAct();
+      refreshAfterAct();
+      if (result && result.changed) toast('已记录。连续天数已重新计算');
+      else if (result) toast('已记录，连续天数不变');
+      else toast(prev ? '心情已更新' : '心情已记下');
+    }
+    if (types.length && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
+      openModal({
+        title: '这次会重置戒色天数',
+        html: '<p>所选行为里有会重置天数的类型。保存后，当前连续天数将从这次重新计算，历史和最佳纪录都会保留。</p>',
+        ok: '保存并重新计算', warm: true, onOk: write
+      });
+      return;
+    }
+    write();
+  }
+  $('actClose').addEventListener('click', closeAct);
+  $('actMask').addEventListener('click', function (e) { if (e.target === this) closeAct(); });
+  $('actBody').addEventListener('click', function (e) {
+    var moodBtn = e.target.closest('[data-act-mood]');
+    if (moodBtn) {
+      var v = +moodBtn.dataset.actMood;
+      actDraft.mood = actDraft.mood === v ? null : v;
+      renderActForm();
+      return;
+    }
+    var tp = e.target.closest('[data-act-type]');
+    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; renderActForm(); return; }
+    var tr = e.target.closest('[data-act-trigger]');
+    if (tr) {
+      var name = tr.getAttribute('data-act-trigger');
+      actDraft.triggers[name] = !actDraft.triggers[name];
+      renderActForm();
+    }
+  });
+  $('actNote').addEventListener('input', function () { if (actDay) renderActForm(); });
+  $('actTime').addEventListener('change', function () { if (actDay) renderActForm(); });
+  $('btnSaveAct').addEventListener('click', saveAct);
   $('dayClose').addEventListener('click', closeDay);
   $('dayMask').addEventListener('click', function (e) { if (e.target === this) closeDay(); });
   $('dayBody').addEventListener('click', function (e) {
-    var moodBtn = e.target.closest('[data-day-mood]');
-    if (moodBtn) { captureDayDraft(); dayDraft.mood = +moodBtn.dataset.dayMood; renderDaySheet(); return; }
-    var tp = e.target.closest('[data-day-type]');
-    if (tp) { captureDayDraft(); dayDraft.types[tp.dataset.dayType] = !dayDraft.types[tp.dataset.dayType]; renderDaySheet(); return; }
-    var tr = e.target.closest('[data-day-trigger]');
-    if (tr) {
-      captureDayDraft();
-      var name = tr.getAttribute('data-day-trigger');
-      dayDraft.triggers[name] = !dayDraft.triggers[name];
-      renderDaySheet();
-      return;
-    }
-    if (e.target.closest('#btnSaveDayCheckin')) { saveDayCheckin(); return; }
+    if (e.target.closest('#btnOpenActFromDay')) { openAct(dayKey); return; }
     if (e.target.closest('#btnClearDayCheckin')) { clearDayCheckin(); return; }
-    if (e.target.closest('#btnAddDayRelapse')) { addDayRelapse(); return; }
     if (e.target.closest('.h-del') || e.target.closest('[data-edit]')) onHistoryClick(e);
   });
 
@@ -1124,7 +1015,7 @@
         onOk: function () {
           delete state.checkins[dk];
           state.removed.checkins[dk] = Date.now();
-          if (dayKey === dk) { dayDraft.mood = null; dayDraft.note = ''; renderDaySheet(); }
+          if (dayKey === dk) renderDaySheet();
           save(); renderHistory();
           if (current === 'home') renderHome();
           toast('已删除');
@@ -1470,7 +1361,8 @@
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」以确认'); return false; }
         state = defaultState(); save({ replaceAll: true });
-        selTriggers = {}; selTypes = {}; selCheckinTypes = {}; selCheckinTriggers = {}; selMood = null; calOffset = 0;
+        calOffset = 0;
+        if (actDay) closeAct();
         if (dayKey) closeDay();
         renderSettings(); toast('已重置，新的开始');
       }
@@ -1511,7 +1403,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '18';
+  var APP_VERSION = '19';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
