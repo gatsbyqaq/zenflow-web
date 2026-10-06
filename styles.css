@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"26";
+  --zf-css:"27";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -179,8 +179,25 @@ html,body{background-color:#fafafa}
 }
 .privacy-pill .ic{width:13px;height:13px;stroke-width:2}
 .brand{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0;font-weight:700;font-size:20px;letter-spacing:-.03em;text-transform:none;color:var(--text)}
-.brand-logo,.side-logo{display:block;width:28px;height:28px;border-radius:8px}
-.auth-logo{display:block;width:72px;height:72px;border-radius:18px;margin:0 auto 12px}
+.wordmark{
+  font-family:"Avenir Next",Avenir,"Century Gothic",Futura,"Trebuchet MS","Segoe UI","Helvetica Neue","PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+  font-weight:800;letter-spacing:.1em;text-transform:uppercase;line-height:1;
+}
+.brand-logo,.side-logo,.auth-logo,.auth-boot-logo{display:block;border-radius:50%;box-shadow:none}
+.brand-logo,.side-logo{width:28px;height:28px}
+.auth-logo{width:72px;height:72px;margin:0 auto 10px}
+.auth-wordmark{margin:0 0 10px;font-size:13px;letter-spacing:.12em;color:var(--text)}
+.auth-boot-word{margin:0;font-size:12px;letter-spacing:.12em;color:var(--text)}
+:root[data-theme="dark"] .brand-logo,
+:root[data-theme="dark"] .side-logo,
+:root[data-theme="dark"] .auth-logo,
+:root[data-theme="dark"] .auth-boot-logo{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .brand-logo,
+  :root:not([data-theme="light"]) .side-logo,
+  :root:not([data-theme="light"]) .auth-logo,
+  :root:not([data-theme="light"]) .auth-boot-logo{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+}
 .brand-tag{font-weight:500;font-size:12px;color:var(--muted);letter-spacing:0}
 
 .card{
@@ -617,9 +634,9 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   }
   .app .side-brand{display:flex;align-items:center;gap:10px;padding:4px 12px 22px}
   .side-brand div{display:flex;flex-direction:column;gap:2px;min-width:0}
-  .side-brand b{font-size:18px;font-weight:700;letter-spacing:-.03em;text-transform:none}
+  .side-brand b{font-size:15px;font-weight:800;letter-spacing:.1em}
   .side-brand small{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0}
-  .side-logo{width:32px;height:32px;border-radius:9px}
+  .side-logo{width:32px;height:32px}
 
   .tab{
     flex:none;flex-direction:row;justify-content:flex-start;gap:12px;width:100%;
@@ -888,7 +905,7 @@ body.auth-booting #authBoot{display:flex;visibility:visible;pointer-events:auto}
   display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:12px;
   background:var(--bg);color:var(--muted);
 }
-#authBoot .auth-boot-logo{width:56px;height:56px;border-radius:16px}
+#authBoot .auth-boot-logo{width:56px;height:56px;border-radius:50%}
 #authBoot .auth-boot-spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--text);border-radius:50%;animation:zf-boot-spin .8s linear infinite}
 @keyframes zf-boot-spin{to{transform:rotate(360deg)}}
 body.auth-gated{overflow:hidden}
