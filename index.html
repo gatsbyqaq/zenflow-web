@@ -31,7 +31,7 @@
   <meta name="description" content="戒色记录。数据在本机，登录后同步。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="stylesheet" href="styles.css?v=26" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -604,7 +604,7 @@
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v25</p>
+          <p class="small muted app-version" id="appVersion">版本 v26</p>
         </div>
       </div>
       </div>
@@ -867,7 +867,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=25"></script>
+<script src="config.js?v=26"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -876,10 +876,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=25"></script>
-<script src="streak.js?v=25"></script>
-<script src="app.js?v=25"></script>
-<script src="cloud.js?v=25"></script>
-<script src="admin.js?v=25"></script>
+<script src="data.js?v=26"></script>
+<script src="streak.js?v=26"></script>
+<script src="app.js?v=26"></script>
+<script src="cloud.js?v=26"></script>
+<script src="admin.js?v=26"></script>
 </body>
 </html>

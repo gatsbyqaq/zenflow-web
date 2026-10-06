@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=25'; s.async = true;
+      s.src = 'vendor/supabase.js?v=26'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -488,11 +488,14 @@
     var p = captchaSettings().provider;
     if (p === 'hcaptcha') {
       return {
-        src: 'https://js.hcaptcha.com/1/api.js?render=explicit',
+        src: 'https://js.hcaptcha.com/1/api.js?render=explicit&hl=zh-CN',
         onloadName: '',
         render: function (el, siteKey) {
+          /* hCaptcha 没有 flexible，用 normal（其支持的最大可见尺寸） */
           return window.hcaptcha.render(el, {
             sitekey: siteKey,
+            theme: captchaTheme(),
+            size: 'normal',
             callback: function (token) { setCaptchaToken(token); },
             'expired-callback': function () { setCaptchaToken(''); },
             'error-callback': function () { setCaptchaToken(''); }
@@ -509,7 +512,9 @@
       render: function (el, siteKey) {
         return window.turnstile.render(el, {
           sitekey: siteKey,
-          theme: 'auto',
+          size: 'flexible',
+          theme: captchaTheme(),
+          language: 'zh-cn',
           callback: function (token) { setCaptchaToken(token); },
           'expired-callback': function () { setCaptchaToken(''); },
           'error-callback': function () { setCaptchaToken(''); }
@@ -536,6 +541,39 @@
       paintCaptchaButtons();
       ensureCaptcha();
     }
+  }
+  function captchaTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    } catch (e) {}
+    return 'light';
+  }
+  var captchaRenderedTheme = '';
+  function refreshCaptchaTheme() {
+    if (!captchaSettings().enabled || captchaWidget == null) return;
+    if (captchaTheme() === captchaRenderedTheme) return;
+    var host = $('captchaHost');
+    try { captchaApi().remove(captchaWidget); } catch (e) {}
+    captchaWidget = null;
+    captchaToken = '';
+    if (host) host.innerHTML = '';
+    paintCaptchaButtons();
+    ensureCaptcha();
+  }
+  function watchCaptchaTheme() {
+    if (window.MutationObserver) {
+      new MutationObserver(refreshCaptchaTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+    try {
+      var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq) {
+        var onMq = function () { if (!document.documentElement.getAttribute('data-theme')) refreshCaptchaTheme(); };
+        if (mq.addEventListener) mq.addEventListener('change', onMq);
+        else if (mq.addListener) mq.addListener(onMq);
+      }
+    } catch (e2) {}
   }
   function captchaWait() {
     return captchaSettings().enabled && !captchaToken;
@@ -580,8 +618,10 @@
     var globalName = cfgCap.provider === 'hcaptcha' ? 'hcaptcha' : 'turnstile';
     function renderNow() {
       if (captchaWidget != null || !$('captchaHost') || !window[globalName]) return;
-      try { captchaWidget = api.render($('captchaHost'), cfgCap.siteKey); }
-      catch (e) { captchaWidget = null; }
+      try {
+        captchaRenderedTheme = captchaTheme();
+        captchaWidget = api.render($('captchaHost'), cfgCap.siteKey);
+      } catch (e) { captchaWidget = null; }
     }
     if (window[globalName]) { renderNow(); return; }
     captchaLoading = true;
@@ -1816,6 +1856,7 @@
   });
   $('formInviteGate').addEventListener('submit', doCompleteInvite);
   $('btnForgot').addEventListener('click', doForgot);
+  watchCaptchaTheme();
   $('btnGateLogout').addEventListener('click', confirmLogout);
   $('regInvite').addEventListener('blur', checkInvite);
   $('regInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('inviteState').innerHTML = ''; $('inviteState').className = 'invite-state'; });

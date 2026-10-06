@@ -1,6 +1,6 @@
 /* ZenFlow service worker：缓存静态资源，支持离线使用（仅 http/https 下注册） */
-var CACHE = 'zenflow-v25';
-var ASSETS = ['./', './index.html', './styles.css?v=25', './data.js?v=25', './streak.js?v=25', './app.js?v=25', './cloud.js?v=25', './admin.js?v=25', './config.js?v=25', './vendor/supabase.js?v=25', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './manifest.json'];
+var CACHE = 'zenflow-v26';
+var ASSETS = ['./', './index.html', './styles.css?v=26', './data.js?v=26', './streak.js?v=26', './app.js?v=26', './cloud.js?v=26', './admin.js?v=26', './config.js?v=26', './vendor/supabase.js?v=26', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './manifest.json'];
 self.addEventListener('install', function (e) {
   // 安装时绕过浏览器 HTTP 缓存，确保缓存的是最新文件
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS.map(function (u) { return new Request(u, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));

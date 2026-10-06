@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"25";
+  --zf-css:"26";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -795,8 +795,12 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .field .phone-row .phone-national{flex:1;min-width:0;width:100%}
 .field .phone-row .phone-cc-other{width:4.6em;flex-shrink:0;border-left:1px solid var(--line);padding-left:8px;padding-right:8px}
 .field .phone-row input:focus,.field .phone-row select:focus{border-color:transparent;background:transparent}
-.captcha-host{display:flex;justify-content:center;margin:12px 0 2px;min-height:65px}
+.captcha-host{
+  display:block;width:100%;margin:12px 0 0;min-height:65px;
+  border-radius:8px;overflow:hidden;
+}
 .captcha-host.captcha-off{display:none}
+.captcha-host iframe{display:block;width:100%;max-width:100%;border:0}
 .auth-form .field{margin-top:12px}
 .field > .invite-row,.field > .handle-row{display:flex;align-items:center;font-weight:500;font-size:inherit;color:inherit;margin-bottom:0}
 .invite-row{display:flex;align-items:center;gap:8px}
