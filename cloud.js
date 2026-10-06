@@ -1084,8 +1084,13 @@
       crop.source = source;
       crop.iw = source.width;
       crop.ih = source.height;
+      crop.zoom = 1;
+      crop.x = 0;
+      crop.y = 0;
       crop.pointers = {};
       crop.pinch = null;
+      var view = $('cropView');
+      if (view) { view.width = 1; view.height = 1; }
       var mask = $('cropMask');
       if (!mask) throw new Error('无法打开裁剪');
       mask.classList.remove('hidden');
