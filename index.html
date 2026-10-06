@@ -33,7 +33,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=29" />
+  <link rel="stylesheet" href="styles.css?v=30" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -147,7 +147,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=29" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=30" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -162,7 +162,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=29" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=30" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <p class="eyebrow" id="greeting">你好</p>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -622,7 +622,7 @@
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v29</p>
+          <p class="small muted app-version" id="appVersion">版本 v30</p>
         </div>
       </div>
       </div>
@@ -632,7 +632,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=29" alt="" class="side-logo" />
+      <img src="icon.svg?v=30" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -684,7 +684,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=29" alt="" class="auth-logo" />
+        <img src="icon.svg?v=30" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -887,7 +887,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=29"></script>
+<script src="config.js?v=30"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -896,10 +896,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=29"></script>
-<script src="streak.js?v=29"></script>
-<script src="app.js?v=29"></script>
-<script src="cloud.js?v=29"></script>
-<script src="admin.js?v=29"></script>
+<script src="data.js?v=30"></script>
+<script src="streak.js?v=30"></script>
+<script src="app.js?v=30"></script>
+<script src="cloud.js?v=30"></script>
+<script src="admin.js?v=30"></script>
 </body>
 </html>

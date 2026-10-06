@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=29'; s.async = true;
+      s.src = 'vendor/supabase.js?v=30'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -1758,9 +1758,9 @@
   function confirmLogout() {
     Z.openModal({
       title: '退出登录',
-      ok: '退出',
+      ok: '退出登录',
       danger: true,
-      html: '<p>退出并清除本机数据？云端数据不受影响。</p>',
+      html: '<p>退出后会清除这台设备上的数据，云端数据保留。</p>',
       onOk: function () { doLogout(); }
     });
   }
