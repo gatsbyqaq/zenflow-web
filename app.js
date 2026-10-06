@@ -1246,7 +1246,8 @@
       if (st && st.configured) {
         if (st.loggedIn) {
           var handle = st.profile && st.profile.handle;
-          acct = handle ? ('@' + handle) : (st.email || '已登录');
+          var phone = st.phone ? (String(st.phone).charAt(0) === '+' ? st.phone : ('+' + st.phone)) : '';
+          acct = handle ? ('@' + handle) : (st.email || phone || '已登录');
         } else acct = '登录并同步';
       }
       $('settingsAccountSub').textContent = acct;
@@ -1406,7 +1407,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '22';
+  var APP_VERSION = '23';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -1454,6 +1455,26 @@
       return true;
     },
     toast: toast, openModal: openModal, closeModal: closeModal, lockScroll: lockScroll, unlockScroll: unlockScroll,
-    esc: esc, ic: ic, fmtDT: fmtDT, current: function () { return current; }
+    esc: esc, ic: ic, fmtDT: fmtDT, current: function () { return current; },
+    wipeLocal: function () {
+      state = defaultState();
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      setTheme('system', false);
+      calOffset = 0;
+      if (actDay) closeAct();
+      if (dayKey) closeDay();
+      if (current === 'sos') { resetSos(); current = 'home'; }
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === current); });
+      var tabs = document.querySelectorAll('#tabbar .tab');
+      tabs.forEach(function (b) {
+        var on = b.dataset.tab === current;
+        b.classList.toggle('active', on);
+        if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      });
+      var bar = $('tabbar'); if (bar) bar.dataset.active = current;
+      settingsView = 'root';
+      render(current);
+      renderSettings();
+    }
   };
 })();

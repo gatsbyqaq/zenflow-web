@@ -126,36 +126,19 @@ select code, expires_at from public.create_invites(5, 0, '朋友');  -- 0 = 永�
 相关 SQL：`migrations/20261005_admin_dashboard.sql`（`admin_stats`、`admin_list_users`、`admin_list_invites`、`admin_set_admin`、`admin_set_banned`、`admin_revoke_invite`）。全部为 `SECURITY DEFINER`，内部检查 `is_admin`，只授予 `authenticated` 执行权限。
 
 
-## Google 一键登录（需你在控制台完成密钥）
+## 手机号、邮箱与人机验证
 
-Supabase MCP **无法**代填 Google Client Secret，请按下列步骤操作：
+登录页已去掉 Google。请在 Supabase 关闭 Google 提供商。短信和 Turnstile 要在控制台打开，站点密钥写在 `config.js`。步骤见 [`docs/auth-setup.md`](../docs/auth-setup.md)。
 
-### A. Google Cloud Console
-1. 打开 https://console.cloud.google.com/ → 创建/选择项目
-2. **APIs & Services → OAuth consent screen**：选 External，填应用名（ZenFlow）、支持邮箱
-3. **Credentials → Create Credentials → OAuth client ID** → 类型 **Web application**
-4. **Authorized JavaScript origins**
-   - `https://gatsbyqaq.github.io`
-   - （本地调试）`http://localhost:8765`
-5. **Authorized redirect URIs**（必须是 Supabase 回调，不是 Pages 地址）：
-   - `https://ordgebjytixmbwabpsrj.supabase.co/auth/v1/callback`
-6. 复制 **Client ID** 与 **Client Secret**
-
-### B. Supabase Dashboard
-1. **Authentication → Providers → Google** → Enable
-2. 粘贴 Client ID / Client Secret → Save
-3. **Authentication → URL Configuration**
-   - Site URL: `https://gatsbyqaq.github.io/zenflow-web/`
-   - Redirect URLs 另加：`https://gatsbyqaq.github.io/zenflow-web/`、`http://localhost:8765/`
-
-### C. 产品行为
-- 已配置 `config.js` 时：**未登录只能看到登录门禁**，不能使用主应用
-- Google 新用户：OAuth 成功后进入「输入邀请码完成注册」，调用 `complete_invite_registration`
-- 邮箱+邀请码注册：metadata 带 `invite_code`、`display_name`（昵称，不必唯一）和 `handle`（@ID，不含 @，`^[a-z0-9_]{3,20}$`，全站唯一）。触发器校验失败会返回 `HANDLE_INVALID` 或 `HANDLE_TAKEN`
-- Google 新用户在补填邀请码时也要设置 @ID。已通过邀请、但 `handle` 仍为空的账号会先被要求设置 @ID
+### 产品行为
+- 已配置 `config.js` 时：未登录只能看到登录门禁，不能使用主应用
+- 手机号默认。已有账号只填手机号和验证码。新用户在发送前填写昵称、@ID 和邀请码，写入 `options.data`，由 `handle_new_user` 校验
+- 只填手机号就注册的新用户 `invite_ok=false`，进入「完成注册」补邀请码和 @ID
+- 邮箱+邀请码注册：metadata 带 `invite_code`、`display_name` 和 `handle`。触发器校验失败会返回 `HANDLE_INVALID` 或 `HANDLE_TAKEN`
+- 已通过邀请但 `handle` 仍为空的账号会先被要求设置 @ID
 - 头像：登录后在「设置 → 账号与资料」上传，客户端裁成约 256px 方形后写入公开存储桶 `avatars`（路径 `<uid>/...`），再调用 `update_my_profile`
 - `config.js` 留空：仍为纯本机模式
-
+- 退出登录会登出并清除本机数据，不删除 Supabase 里的云端数据
 
 ### 数据库门禁
-- `profiles.invite_ok`：未核销邀请码的账号（典型：Google 首次登录）不能进入主应用，也不能读写 `user_data`（RLS 调用 `current_invite_ok()`）。
+- `profiles.invite_ok`：未核销邀请码的账号不能进入主应用，也不能读写 `user_data`（RLS 调用 `current_invite_ok()`）。
