@@ -69,6 +69,8 @@
       goalSetAt: 0,
       displayName: '',
       displayNameSetAt: 0,
+      avatarDataUrl: '',
+      avatarSetAt: 0,
       resetTypes: window.ZFStreak.defaultResetTypes(),
       resetTypesSetAt: 0,
       manualStreakStart: 0,
@@ -120,6 +122,10 @@
     s.goalSetAt = (typeof o.goalSetAt === 'number' && isFinite(o.goalSetAt) && o.goalSetAt > 0) ? o.goalSetAt : 0;
     s.displayName = o.displayName ? String(o.displayName).trim().slice(0, 20) : '';
     s.displayNameSetAt = (typeof o.displayNameSetAt === 'number' && isFinite(o.displayNameSetAt) && o.displayNameSetAt > 0) ? o.displayNameSetAt : 0;
+    if (typeof o.avatarDataUrl === 'string' && o.avatarDataUrl.indexOf('data:image/') === 0 && o.avatarDataUrl.length <= 180000) {
+      s.avatarDataUrl = o.avatarDataUrl;
+      s.avatarSetAt = (typeof o.avatarSetAt === 'number' && isFinite(o.avatarSetAt) && o.avatarSetAt > 0) ? o.avatarSetAt : 0;
+    }
     s.streakStartSetAt = typeof o.streakStartSetAt === 'number' && isFinite(o.streakStartSetAt) ? o.streakStartSetAt : 0;
     s.resetTypes = window.ZFStreak.normalizeResetTypes(o.resetTypes);
     s.resetTypesSetAt = (typeof o.resetTypesSetAt === 'number' && isFinite(o.resetTypesSetAt) && o.resetTypesSetAt > 0) ? o.resetTypesSetAt : 0;
@@ -1193,6 +1199,9 @@
       p.classList.toggle('hidden', p.dataset.settingsPage !== settingsView);
     });
     if ($('settingsBack')) $('settingsBack').classList.toggle('hidden', isRoot);
+    if ($('settingsMe')) $('settingsMe').classList.toggle('hidden', !isRoot);
+    var settingsScreen = $('screen-settings');
+    if (settingsScreen) settingsScreen.classList.toggle('settings-root', isRoot);
     if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '属于你的空间' : (SETTINGS_PAGES[settingsView] || '设置');
   }
   function showSettings(view, opts) {
@@ -1237,7 +1246,14 @@
     if ($('settingsAdminRow')) $('settingsAdminRow').classList.toggle('hidden', !(st && st.profile && st.profile.is_admin));
     if ($('settingsLogoutRow')) $('settingsLogoutRow').classList.toggle('hidden', !(st && st.loggedIn));
     if ($('settingsAccountSub')) {
-      $('settingsAccountSub').textContent = (!st || !st.configured) ? '本机模式' : (st.loggedIn ? (st.email || '已登录') : '登录并同步');
+      var acct = '本机模式';
+      if (st && st.configured) {
+        if (st.loggedIn) {
+          var handle = st.profile && st.profile.handle;
+          acct = handle ? ('@' + handle) : (st.email || '已登录');
+        } else acct = '登录并同步';
+      }
+      $('settingsAccountSub').textContent = acct;
     }
     if ($('settingsGoalSub')) $('settingsGoalSub').textContent = (state.goalDays || 30) + ' 天';
     if ($('settingsResetSub')) $('settingsResetSub').textContent = resetSummary();
@@ -1252,7 +1268,6 @@
     renderGoalControl();
     renderResetToggles();
     renderThemeControl();
-    if ($('displayNameInput') && document.activeElement !== $('displayNameInput')) $('displayNameInput').value = state.displayName || '';
     $('reasonsEdit').innerHTML = state.reasons.length
       ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由，写下第一条吧。</span></li>';
@@ -1295,14 +1310,6 @@
       applySettingsDom();
       updateSettingsChrome();
     }
-  });
-  $('btnSaveDisplayName').addEventListener('click', function () {
-    var v = $('displayNameInput').value.trim().slice(0, 20);
-    state.displayName = v;
-    state.displayNameSetAt = Date.now();
-    save();
-    refreshChrome();
-    toast(v ? '显示名称已保存' : '已清除显示名称');
   });
   function addReason() {
     var v = $('reasonInput').value.trim();
@@ -1403,7 +1410,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '19';
+  var APP_VERSION = '20';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -1433,6 +1440,23 @@
       updateSettingsChrome();
     },
     updateSettingsChrome: updateSettingsChrome,
+    setLocalProfile: function (patch) {
+      patch = patch || {};
+      if (Object.prototype.hasOwnProperty.call(patch, 'displayName')) {
+        state.displayName = String(patch.displayName || '').trim().slice(0, 20);
+        state.displayNameSetAt = Date.now();
+      }
+      if (Object.prototype.hasOwnProperty.call(patch, 'avatarDataUrl')) {
+        var url = String(patch.avatarDataUrl || '');
+        if (url && (url.indexOf('data:image/') !== 0 || url.length > 180000)) return false;
+        state.avatarDataUrl = url;
+        state.avatarSetAt = Date.now();
+      }
+      save();
+      refreshChrome();
+      if (current === 'settings') updateSettingsChrome();
+      return true;
+    },
     toast: toast, openModal: openModal, closeModal: closeModal, lockScroll: lockScroll, unlockScroll: unlockScroll,
     esc: esc, ic: ic, fmtDT: fmtDT, current: function () { return current; }
   };

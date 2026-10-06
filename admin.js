@@ -197,19 +197,25 @@
     var q = (el.querySelector('#adminUserQ') && el.querySelector('#adminUserQ').value || '').trim().toLowerCase();
     var rows = cache.users.filter(function (u) {
       if (!q) return true;
-      return (u.email || '').toLowerCase().indexOf(q) >= 0 || (u.display_name || '').toLowerCase().indexOf(q) >= 0;
+      return (u.email || '').toLowerCase().indexOf(q) >= 0 || (u.display_name || '').toLowerCase().indexOf(q) >= 0 || (u.handle || '').toLowerCase().indexOf(q.replace(/^@/, '')) >= 0;
     });
     var h = '<div class="admin-card"><div class="admin-toolbar">' +
-      '<input class="grow" type="search" id="adminUserQ" placeholder="搜索邮箱 / 昵称" value="' + esc(q) + '" />' +
+      '<input class="grow" type="search" id="adminUserQ" placeholder="搜索邮箱 / 昵称 / @ID" value="' + esc(q) + '" />' +
       '<button class="btn btn-ghost btn-sm" type="button" id="adminUsersReload">' + ic('refresh-cw') + '刷新</button></div>';
     if (!rows.length) h += '<p class="admin-empty">没有匹配的用户</p>';
     else {
       h += '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>用户</th><th>角色</th><th>注册 / 同步</th><th>操作</th></tr></thead><tbody>';
       rows.forEach(function (u) {
         var isSelf = selfId && u.id === selfId;
-        h += '<tr><td><div><b>' + esc(u.display_name || (u.email || '').split('@')[0] || '用户') + '</b>' +
+        var uname = u.display_name || (u.email || '').split('@')[0] || '用户';
+        var uletter = (uname || '?').slice(0, 1).toUpperCase();
+        var uav = '<span class="avatar admin-avatar' + (u.avatar_url ? ' has-photo' : '') + '">' +
+          (u.avatar_url ? '<img class="avatar-img" alt="" src="' + esc(u.avatar_url) + '" />' : '') +
+          '<span>' + esc(uletter) + '</span></span>';
+        h += '<tr><td><div class="admin-user">' + uav + '<div><b>' + esc(uname) + '</b>' +
           (isSelf ? ' <span class="muted small">（我）</span>' : '') +
-          '</div><div class="mono muted">' + esc(u.email || '—') + '</div></td><td>' +
+          (u.handle ? '<div class="acct-handle">@' + esc(u.handle) + '</div>' : '') +
+          '<div class="mono muted">' + esc(u.email || '—') + '</div></div></div></td><td>' +
           (u.is_admin ? '<span class="pill-tag admin">管理员</span> ' : '<span class="pill-tag muted">用户</span> ') +
           (u.is_banned ? '<span class="pill-tag banned">已禁用</span>' : '') +
           '</td><td><div class="small">' + esc(fmtDT(u.created_at)) + '</div><div class="muted small">同步 ' + esc(fmtDT(u.last_sync_at)) + '</div>' +

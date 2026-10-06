@@ -151,7 +151,9 @@ Supabase MCP **无法**代填 Google Client Secret，请按下列步骤操作：
 ### C. 产品行为
 - 已配置 `config.js` 时：**未登录只能看到登录门禁**，不能使用主应用
 - Google 新用户：OAuth 成功后进入「输入邀请码完成注册」，调用 `complete_invite_registration`
-- 邮箱+邀请码注册路径不变（metadata 带 `invite_code`，触发器直接 `invite_ok=true`）
+- 邮箱+邀请码注册：metadata 带 `invite_code`、`display_name`（昵称，不必唯一）和 `handle`（@ID，不含 @，`^[a-z0-9_]{3,20}$`，全站唯一）。触发器校验失败会返回 `HANDLE_INVALID` 或 `HANDLE_TAKEN`
+- Google 新用户在补填邀请码时也要设置 @ID。已通过邀请、但 `handle` 仍为空的账号会先被要求设置 @ID
+- 头像：登录后在「设置 → 账号与资料」上传，客户端裁成约 256px 方形后写入公开存储桶 `avatars`（路径 `<uid>/...`），再调用 `update_my_profile`
 - `config.js` 留空：仍为纯本机模式
 
 

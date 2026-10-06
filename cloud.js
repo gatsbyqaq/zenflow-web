@@ -106,6 +106,7 @@
     var takeA = a.streakStartSetAt > b.streakStartSetAt || (a.streakStartSetAt === b.streakStartSetAt && a.streakStart >= b.streakStart);
     var goalA = (a.goalSetAt || 0) >= (b.goalSetAt || 0);
     var nameA = (a.displayNameSetAt || 0) >= (b.displayNameSetAt || 0);
+    var avatarA = (a.avatarSetAt || 0) >= (b.avatarSetAt || 0);
     var resetA = (a.resetTypesSetAt || 0) >= (b.resetTypesSetAt || 0);
     var manualA = (a.manualStreakStartSetAt || 0) >= (b.manualStreakStartSetAt || 0);
     var merged = {
@@ -118,6 +119,8 @@
       goalSetAt: Math.max(a.goalSetAt || 0, b.goalSetAt || 0),
       displayName: nameA ? a.displayName : b.displayName,
       displayNameSetAt: Math.max(a.displayNameSetAt || 0, b.displayNameSetAt || 0),
+      avatarDataUrl: avatarA ? (a.avatarDataUrl || '') : (b.avatarDataUrl || ''),
+      avatarSetAt: Math.max(a.avatarSetAt || 0, b.avatarSetAt || 0),
       resetTypes: resetA ? a.resetTypes : b.resetTypes,
       resetTypesSetAt: Math.max(a.resetTypesSetAt || 0, b.resetTypesSetAt || 0),
       manualStreakStart: manualA ? (a.manualStreakStart || 0) : (b.manualStreakStart || 0),
@@ -144,7 +147,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=19'; s.async = true;
+      s.src = 'vendor/supabase.js?v=20'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -152,9 +155,16 @@
   }
 
   /* ---------------- 错误信息（中文） ---------------- */
+  function errText(err) {
+    if (!err) return '';
+    if (typeof err === 'string') return err;
+    return [err.message, err.details, err.hint, err.error_description, err.msg, err.code].filter(Boolean).join(' ');
+  }
   function cn(err) {
-    var m = String((err && (err.message || err.error_description || err.msg)) || err || '');
+    var m = errText(err);
     var code = err && (err.code || err.error_code) || '';
+    if (/HANDLE_TAKEN/.test(m)) return '这个 @ID 已经被占用了，换一个吧';
+    if (/HANDLE_INVALID/.test(m)) return '@ID 需要 3–20 位小写字母、数字或下划线';
     if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已被使用';
     if (/Invalid login credentials/i.test(m) || code === 'invalid_credentials') return '邮箱或密码不正确';
     if (/Email not confirmed/i.test(m)) return '邮箱尚未确认，请先点击确认邮件中的链接';
@@ -165,6 +175,9 @@
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络连接失败，请检查网络后重试';
     if (/NOT_ADMIN/.test(m)) return '只有管理员可以执行此操作';
+    if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
+    if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB，请换一张小一点的';
+    if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
     if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
     if (/provider is not enabled/i.test(m)) return 'Google 登录尚未启用，请在 Supabase Authentication → Providers 中配置';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
@@ -231,40 +244,73 @@
   function localDisplayName() {
     try { return ((Z.getState().displayName) || '').trim(); } catch (e) { return ''; }
   }
-  function renderSideUser() {
-    var nameEl = $('sideName'), subEl = $('sideUserSub'), letterEl = $('sideAvatarLetter'), avatarEl = $('sideAvatar');
-    if (!nameEl || !avatarEl) return;
+  function localAvatarUrl() {
+    try { return Z.getState().avatarDataUrl || ''; } catch (e) { return ''; }
+  }
+  function googleAvatar() {
+    var meta = (user() && user().user_metadata) || {};
+    return meta.avatar_url || meta.picture || '';
+  }
+  function shownName() {
     var u = user();
     var meta = (u && u.user_metadata) || {};
+    var cloudName = (profile && profile.display_name) || '';
     var emailName = u && u.email ? u.email.split('@')[0] : '';
-    var cloudName = (profile && profile.display_name) || meta.full_name || meta.name || '';
-    var name = (cloudName || localDisplayName() || (u ? emailName : '') || '').trim();
-    var img = avatarEl.querySelector('img');
-    if (!u) {
-      nameEl.textContent = name || '未登录';
-      subEl.textContent = configured ? '前往设置' : '本机模式';
-      letterEl.textContent = (name || '?').slice(0, 1).toUpperCase();
-      if (img) img.remove();
-      avatarEl.classList.remove('has-photo');
-      return;
+    if (u) return (cloudName || meta.full_name || meta.name || localDisplayName() || emailName || '').trim();
+    return localDisplayName();
+  }
+  function shownHandle() {
+    return (profile && profile.handle) ? ('@' + profile.handle) : '';
+  }
+  function shownAvatar() {
+    if (user() && profile && profile.avatar_url) return profile.avatar_url;
+    if (user()) {
+      var g = googleAvatar();
+      if (g) return g;
     }
-    nameEl.textContent = name || '已登录';
-    subEl.textContent = syncLabel().text;
-    letterEl.textContent = (name || emailName || '?').slice(0, 1).toUpperCase();
-    var url = meta.avatar_url || meta.picture || '';
+    if (!user()) return localAvatarUrl();
+    return '';
+  }
+  function paintAvatar(el, letterEl, url, letter) {
+    if (!el) return;
+    if (letterEl) letterEl.textContent = (letter || '?').slice(0, 1).toUpperCase();
+    var img = el.querySelector('img');
     if (url) {
       if (!img) {
         img = document.createElement('img');
         img.alt = '';
-        img.className = 'side-avatar-img';
-        avatarEl.insertBefore(img, letterEl);
+        img.className = 'avatar-img';
+        el.insertBefore(img, letterEl || el.firstChild);
       }
       if (img.getAttribute('src') !== url) img.src = url;
-      avatarEl.classList.add('has-photo');
+      img.onerror = function () { el.classList.remove('has-photo'); img.remove(); };
+      el.classList.add('has-photo');
     } else {
       if (img) img.remove();
-      avatarEl.classList.remove('has-photo');
+      el.classList.remove('has-photo');
     }
+  }
+  function avatarHtml(url, letter, extra) {
+    var cls = 'avatar' + (extra ? ' ' + extra : '') + (url ? ' has-photo' : '');
+    var img = url ? '<img class="avatar-img" alt="" src="' + esc(url) + '" />' : '';
+    return '<span class="' + cls + '">' + img + '<span>' + esc((letter || '?').slice(0, 1).toUpperCase()) + '</span></span>';
+  }
+  function renderSideUser() {
+    var nameEl = $('sideName'), subEl = $('sideUserSub'), letterEl = $('sideAvatarLetter'), avatarEl = $('sideAvatar');
+    if (!nameEl || !avatarEl) return;
+    var u = user();
+    var name = shownName();
+    var handle = shownHandle();
+    nameEl.textContent = name || (u ? '已登录' : '未登录');
+    if (handle) subEl.textContent = handle;
+    else if (!u) subEl.textContent = configured ? '前往设置' : '本机模式';
+    else subEl.textContent = syncLabel().text;
+    paintAvatar(avatarEl, letterEl, shownAvatar(), name || (u && u.email) || '?');
+    var meName = $('settingsMeName'), meSub = $('settingsMeSub');
+    if (meName) meName.textContent = name || (u ? '已登录' : '未登录');
+    if (meSub) meSub.textContent = handle || (!u ? (configured ? '前往设置' : '本机模式') : (u.email || syncLabel().text));
+    paintAvatar($('settingsMeAvatar'), $('settingsMeLetter'), shownAvatar(), name || '?');
+    fillProfileForm();
   }
   function renderChrome() {
     var L = syncLabel();
@@ -308,10 +354,11 @@
         (cfg.source === 'local' ? '<p class="muted small acct-src">使用本机连接设置 · <button class="btn-link" id="btnCloudSetup">修改</button></p>' : '');
       return;
     }
-    var name = (profile && profile.display_name) || (u.email || '').split('@')[0];
-    var h = '<div class="acct-head"><span class="avatar">' + esc((name || '?').slice(0, 1).toUpperCase()) + '</span><div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
-      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div>' +
-      '<button class="icon-btn" id="btnEditName" aria-label="修改昵称" title="修改昵称">' + ic('pen-line') + '</button></div>' +
+    var name = shownName() || (u.email || '').split('@')[0];
+    var handle = shownHandle();
+    var h = '<div class="acct-head">' + avatarHtml(shownAvatar(), name, 'story-avatar acct-avatar') + '<div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
+      (handle ? '<span class="acct-handle">' + esc(handle) + '</span>' : '') +
+      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div></div>' +
       '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
       '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
       '<p class="muted small">退出登录在设置列表最下方。管理员入口也在设置列表里。</p>';
@@ -335,9 +382,9 @@
   async function loadProfile() {
     profile = null; invites = null; profileReady = false;
     if (!user()) { profileReady = true; updateGate(); return; }
-    var r = await sb.from('profiles').select('display_name,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
+    var r = await sb.from('profiles').select('display_name,handle,avatar_url,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
     if (!r.error) profile = r.data;
-    if (!profile) profile = { display_name: null, is_admin: false, invite_ok: false };
+    if (!profile) profile = { display_name: null, handle: null, avatar_url: null, is_admin: false, invite_ok: false };
     profileReady = true;
     renderAccount();
     renderChrome();
@@ -360,7 +407,7 @@
     $('authMask').classList.remove('hidden');
     if (!isGated()) Z.lockScroll();
     setTimeout(function () {
-      var focusEl = (authMode === 'register' ? $('regInvite') : $('loginEmail'));
+      var focusEl = (authMode === 'register' ? $('regName') : $('loginEmail'));
       if (focusEl) focusEl.focus();
     }, 60);
   }
@@ -382,7 +429,7 @@
     $('authTitle').textContent = authMode === 'login' ? '登录 ZenFlow' : '用邀请码注册';
     $('authSub').textContent = authMode === 'login'
       ? '登录后即可使用全部功能，数据会安全同步到你的账号。'
-      : '注册需要有效邀请码。也可用 Google 登录后再补填邀请码。';
+      : '注册需要全站唯一的 @ID 和有效邀请码。昵称可以重复。';
   }
   function peekPersistedSession() {
     try {
@@ -422,12 +469,44 @@
     $('authSeg').classList.add('hidden');
     if ($('authMainPane')) $('authMainPane').classList.add('hidden');
     $('formInviteGate').classList.remove('hidden');
+    if ($('gateInviteField')) $('gateInviteField').classList.remove('hidden');
+    if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
     $('authTitle').textContent = '输入邀请码完成注册';
     var email = (user() && user().email) || '';
     $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
-    $('inviteGateHint').textContent = 'Google / 第三方登录成功。ZenFlow 仅限邀请制，请输入管理员发给你的邀请码。';
+    $('inviteGateHint').textContent = 'Google / 第三方登录成功。请填写邀请码，并设置一个全站唯一的 @ID。';
+    var btn = $('btnCompleteInvite');
+    if (btn) btn.innerHTML = ic('ticket') + '完成注册';
+    prefillGateProfile();
     $('gateMsg').textContent = '';
     setTimeout(function () { var el = $('gateInvite'); if (el) el.focus(); }, 60);
+  }
+  function showHandleOnlyGate() {
+    gateMode = 'handle';
+    document.body.classList.remove('auth-booting');
+    document.body.classList.add('auth-gated');
+    document.body.classList.add('auth-ready');
+    $('authMask').classList.remove('hidden');
+    $('authSeg').classList.add('hidden');
+    if ($('authMainPane')) $('authMainPane').classList.add('hidden');
+    $('formInviteGate').classList.remove('hidden');
+    if ($('gateInviteField')) $('gateInviteField').classList.add('hidden');
+    if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
+    $('authTitle').textContent = '设置你的 @ID';
+    var email = (user() && user().email) || '';
+    $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
+    $('inviteGateHint').textContent = '这个账号还没有 @ID。请设置一个全站唯一的 ID，昵称可以之后再改。';
+    var btn = $('btnCompleteInvite');
+    if (btn) btn.innerHTML = ic('circle-check') + '保存并进入';
+    prefillGateProfile();
+    $('gateMsg').textContent = '';
+    setTimeout(function () { var el = $('gateHandle'); if (el) el.focus(); }, 60);
+  }
+  function prefillGateProfile() {
+    var nameEl = $('gateName');
+    var handleEl = $('gateHandle');
+    if (nameEl && document.activeElement !== nameEl && !nameEl.value) nameEl.value = (profile && profile.display_name) || '';
+    if (handleEl && document.activeElement !== handleEl && profile && profile.handle && !handleEl.value) handleEl.value = profile.handle;
   }
   function showLoginGate() {
     gateMode = 'login';
@@ -475,7 +554,8 @@
       showBootSplash('正在进入…');
       return;
     }
-    if (profile.invite_ok) { clearGate(); return; }
+    if (profile.invite_ok && profile.handle) { clearGate(); return; }
+    if (profile.invite_ok && !profile.handle) { showHandleOnlyGate(); return; }
     showInviteGate();
   }
   function msg(id, text, ok) { var el = $(id); el.textContent = text || ''; el.classList.toggle('ok', !!ok); }
@@ -484,7 +564,55 @@
     else { btn.disabled = false; if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
   }
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var HANDLE_RE = /^[a-z0-9_]{3,20}$/;
   function normInvite(v) { return String(v || '').replace(/\s+/g, '').toUpperCase(); }
+  function normalizeHandleInput(raw) {
+    return String(raw || '').replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
+  }
+  function handleProblem(h) {
+    if (!h) return '请设置一个 @ID';
+    if (h.length < 3) return '@ID 至少 3 位';
+    if (!HANDLE_RE.test(h)) return '@ID 只能使用小写字母、数字或下划线';
+    return '';
+  }
+  function bindHandleInput(input, stateEl) {
+    if (!input || !stateEl) return { check: function () { return Promise.resolve(null); } };
+    var timer = null, seq = 0;
+    function paint(cls, html) {
+      stateEl.className = 'invite-state' + (cls ? ' ' + cls : '');
+      stateEl.innerHTML = html || '';
+    }
+    function applyValue() {
+      var h = normalizeHandleInput(input.value);
+      if (input.value !== h) input.value = h;
+      return h;
+    }
+    async function check() {
+      var h = applyValue();
+      if (!h) { paint('', ''); return null; }
+      var problem = handleProblem(h);
+      if (problem) { paint('bad', ic('circle-alert') + (h.length < 3 ? '至少 3 位' : '格式不对')); return 'invalid'; }
+      if (!sb) { paint('', ''); return null; }
+      var my = ++seq;
+      paint('', ic('loader-circle', 'spin'));
+      var r = await sb.rpc('is_handle_available', { p_handle: h });
+      if (my !== seq) return null;
+      if (r.error) { paint('', ''); return null; }
+      paint(r.data ? 'good' : 'bad', r.data ? (ic('circle-check') + '可用') : (ic('circle-alert') + '已被占用'));
+      return !!r.data;
+    }
+    function schedule() {
+      applyValue();
+      paint('', '');
+      clearTimeout(timer);
+      timer = setTimeout(check, 350);
+    }
+    input.addEventListener('compositionstart', function () { input.dataset.composing = '1'; });
+    input.addEventListener('compositionend', function () { delete input.dataset.composing; schedule(); });
+    input.addEventListener('input', function () { if (input.dataset.composing) return; schedule(); });
+    input.addEventListener('blur', function () { clearTimeout(timer); check(); });
+    return { check: check, paint: paint };
+  }
 
   var inviteCheckSeq = 0;
   async function checkInvite() {
@@ -536,19 +664,37 @@
 
   async function doCompleteInvite(e) {
     e.preventDefault();
-    var code = normInvite($('gateInvite').value), name = $('gateName').value.trim();
-    if (!code) return msg('gateMsg', '请输入邀请码');
+    var needInvite = gateMode !== 'handle';
+    var code = needInvite ? normInvite($('gateInvite').value) : '';
+    var name = $('gateName').value.trim();
+    var handle = normalizeHandleInput($('gateHandle').value);
+    var needHandle = !(profile && profile.handle) || handle !== (profile && profile.handle);
+    if (needInvite && !code) return msg('gateMsg', '请输入邀请码');
+    if (needHandle || !profile || !profile.handle) {
+      var problem = handleProblem(handle);
+      if (problem) return msg('gateMsg', problem);
+    }
     var btn = $('btnCompleteInvite'); busy(btn, true, '验证中…'); msg('gateMsg', '');
     try {
-      var valid = await checkGateInvite();
-      if (valid === false) throw new Error('INVITE_INVALID');
-      var r = await sb.rpc('complete_invite_registration', { p_code: code, p_display_name: name || null });
+      if (needInvite) {
+        var valid = await checkGateInvite();
+        if (valid === false) throw new Error('INVITE_INVALID');
+      }
+      if (needHandle || !profile || !profile.handle) {
+        var avail = gateHandleCheck ? await gateHandleCheck.check() : null;
+        if (avail === 'invalid') throw new Error('HANDLE_INVALID');
+        if (avail === false) throw new Error('HANDLE_TAKEN');
+      }
+      var r = needInvite
+        ? await sb.rpc('complete_invite_registration', { p_code: code, p_display_name: name || null, p_handle: handle || null })
+        : await sb.rpc('update_my_profile', { p_display_name: name || null, p_handle: handle, p_avatar_url: null });
       if (r.error) throw r.error;
-      profile = r.data;
-      Z.toast('注册完成，欢迎加入');
+      profile = r.data || profile;
+      Z.toast(needInvite ? '注册完成，欢迎加入' : '已设置 @ID');
       updateGate();
       renderAccount();
-      syncNow();
+      renderChrome();
+      if (profile && profile.invite_ok) syncNow();
       if (profile && profile.is_admin && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
     } catch (err) { msg('gateMsg', cn(err)); }
     finally { busy(btn, false); }
@@ -571,16 +717,22 @@
   async function doRegister(e) {
     e.preventDefault();
     var code = normInvite($('regInvite').value), name = $('regName').value.trim(), email = $('regEmail').value.trim();
+    var handle = normalizeHandleInput($('regHandle').value);
     var pw = $('regPassword').value, pw2 = $('regPassword2').value;
-    if (!code) return msg('regMsg', '请输入邀请码');
+    var problem = handleProblem(handle);
+    if (problem) return msg('regMsg', problem);
     if (!EMAIL_RE.test(email)) return msg('regMsg', '请输入有效的邮箱');
     if (pw.length < 8) return msg('regMsg', '密码至少 8 位');
     if (pw !== pw2) return msg('regMsg', '两次输入的密码不一致');
+    if (!code) return msg('regMsg', '请输入邀请码');
     var btn = $('btnRegister'); busy(btn, true, '注册中…'); msg('regMsg', '');
     try {
+      var avail = regHandleCheck ? await regHandleCheck.check() : null;
+      if (avail === 'invalid') throw new Error('HANDLE_INVALID');
+      if (avail === false) throw new Error('HANDLE_TAKEN');
       var valid = await checkInvite();
       if (valid === false) throw new Error('INVITE_INVALID');
-      var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null }, emailRedirectTo: appUrl() } });
+      var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null, handle: handle }, emailRedirectTo: appUrl() } });
       if (r.error) throw r.error;
       $('regPassword').value = ''; $('regPassword2').value = '';
       if (r.data && r.data.session) { Z.toast('注册成功，欢迎加入'); }
@@ -634,6 +786,178 @@
     if (c) c.addEventListener('click', function () { localStorage.removeItem(OVERRIDE_KEY); location.reload(); });
   }
 
+  /* ---------------- 资料：昵称 / @ID / 头像 ---------------- */
+  function loggedProfile() { return !!(configured && user() && profile); }
+  function fillProfileForm() {
+    var nameInput = $('profileNameInput');
+    var handleInput = $('profileHandleInput');
+    var block = $('profileHandleBlock');
+    var hint = $('profileModeHint');
+    var removeBtn = $('btnAvatarRemove');
+    var logged = loggedProfile();
+    if (block) block.classList.toggle('hidden', !logged);
+    if (hint) hint.textContent = logged
+      ? '昵称、@ID 和头像保存在你的账号里。留空昵称再保存可以清除昵称。'
+      : '当前是本机模式：昵称和头像只保存在这台设备，不需要 @ID。';
+    if (nameInput && document.activeElement !== nameInput && nameInput.dataset.useredit !== '1') {
+      var nextName = logged ? ((profile && profile.display_name) || '') : localDisplayName();
+      if (nameInput.value !== nextName) nameInput.value = nextName;
+    }
+    if (handleInput && logged && document.activeElement !== handleInput && handleInput.dataset.useredit !== '1') {
+      var nextHandle = (profile && profile.handle) || '';
+      if (handleInput.value !== nextHandle) handleInput.value = nextHandle;
+    }
+    var letter = shownName() || '?';
+    paintAvatar($('profileAvatar'), $('profileAvatarLetter'), shownAvatar(), letter);
+    if (removeBtn) {
+      var canRemove = logged ? !!(profile && profile.avatar_url) : !!localAvatarUrl();
+      removeBtn.classList.toggle('hidden', !canRemove);
+    }
+  }
+  function fileToSquareBlob(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file) return reject(new Error('没有选择图片'));
+      if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return reject(new Error('请选择 PNG、JPG、WebP 或 GIF'));
+      if (file.size > 12 * 1024 * 1024) return reject(new Error('原图太大，请换一张小一点的'));
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var s = 256;
+        var canvas = document.createElement('canvas');
+        canvas.width = s; canvas.height = s;
+        var ctx = canvas.getContext('2d');
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var side = Math.min(w, h);
+        ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, s, s);
+        URL.revokeObjectURL(url);
+        var finish = function (blob) { blob ? resolve(blob) : reject(new Error('无法处理这张图片')); };
+        if (!canvas.toBlob) return reject(new Error('浏览器不支持图片处理'));
+        canvas.toBlob(function (blob) {
+          if (blob) return finish(blob);
+          canvas.toBlob(finish, 'image/jpeg', 0.86);
+        }, 'image/webp', 0.86);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('无法读取图片')); };
+      img.src = url;
+    });
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = function () { reject(new Error('无法读取图片')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+  function avatarStoragePath(url) {
+    if (!url || !user()) return '';
+    var marker = '/avatars/';
+    var i = String(url).indexOf(marker);
+    if (i < 0) return '';
+    var path = String(url).slice(i + marker.length).split('?')[0];
+    try { path = decodeURIComponent(path); } catch (e) {}
+    if (path.indexOf(user().id + '/') !== 0) return '';
+    return path;
+  }
+  function deleteStoredAvatar(url) {
+    var path = avatarStoragePath(url);
+    if (!path || !sb) return Promise.resolve();
+    return sb.storage.from('avatars').remove([path]).then(function () {}, function () {});
+  }
+  async function applyAvatarFile(file) {
+    var blob = await fileToSquareBlob(file);
+    if (!loggedProfile()) {
+      var dataUrl = await blobToDataUrl(blob);
+      if (dataUrl.length > 180000) throw new Error('处理后的图片仍然太大，请换一张');
+      if (Z.setLocalProfile && Z.setLocalProfile({ avatarDataUrl: dataUrl }) === false) throw new Error('无法保存头像');
+      Z.toast('头像已更新');
+      renderChrome();
+      return;
+    }
+    var ext = blob.type === 'image/jpeg' ? 'jpg' : (blob.type === 'image/png' ? 'png' : 'webp');
+    var path = user().id + '/avatar-' + Date.now() + '.' + ext;
+    var up = await sb.storage.from('avatars').upload(path, blob, { contentType: blob.type || 'image/webp', cacheControl: '3600', upsert: false });
+    if (up.error) throw up.error;
+    var pub = sb.storage.from('avatars').getPublicUrl(path);
+    var url = pub && pub.data && pub.data.publicUrl;
+    if (!url) {
+      await sb.storage.from('avatars').remove([path]);
+      throw new Error('无法取得头像地址');
+    }
+    var prev = profile && profile.avatar_url;
+    var r = await sb.rpc('update_my_profile', { p_display_name: null, p_handle: null, p_avatar_url: url });
+    if (r.error) {
+      await sb.storage.from('avatars').remove([path]);
+      throw r.error;
+    }
+    profile = r.data || Object.assign({}, profile, { avatar_url: url });
+    if (prev && prev !== url) deleteStoredAvatar(prev);
+    Z.toast('头像已更新');
+    renderAccount();
+    renderChrome();
+  }
+  async function removeAvatar() {
+    if (!loggedProfile()) {
+      if (Z.setLocalProfile) Z.setLocalProfile({ avatarDataUrl: '' });
+      Z.toast('已移除头像');
+      renderChrome();
+      return;
+    }
+    var prev = profile && profile.avatar_url;
+    var r = await sb.rpc('update_my_profile', { p_display_name: null, p_handle: null, p_avatar_url: '' });
+    if (r.error) return Z.toast(cn(r.error));
+    profile = r.data || Object.assign({}, profile, { avatar_url: null });
+    if (prev) deleteStoredAvatar(prev);
+    Z.toast('已移除头像');
+    renderAccount();
+    renderChrome();
+  }
+  async function saveProfile() {
+    var nameInput = $('profileNameInput');
+    if (!nameInput) return;
+    var name = nameInput.value.trim().slice(0, 20);
+    if (!loggedProfile()) {
+      if (nameInput) delete nameInput.dataset.useredit;
+      if (Z.setLocalProfile) Z.setLocalProfile({ displayName: name });
+      Z.toast(name ? '昵称已保存' : '已清除昵称');
+      renderChrome();
+      return;
+    }
+    var handleInput = $('profileHandleInput');
+    var handle = normalizeHandleInput(handleInput ? handleInput.value : '');
+    var current = (profile && profile.handle) || '';
+    var handleChanged = handle !== current;
+    if (handleChanged) {
+      var problem = handleProblem(handle);
+      if (problem) { Z.toast(problem); return; }
+      var avail = profileHandleCheck ? await profileHandleCheck.check() : null;
+      if (avail === 'invalid') { Z.toast(cn(new Error('HANDLE_INVALID'))); return; }
+      if (avail === false) { Z.toast(cn(new Error('HANDLE_TAKEN'))); return; }
+    }
+    var btn = $('btnSaveProfile');
+    if (btn) busy(btn, true, '保存中…');
+    try {
+      var r = await sb.rpc('update_my_profile', {
+        p_display_name: name || null,
+        p_handle: handleChanged ? handle : null,
+        p_avatar_url: null
+      });
+      if (r.error) throw r.error;
+      profile = r.data || profile;
+      if (!name && profile && profile.display_name) {
+        var cleared = await sb.from('profiles').update({ display_name: null }).eq('id', user().id).select('display_name,handle,avatar_url,is_admin,invite_ok').maybeSingle();
+        if (cleared.error) throw cleared.error;
+        if (cleared.data) profile = Object.assign({}, profile, cleared.data);
+      }
+      if (nameInput) delete nameInput.dataset.useredit;
+      if (handleInput) delete handleInput.dataset.useredit;
+      Z.toast('资料已更新');
+      renderAccount();
+      renderChrome();
+    } catch (err) { Z.toast(cn(err)); }
+    finally { if (btn) busy(btn, false); }
+  }
+
   /* ---------------- 事件 ---------------- */
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t) return;
@@ -649,19 +973,6 @@
           title: '退出登录？', ok: '退出登录', danger: true,
           html: '<p>退出后，这台设备上的数据<b>仍会保留</b>，可以继续离线使用；再次登录时会自动合并同步。</p>',
           onOk: function () { clearTimeout(pushTimer); sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); }); }
-        });
-        break;
-      case 'btnEditName':
-        Z.openModal({
-          title: '修改昵称', ok: '保存',
-          html: '<input type="text" id="nameInput" maxlength="20" value="' + esc((profile && profile.display_name) || '') + '" placeholder="昵称" />',
-          onOk: function () {
-            var v = $('nameInput').value.trim();
-            sb.from('profiles').update({ display_name: v || null }).eq('id', user().id).then(function (r) {
-              if (r.error) return Z.toast(cn(r.error));
-              profile = Object.assign({}, profile, { display_name: v || null }); renderAccount(); renderChrome(); Z.toast('昵称已更新');
-            });
-          }
         });
         break;
       case 'btnNewInvites':
@@ -698,6 +1009,30 @@
   $('regInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('inviteState').innerHTML = ''; $('inviteState').className = 'invite-state'; });
   $('gateInvite').addEventListener('blur', checkGateInvite);
   $('gateInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('gateInviteState').innerHTML = ''; $('gateInviteState').className = 'invite-state'; });
+  var regHandleCheck = bindHandleInput($('regHandle'), $('regHandleState'));
+  var gateHandleCheck = bindHandleInput($('gateHandle'), $('gateHandleState'));
+  var profileHandleCheck = bindHandleInput($('profileHandleInput'), $('profileHandleState'));
+  if ($('btnSaveProfile')) $('btnSaveProfile').addEventListener('click', function () { saveProfile(); });
+  ['profileNameInput', 'profileHandleInput'].forEach(function (id) {
+    var el = $(id);
+    if (el) el.addEventListener('input', function () { this.dataset.useredit = '1'; });
+  });
+  if ($('btnAvatarChange')) $('btnAvatarChange').addEventListener('click', function () { var f = $('avatarFile'); if (f) f.click(); });
+  if ($('avatarFile')) $('avatarFile').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    this.value = '';
+    if (!file) return;
+    var btn = $('btnAvatarChange');
+    if (btn) busy(btn, true, '处理中…');
+    applyAvatarFile(file).catch(function (err) { Z.toast(cn(err)); }).then(function () { if (btn) busy(btn, false); });
+  });
+  if ($('btnAvatarRemove')) $('btnAvatarRemove').addEventListener('click', function () {
+    Z.openModal({
+      title: '移除头像？', ok: '移除', danger: true,
+      html: '<p>移除后会显示名字首字母。如果这个账号用 Google 登录，没有自定义头像时仍会显示 Google 头像。</p>',
+      onOk: function () { removeAvatar(); }
+    });
+  });
 
   /* ---------------- 启动 ---------------- */
   window.ZFCloud = {

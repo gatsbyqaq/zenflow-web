@@ -31,7 +31,7 @@
   <meta name="description" content="ZenFlow：一个温和、基于科学的自律与专注小助手。数据只保存在本机。" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=19" />
+  <link rel="stylesheet" href="styles.css?v=20" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -56,6 +56,7 @@
 <symbol id="i-brush-cleaning" viewBox="0 0 24 24"><path d="m16 22-1-4"/><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"/><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"/><path d="m8 22 1-4"/></symbol>
 <symbol id="i-calendar-check" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="m9 15 2 2 4-4"/></symbol>
 <symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
 <symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
@@ -422,9 +423,18 @@
     <section class="screen" id="screen-settings" data-screen="settings">
       <header class="page-head settings-head">
         <button class="icon-btn settings-back hidden" id="settingsBack" type="button" aria-label="返回"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
-        <div>
-          <p class="eyebrow" id="settingsEyebrow">设置</p>
-          <h1 id="settingsTitle">属于你的空间</h1>
+        <div class="settings-head-main">
+          <div class="settings-me m-only" id="settingsMe">
+            <span class="avatar story-avatar settings-me-avatar" id="settingsMeAvatar"><span id="settingsMeLetter">?</span></span>
+            <span class="settings-me-text">
+              <b id="settingsMeName">未登录</b>
+              <small id="settingsMeSub">本机模式</small>
+            </span>
+          </div>
+          <div>
+            <p class="eyebrow" id="settingsEyebrow">设置</p>
+            <h1 id="settingsTitle">属于你的空间</h1>
+          </div>
         </div>
       </header>
 
@@ -505,13 +515,34 @@
           </div>
           <div id="accountBody"><p class="muted small">未登录：所有数据只保存在这台设备上。</p></div>
         </div>
-        <div class="card">
-          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>显示名称</h2>
-          <p class="muted small">显示在桌面侧栏底部。登录后如果账号里有昵称，优先用昵称。</p>
-          <div class="add-row">
-            <input type="text" id="displayNameInput" maxlength="20" placeholder="怎么称呼你" autocomplete="nickname" />
-            <button class="btn btn-primary" id="btnSaveDisplayName" type="button">保存</button>
+        <div class="card" id="profileCard">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>个人资料</h2>
+          <div class="avatar-edit">
+            <span class="avatar story-avatar profile-avatar" id="profileAvatar"><span id="profileAvatarLetter">?</span></span>
+            <div class="avatar-edit-actions">
+              <button class="btn btn-ghost btn-sm" type="button" id="btnAvatarChange"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>更换</button>
+              <button class="btn btn-ghost btn-sm hidden" type="button" id="btnAvatarRemove">移除</button>
+              <input type="file" id="avatarFile" class="hidden" accept="image/png,image/jpeg,image/webp,image/gif" />
+            </div>
           </div>
+          <label class="field"><span>昵称</span>
+            <input type="text" id="profileNameInput" maxlength="20" placeholder="怎么称呼你" autocomplete="nickname" />
+          </label>
+          <p class="muted small">昵称不必唯一，会显示在侧栏和设置页。</p>
+          <div id="profileHandleBlock" class="hidden">
+            <label class="field"><span>@ID</span>
+              <span class="handle-row">
+                <span class="handle-at" aria-hidden="true">@</span>
+                <input type="text" id="profileHandleInput" maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="your_id" aria-describedby="profileHandleState" />
+                <span class="invite-state" id="profileHandleState" aria-live="polite"></span>
+              </span>
+            </label>
+            <p class="muted small">3–20 位小写字母、数字或下划线，全站唯一。</p>
+          </div>
+          <div class="acct-actions">
+            <button class="btn btn-primary" type="button" id="btnSaveProfile">保存资料</button>
+          </div>
+          <p class="muted small" id="profileModeHint"></p>
         </div>
       </div>
 
@@ -591,7 +622,7 @@
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small">ZenFlow · 戒色 · 自律 · 平静。一个温和、基于科学的自我提升小工具，帮助你把注意力和精力留给真正重要的事。</p>
           <p class="small muted">本应用不能替代专业帮助。如果你感到长期困扰、焦虑或情绪低落，寻求心理咨询师或医生的支持是勇敢而明智的选择。</p>
-          <p class="small muted app-version" id="appVersion">版本 v19</p>
+          <p class="small muted app-version" id="appVersion">版本 v20</p>
         </div>
       </div>
       </div>
@@ -675,25 +706,41 @@
         </form>
 
         <form class="auth-form hidden" id="formRegister" novalidate>
-          <label class="field"><span>邀请码</span>
-            <span class="invite-row"><input type="text" id="regInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="inviteState" aria-live="polite"></span></span>
+          <label class="field"><span>昵称</span><input type="text" id="regName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你，可不唯一" /></label>
+          <label class="field"><span>@ID</span>
+            <span class="handle-row">
+              <span class="handle-at" aria-hidden="true">@</span>
+              <input type="text" id="regHandle" maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="your_id" aria-describedby="regHandleState" />
+              <span class="invite-state" id="regHandleState" aria-live="polite"></span>
+            </span>
           </label>
-          <label class="field"><span>昵称（可选）</span><input type="text" id="regName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你" /></label>
+          <p class="field-hint">3–20 位小写字母、数字或下划线，全站唯一。</p>
           <label class="field"><span>邮箱</span><input type="email" id="regEmail" autocomplete="username" inputmode="email" placeholder="you@example.com" /></label>
           <label class="field"><span>密码（至少 8 位）</span><input type="password" id="regPassword" autocomplete="new-password" /></label>
           <label class="field"><span>确认密码</span><input type="password" id="regPassword2" autocomplete="new-password" /></label>
+          <label class="field"><span>邀请码</span>
+            <span class="invite-row"><input type="text" id="regInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="inviteState" aria-live="polite"></span></span>
+          </label>
           <p class="auth-msg" id="regMsg" role="alert"></p>
           <button class="btn btn-primary btn-block" type="submit" id="btnRegister"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>注册</button>
-          <p class="muted small center auth-note">ZenFlow 仅限邀请注册。也可用上方 Google 登录，再补填邀请码。</p>
+          <p class="muted small center auth-note">ZenFlow 仅限邀请注册。也可用上方 Google 登录，再补填邀请码和 @ID。</p>
         </form>
       </div>
 
       <form class="auth-form hidden" id="formInviteGate" novalidate>
         <p class="small" id="inviteGateHint">你已用第三方账号登录。请输入邀请码以完成注册并进入应用。</p>
-        <label class="field"><span>邀请码</span>
+        <label class="field" id="gateInviteField"><span>邀请码</span>
           <span class="invite-row"><input type="text" id="gateInvite" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ZF-XXXX-XXXX" /><span class="invite-state" id="gateInviteState" aria-live="polite"></span></span>
         </label>
-        <label class="field"><span>昵称（可选）</span><input type="text" id="gateName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你" /></label>
+        <label class="field" id="gateNameField"><span>昵称（可选）</span><input type="text" id="gateName" maxlength="20" autocomplete="nickname" placeholder="怎么称呼你，可不唯一" /></label>
+        <label class="field" id="gateHandleField"><span>@ID</span>
+          <span class="handle-row">
+            <span class="handle-at" aria-hidden="true">@</span>
+            <input type="text" id="gateHandle" maxlength="20" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="your_id" aria-describedby="gateHandleState" />
+            <span class="invite-state" id="gateHandleState" aria-live="polite"></span>
+          </span>
+        </label>
+        <p class="field-hint">3–20 位小写字母、数字或下划线，全站唯一。</p>
         <p class="auth-msg" id="gateMsg" role="alert"></p>
         <button class="btn btn-primary btn-block" type="submit" id="btnCompleteInvite"><svg class="ic" aria-hidden="true"><use href="#i-ticket"/></svg>完成注册</button>
         <button class="btn-link center-block muted" type="button" id="btnGateLogout">换一个账号</button>
@@ -762,7 +809,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=19"></script>
+<script src="config.js?v=20"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -771,10 +818,10 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=19"></script>
-<script src="streak.js?v=19"></script>
-<script src="app.js?v=19"></script>
-<script src="cloud.js?v=19"></script>
-<script src="admin.js?v=19"></script>
+<script src="data.js?v=20"></script>
+<script src="streak.js?v=20"></script>
+<script src="app.js?v=20"></script>
+<script src="cloud.js?v=20"></script>
+<script src="admin.js?v=20"></script>
 </body>
 </html>

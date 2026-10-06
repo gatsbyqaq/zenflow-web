@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"19";
+  --zf-css:"20";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -641,7 +641,7 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   .side-user{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-radius:12px;padding:8px;text-align:left}
   .side-user-text{display:flex;flex-direction:column;min-width:0;gap:1px}
   .side-user b{display:block;font-size:14px;font-weight:700;letter-spacing:0;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .side-user small{color:var(--muted);font-size:12px;font-weight:500}
+  .side-user small{color:var(--muted);font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .side-avatar{
     width:36px;height:36px;padding:2px;border-radius:50%;overflow:hidden;
     background:var(--story);display:flex;
@@ -738,11 +738,21 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-weight:700;font-size:16px;color:var(--text);background:var(--field);border:none;flex-shrink:0;overflow:hidden;
 }
-.avatar.side-avatar{
-  width:36px;height:36px;padding:2px;background:var(--story);overflow:hidden;
+.avatar > span{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+.avatar.has-photo > span{display:none}
+.avatar-img,.side-avatar-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;flex:1;min-width:0}
+.avatar.side-avatar,.story-avatar{
+  padding:2px;background:var(--story);overflow:hidden;
+}
+.avatar.side-avatar{width:36px;height:36px}
+.story-avatar > span{
+  flex:1;align-self:stretch;width:auto;height:auto;border-radius:50%;
+  background:var(--card);color:var(--text);font-weight:700;
 }
 .acct-id{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.acct-id b{font-size:15px;font-weight:700}
+.acct-id b{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-handle{font-size:13px;font-weight:600;color:var(--muted)}
+.acct-avatar{width:48px;height:48px;font-size:18px}
 .admin-tag{display:inline-block;align-self:flex-start;font-size:11px;font-weight:700;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,var(--card));border-radius:999px;padding:2px 8px;margin-top:2px}
 .acct-sync{display:flex;align-items:center;gap:8px;margin:14px 0 0;padding:12px;border-radius:12px;background:var(--field);font-size:13px;color:var(--text2)}
 .acct-sync .ic{width:16px;height:16px;stroke-width:2;color:var(--text);flex-shrink:0}
@@ -775,8 +785,18 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .auth-seg .seg-btn{display:flex;align-items:center;justify-content:center;gap:6px}
 .auth-seg .seg-btn .ic{width:14px;height:14px}
 .auth-form .field{margin-top:12px}
+.field > .invite-row,.field > .handle-row{display:flex;align-items:center;font-weight:500;font-size:inherit;color:inherit;margin-bottom:0}
 .invite-row{display:flex;align-items:center;gap:8px}
-.invite-row input{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase}
+.invite-row input{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase}
+.handle-row{
+  display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:8px;background:var(--field);padding-left:12px;
+}
+.handle-row:focus-within{border-color:#a8a8a8;background:var(--card)}
+.handle-at{font-weight:700;color:var(--muted);flex-shrink:0;user-select:none}
+.handle-row input{flex:1;min-width:0;width:auto;border:none;background:transparent;padding-left:2px;border-radius:8px}
+.handle-row input:focus{border-color:transparent;background:transparent}
+.handle-row .invite-state{padding-right:8px}
+.field-hint{display:block;margin:6px 0 0;font-size:12px;font-weight:500;color:var(--muted);line-height:1.45}
 .invite-state{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;white-space:nowrap;min-width:4.2em;color:var(--muted)}
 .invite-state .ic{width:14px;height:14px}
 .invite-state.good{color:var(--mint)}
@@ -823,6 +843,9 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:
 .admin-table th{font-size:12px;color:var(--muted);font-weight:700;background:var(--field);position:sticky;top:0}
 .admin-table tr:last-child td{border-bottom:none}
 .admin-table .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+.admin-user{display:flex;align-items:center;gap:10px;min-width:0}
+.admin-user > div{min-width:0}
+.admin-avatar{width:36px;height:36px;font-size:14px}
 .admin-actions{display:flex;flex-wrap:wrap;gap:6px}
 .admin-actions .btn{padding:6px 8px;font-size:12px;margin:0}
 .pill-tag{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--field);color:var(--muted)}
@@ -870,9 +893,24 @@ body.auth-ready #authBoot{display:none!important}
 
 /* ---------- 设置二级菜单 ---------- */
 .settings-head{align-items:center;justify-content:flex-start}
+.settings-head-main{min-width:0;flex:1}
 .settings-head h1{font-size:22px}
 .settings-back{flex-shrink:0;margin-left:-4px}
+.settings-me{display:flex;align-items:center;gap:12px;margin:0 0 4px}
+@media (max-width:1023px){
+  #screen-settings.settings-root .settings-head h1,
+  #screen-settings.settings-root #settingsEyebrow{display:none}
+}
+.settings-me-avatar{width:64px;height:64px;font-size:24px}
+.settings-me-text{display:flex;flex-direction:column;min-width:0;gap:2px}
+.settings-me-text b{font-size:18px;font-weight:700;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-me-text small{font-size:13px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .settings-wrap{max-width:560px}
+.avatar-edit{display:flex;align-items:center;gap:14px;margin:4px 0 8px}
+.profile-avatar{width:84px;height:84px;font-size:30px}
+.avatar-edit-actions{display:flex;flex-wrap:wrap;gap:8px}
+.avatar-edit-actions .btn{display:inline-flex;align-items:center;gap:6px;margin:0}
+.avatar-edit-actions .ic{width:16px;height:16px}
 .set-label{margin:14px 4px 8px;font-size:13px;font-weight:700;color:var(--muted)}
 .set-label:first-child{margin-top:0}
 .set-group{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 4px}
