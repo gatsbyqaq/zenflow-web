@@ -74,25 +74,48 @@
     [a || {}, b || {}].forEach(function (m) { Object.keys(m).forEach(function (k) { if (!(k in out) || Math.abs(m[k]) > Math.abs(out[k])) out[k] = m[k]; }); });
     return out;
   }
+  function ckScore(c) { return Math.max(+c.ts || 0, +c.editedAt || 0); }
   function merge(a, b) {
     a = Z.sanitize(a); b = Z.sanitize(b);
-    var removed = { ids: mergeTomb(a.removed.ids, b.removed.ids), reasons: mergeTomb(a.removed.reasons, b.removed.reasons) };
+    var removed = {
+      ids: mergeTomb(a.removed.ids, b.removed.ids),
+      reasons: mergeTomb(a.removed.reasons, b.removed.reasons),
+      checkins: mergeTomb(a.removed.checkins, b.removed.checkins)
+    };
     var checkins = {};
-    [a.checkins, b.checkins].forEach(function (m) { Object.keys(m).forEach(function (k) { if (!checkins[k] || (m[k].ts || 0) > (checkins[k].ts || 0)) checkins[k] = m[k]; }); });
+    [a.checkins, b.checkins].forEach(function (m) {
+      Object.keys(m).forEach(function (k) {
+        if ((removed.checkins[k] || 0) > 0 && removed.checkins[k] >= ckScore(m[k])) return;
+        if (!checkins[k] || ckScore(m[k]) > ckScore(checkins[k])) checkins[k] = m[k];
+      });
+    });
+    Object.keys(checkins).forEach(function (k) {
+      if ((removed.checkins[k] || 0) > 0 && removed.checkins[k] >= ckScore(checkins[k])) delete checkins[k];
+    });
     function byId(x, y) {
       var map = {}, order = [];
-      x.concat(y).forEach(function (r) { if (!(r.id in map)) order.push(r.id); if (!(r.id in map)) map[r.id] = r; });
+      x.concat(y).forEach(function (r) {
+        if (!(r.id in map)) { order.push(r.id); map[r.id] = r; return; }
+        var prev = map[r.id];
+        if ((+r.editedAt || 0) > (+prev.editedAt || 0)) map[r.id] = r;
+      });
       return order.filter(function (id) { return !(removed.ids[id] > 0); }).map(function (id) { return map[id]; }).sort(function (p, q) { return p.ts - q.ts; });
     }
     var reasons = [];
     a.reasons.concat(b.reasons).forEach(function (r) { if (reasons.indexOf(r) < 0 && !(removed.reasons[r] > 0)) reasons.push(r); });
     var takeA = a.streakStartSetAt > b.streakStartSetAt || (a.streakStartSetAt === b.streakStartSetAt && a.streakStart >= b.streakStart);
+    var goalA = (a.goalSetAt || 0) >= (b.goalSetAt || 0);
+    var nameA = (a.displayNameSetAt || 0) >= (b.displayNameSetAt || 0);
     return {
       version: 1,
       createdAt: Math.min(a.createdAt, b.createdAt),
       streakStart: takeA ? a.streakStart : b.streakStart,
       streakStartSetAt: Math.max(a.streakStartSetAt, b.streakStartSetAt),
       bestStreakMs: Math.max(a.bestStreakMs, b.bestStreakMs),
+      goalDays: goalA ? a.goalDays : b.goalDays,
+      goalSetAt: Math.max(a.goalSetAt || 0, b.goalSetAt || 0),
+      displayName: nameA ? a.displayName : b.displayName,
+      displayNameSetAt: Math.max(a.displayNameSetAt || 0, b.displayNameSetAt || 0),
       checkins: checkins,
       relapses: byId(a.relapses, b.relapses),
       urges: byId(a.urges, b.urges),
@@ -106,7 +129,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=15'; s.async = true;
+      s.src = 'vendor/supabase.js?v=16'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -190,6 +213,44 @@
     if (sync.status === 'offline') return { icon: 'cloud-off', text: '离线', cls: 'err' };
     return { icon: 'cloud-check', text: '已同步', cls: 'ok' };
   }
+  function localDisplayName() {
+    try { return ((Z.getState().displayName) || '').trim(); } catch (e) { return ''; }
+  }
+  function renderSideUser() {
+    var nameEl = $('sideName'), subEl = $('sideUserSub'), letterEl = $('sideAvatarLetter'), avatarEl = $('sideAvatar');
+    if (!nameEl || !avatarEl) return;
+    var u = user();
+    var meta = (u && u.user_metadata) || {};
+    var emailName = u && u.email ? u.email.split('@')[0] : '';
+    var cloudName = (profile && profile.display_name) || meta.full_name || meta.name || '';
+    var name = (cloudName || localDisplayName() || (u ? emailName : '') || '').trim();
+    var img = avatarEl.querySelector('img');
+    if (!u) {
+      nameEl.textContent = name || '未登录';
+      subEl.textContent = configured ? '前往设置' : '本机模式';
+      letterEl.textContent = (name || '?').slice(0, 1).toUpperCase();
+      if (img) img.remove();
+      avatarEl.classList.remove('has-photo');
+      return;
+    }
+    nameEl.textContent = name || '已登录';
+    subEl.textContent = syncLabel().text;
+    letterEl.textContent = (name || emailName || '?').slice(0, 1).toUpperCase();
+    var url = meta.avatar_url || meta.picture || '';
+    if (url) {
+      if (!img) {
+        img = document.createElement('img');
+        img.alt = '';
+        img.className = 'side-avatar-img';
+        avatarEl.insertBefore(img, letterEl);
+      }
+      if (img.getAttribute('src') !== url) img.src = url;
+      avatarEl.classList.add('has-photo');
+    } else {
+      if (img) img.remove();
+      avatarEl.classList.remove('has-photo');
+    }
+  }
   function renderChrome() {
     var L = syncLabel();
     var pill = $('syncPill');
@@ -197,8 +258,7 @@
     var logged = configured && user();
     var pp = document.querySelector('#screen-home .privacy-pill');
     if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步到你的账号' : '所有数据只保存在本机浏览器中'; pp.classList.toggle('synced', !!logged); }
-    var sn = document.querySelector('.side-note');
-    if (sn) sn.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '已登录 · 云同步' : '仅本机 · 数据不上传');
+    renderSideUser();
   }
 
   /* ---------------- 设置 → 账号与同步 ---------------- */
@@ -272,6 +332,7 @@
     if (!profile) profile = { display_name: null, is_admin: false, invite_ok: false };
     profileReady = true;
     renderAccount();
+    renderChrome();
     updateGate();
     if (inviteOk() && profile.is_admin) loadInvites();
     if (inviteOk() && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
@@ -331,7 +392,9 @@
     var el = $('authBootText');
     if (el) el.textContent = t || '正在恢复登录…';
   }
+  var bootFinished = false; // 已经进入主界面后，切回标签页不得再盖启动闪屏
   function showBootSplash(text) {
+    if (bootFinished) return;
     gateMode = 'boot';
     document.body.classList.add('auth-booting');
     document.body.classList.remove('auth-gated');
@@ -371,6 +434,7 @@
   }
   function clearGate() {
     gateMode = 'none';
+    bootFinished = true;
     document.body.classList.remove('auth-booting');
     document.body.classList.remove('auth-gated');
     document.body.classList.add('auth-ready');
@@ -587,7 +651,7 @@
             var v = $('nameInput').value.trim();
             sb.from('profiles').update({ display_name: v || null }).eq('id', user().id).then(function (r) {
               if (r.error) return Z.toast(cn(r.error));
-              profile = Object.assign({}, profile, { display_name: v || null }); renderAccount(); Z.toast('昵称已更新');
+              profile = Object.assign({}, profile, { display_name: v || null }); renderAccount(); renderChrome(); Z.toast('昵称已更新');
             });
           }
         });
@@ -634,7 +698,8 @@
     userId: function () { return user() && user().id; },
     status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
-    syncNow: syncNow, openAuth: openAuth, client: function () { return sb; }
+    syncNow: syncNow, openAuth: openAuth, client: function () { return sb; },
+    refreshChrome: renderChrome
   };
   renderChrome(); renderAccount();
   if (!configured) {
@@ -671,33 +736,35 @@
     sb = window.supabase.createClient(cfg.url, cfg.key, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'zenflow_auth', flowType: 'implicit' }
     });
-    sb.auth.onAuthStateChange(function (event, s) {
+    function applyAuthEvent(event, s) {
       if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
       if (event === 'SIGNED_OUT') {
         session = null; profile = null; invites = null; profileReady = true; authReady = true;
-        setSync('off'); renderAccount(); updateGate();
+        bootFinished = false;
+        setSync('off'); renderAccount(); renderChrome(); updateGate();
         Z.toast && Z.toast('已退出登录');
         return;
       }
       // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED
+      // 标签页重新可见时，supabase-js 的 _recoverAndRefresh 会对同一会话再发一次 SIGNED_IN。
+      // 会话已确认且仍是同一用户时，只更新内存中的 session，绝不重新进入「正在恢复登录」。
       if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
         markSession(s, event);
         return;
       }
       if (sessionResolved && s && s.user) {
-        var prev = user() && user().id;
+        var prevId = user() && user().id;
         session = s;
-        if (prev !== s.user.id || event === 'SIGNED_IN') {
-          profileReady = false;
-          renderAccount(); updateGate();
-          loadProfile().then(function () { if (inviteOk()) syncNow(); });
-        } else if (event === 'TOKEN_REFRESHED') {
-          session = s;
-        }
-      } else if (sessionResolved && !s) {
+        if (prevId && prevId === s.user.id) return;
+        bootFinished = false;
+        profileReady = false;
+        renderAccount(); updateGate();
+        loadProfile().then(function () { if (inviteOk()) syncNow(); });
+      } else if (sessionResolved && !s && event !== 'INITIAL_SESSION') {
         markSession(null, event);
       }
-    });
+    }
+    sb.auth.onAuthStateChange(applyAuthEvent);
     // 与 onAuthStateChange 并行：尽快确认会话（避免只等 INITIAL_SESSION）
     sb.auth.getSession().then(function (r) {
       if (sessionResolved) return;
@@ -707,7 +774,21 @@
       markSession(null, 'getSession-error');
     });
     window.addEventListener('online', function () { if (user()) syncNow(); });
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && user() && Date.now() - sync.at > 60000) syncNow(); });
+    // 切回标签页只补同步，不重走启动闪屏（闪屏只属于冷启动 / 真正的会话恢复）
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      if (bootFinished) {
+        document.body.classList.remove('auth-booting');
+        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+      }
+      if (user() && Date.now() - sync.at > 60000) syncNow();
+    });
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted && bootFinished) {
+        document.body.classList.remove('auth-booting');
+        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+      }
+    });
     setInterval(function () { if (user() && sync.status === 'error') syncNow(); }, 60000);
   }).catch(function (e) {
     loadError = e.message; authReady = true; profileReady = true; renderAccount(); updateGate();

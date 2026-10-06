@@ -22,6 +22,36 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
   function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
+  function lapseTypes() { return D.lapseTypes || []; }
+  function typeById(id) {
+    for (var i = 0; i < lapseTypes().length; i++) if (lapseTypes()[i].id === id) return lapseTypes()[i];
+    return null;
+  }
+  function normalizeTypes(arr) {
+    var out = [];
+    if (!Array.isArray(arr)) return out;
+    arr.forEach(function (id) {
+      id = String(id || '');
+      if (typeById(id) && out.indexOf(id) < 0) out.push(id);
+    });
+    return out.slice(0, 5);
+  }
+  function typeChips(ids) {
+    return normalizeTypes(ids).map(function (id) {
+      var t = typeById(id);
+      return '<span class="type-chip" data-type="' + t.id + '">' + ic(t.icon) + esc(t.label) + '</span>';
+    }).join('');
+  }
+  function typeButtons(selected, attr) {
+    return lapseTypes().map(function (t) {
+      var on = selected && selected[t.id];
+      return '<button type="button" class="tag type-tag' + (on ? ' sel' : '') + '" data-type="' + t.id + '" ' + attr + '="' + t.id + '">' + ic(t.icon) + esc(t.label) + '</button>';
+    }).join('');
+  }
+  function emptyState(icon, text) {
+    return '<div class="empty-state">' + ic(icon, 'empty-ic') + '<p>' + text + '</p></div>';
+  }
+  function checkinScore(c) { return Math.max(+c.ts || 0, +c.editedAt || 0); }
 
   /* ---------------- 数据层 ---------------- */
   function defaultState() {
@@ -35,9 +65,13 @@
       relapses: [],     // [{ id, ts, triggers: [], other, note, streakMs }]
       urges: [],        // [{ id, ts }]
       reasons: D.defaultReasons.slice(),
+      goalDays: 30,
+      goalSetAt: 0,
+      displayName: '',
+      displayNameSetAt: 0,
       // 云同步用：开始时间最后一次被设置的时间；已删除条目的墓碑（避免同步时被另一台设备"复活"）
       streakStartSetAt: now,
-      removed: { ids: {}, reasons: {} }   // ids: { id: 删除时间 }；reasons: { 文本: 删除时间（负数 = 之后又重新添加） }
+      removed: { ids: {}, reasons: {}, checkins: {} }   // ids: { id: 删除时间 }；reasons / checkins: { 键: 删除时间（负数 = 之后又重新添加） }
     };
   }
 
@@ -51,27 +85,40 @@
     if (o.checkins && typeof o.checkins === 'object') {
       Object.keys(o.checkins).forEach(function (k) {
         var c = o.checkins[k];
-        if (/^\d{4}-\d{2}-\d{2}$/.test(k) && c && c.mood >= 1 && c.mood <= 5) s.checkins[k] = { mood: Math.round(c.mood), ts: +c.ts || 0 };
+        if (/^\d{4}-\d{2}-\d{2}$/.test(k) && c && c.mood >= 1 && c.mood <= 5) {
+          var item = { mood: Math.round(c.mood), ts: +c.ts || 0 };
+          if (c.note) item.note = String(c.note).slice(0, 500);
+          if (typeof c.editedAt === 'number' && isFinite(c.editedAt) && c.editedAt > 0) item.editedAt = c.editedAt;
+          s.checkins[k] = item;
+        }
       });
     }
     if (Array.isArray(o.relapses)) {
       s.relapses = o.relapses.filter(function (r) { return r && typeof r.ts === 'number'; }).map(function (r) {
-        return {
+        var row = {
           id: String(r.id || uid()), ts: r.ts,
           triggers: Array.isArray(r.triggers) ? r.triggers.map(String).slice(0, 10) : [],
           other: r.other ? String(r.other).slice(0, 40) : '',
           note: r.note ? String(r.note).slice(0, 1000) : '',
-          streakMs: +r.streakMs || 0
+          streakMs: +r.streakMs || 0,
+          types: normalizeTypes(r.types)
         };
+        if (typeof r.editedAt === 'number' && isFinite(r.editedAt) && r.editedAt > 0) row.editedAt = r.editedAt;
+        return row;
       });
     }
     if (Array.isArray(o.urges)) {
       s.urges = o.urges.filter(function (u) { return u && typeof u.ts === 'number'; }).map(function (u) { return { id: String(u.id || uid()), ts: u.ts }; });
     }
     if (Array.isArray(o.reasons)) s.reasons = o.reasons.map(String).filter(Boolean).slice(0, 50);
+    var g = Math.round(+o.goalDays);
+    s.goalDays = (g >= 1 && g <= 3650) ? g : 30;
+    s.goalSetAt = (typeof o.goalSetAt === 'number' && isFinite(o.goalSetAt) && o.goalSetAt > 0) ? o.goalSetAt : 0;
+    s.displayName = o.displayName ? String(o.displayName).trim().slice(0, 20) : '';
+    s.displayNameSetAt = (typeof o.displayNameSetAt === 'number' && isFinite(o.displayNameSetAt) && o.displayNameSetAt > 0) ? o.displayNameSetAt : 0;
     s.streakStartSetAt = typeof o.streakStartSetAt === 'number' && isFinite(o.streakStartSetAt) ? o.streakStartSetAt : 0;
     var rm = o.removed && typeof o.removed === 'object' ? o.removed : {};
-    ['ids', 'reasons'].forEach(function (k) {
+    ['ids', 'reasons', 'checkins'].forEach(function (k) {
       var src = rm[k] && typeof rm[k] === 'object' ? rm[k] : {};
       Object.keys(src).slice(0, 5000).forEach(function (key) { if (typeof src[key] === 'number' && isFinite(src[key])) s.removed[k][String(key).slice(0, 200)] = src[key]; });
     });
@@ -140,6 +187,21 @@
   function closeModal() { $('modalMask').classList.add('hidden'); modalOk = null; unlockScroll(); }
   $('modalCancel').addEventListener('click', closeModal);
   $('modalMask').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+  $('modalBody').addEventListener('click', function (e) {
+    var g = e.target.closest('[data-goal]');
+    if (g && $('goalModalInput')) {
+      $('goalModalInput').value = g.dataset.goal;
+      g.parentNode.querySelectorAll('[data-goal]').forEach(function (b) { b.classList.toggle('sel', b === g); });
+      return;
+    }
+    var tp = e.target.closest('[data-ed-type]');
+    if (tp) { tp.classList.toggle('sel'); return; }
+    var tr = e.target.closest('[data-ed-trigger]');
+    if (tr) {
+      tr.classList.toggle('sel');
+      if (tr.getAttribute('data-ed-trigger') === '其他' && $('edOther')) $('edOther').classList.toggle('hidden', !tr.classList.contains('sel'));
+    }
+  });
   $('modalOk').addEventListener('click', function () {
     if (modalOk && modalOk() === false) return;
     closeModal();
@@ -161,6 +223,8 @@
     render(tab);
   }
   document.querySelectorAll('.tab').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.tab); }); });
+  var sideUserBtn = $('sideUser');
+  if (sideUserBtn) sideUserBtn.addEventListener('click', function () { go('settings'); });
   document.addEventListener('click', function (e) {
     var g = e.target.closest('[data-goto]');
     if (g) go(g.dataset.goto);
@@ -203,15 +267,21 @@
     $('daysNum').textContent = days;
     $('hNum').textContent = pad(h); $('mNum').textContent = pad(m); $('sNum').textContent = pad(s);
     var dFloat = ms / DAY;
-    var w = milestoneWindow(dFloat);
-    var p = Math.min(1, Math.max(0, (dFloat - w.prev) / (w.next - w.prev)));
-    $('ringFg').style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
-    $('msBar').style.width = (p * 100).toFixed(1) + '%';
-    var left = w.next * DAY - ms;
-    var lh = Math.ceil(left / 3600000);
-    var leftTxt = left >= DAY ? (Math.floor(left / DAY) + ' 天 ' + Math.floor(left % DAY / 3600000) + ' 小时') : (lh + ' 小时');
-    var beyond = dFloat >= 90 ? '（已完成全部里程碑，继续前行）' : '';
-    $('nextMs').textContent = '距离 ' + w.next + ' 天里程碑还有 ' + leftTxt + ' · ' + Math.floor(p * 100) + '%' + beyond;
+    var goal = state.goalDays || 30;
+    var p = goal > 0 ? Math.min(1, Math.max(0, dFloat / goal)) : 0;
+    var ring = $('ringFg');
+    if (ring) {
+      ring.style.strokeDasharray = String(RING_LEN);
+      ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
+    }
+    var bar = $('msBar');
+    if (bar) bar.style.width = (p * 100).toFixed(1) + '%';
+    var pct = Math.round(p * 100);
+    var left = goal - dFloat;
+    if (p >= 1) $('nextMs').textContent = '已达成 ' + goal + ' 天目标';
+    else $('nextMs').textContent = '目标 ' + goal + ' 天 · ' + (left >= 1 ? ('还差 ' + Math.ceil(left) + ' 天') : '还差不到 1 天') + ' · ' + pct + '%';
+    var gauge = $('streakGauge');
+    if (gauge) gauge.setAttribute('aria-label', '已戒 ' + days + ' 天，目标 ' + goal + ' 天，完成 ' + pct + '%');
     $('bestStreak').textContent = fmtDays(bestMs()) + '天';
   }
 
@@ -269,6 +339,7 @@
     if (state.checkins[k]) { toast('今天已经打过卡啦'); return; }
     if (!selMood) return;
     state.checkins[k] = { mood: selMood, ts: Date.now() };
+    if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
     selMood = null; save();
     toast('打卡成功，又是认真生活的一天');
     renderHome();
@@ -283,22 +354,46 @@
     var first = (new Date(y, mo, 1).getDay() + 6) % 7; // 周一为第一天
     var count = new Date(y, mo + 1, 0).getDate();
     var todayK = dateKey(Date.now());
+    var typesByDay = {};
     var relapseDays = {};
-    state.relapses.forEach(function (r) { relapseDays[dateKey(r.ts)] = true; });
+    state.relapses.forEach(function (r) {
+      var dk = dateKey(r.ts);
+      relapseDays[dk] = true;
+      normalizeTypes(r.types).forEach(function (id) {
+        if (!typesByDay[dk]) typesByDay[dk] = [];
+        if (typesByDay[dk].indexOf(id) < 0) typesByDay[dk].push(id);
+      });
+    });
     var html = '';
     for (var i = 0; i < first; i++) html += '<div class="cal-cell empty"></div>';
     for (var d = 1; d <= count; d++) {
       var k = y + '-' + pad(mo + 1) + '-' + pad(d);
       var cls = 'cal-cell';
       var c = state.checkins[k];
+      var types = typesByDay[k] || [];
       if (c) cls += ' m' + c.mood;
       if (relapseDays[k]) cls += ' relapse';
+      if (types.length) cls += ' has-types';
+      if (types.length === 1) cls += ' one-type';
       if (k === todayK) cls += ' today';
       else if (k > todayK) cls += ' future';
-      var title = k + (c ? ' 已打卡' : '') + (relapseDays[k] ? ' · 有破戒记录' : '');
-      html += '<div class="' + cls + '" title="' + title + '">' + d + '</div>';
+      var names = types.map(function (id) { return typeById(id).label; });
+      var title = k + (c ? ' 已打卡' : '') + (names.length ? ' · ' + names.join('、') : (relapseDays[k] ? ' · 有破戒记录' : ''));
+      var marks = '';
+      if (types.length) {
+        marks = '<span class="cal-types">' + types.map(function (id) {
+          var t = typeById(id);
+          return '<span class="cal-mark" data-type="' + t.id + '" title="' + esc(t.label) + '">' + ic(t.icon) + '</span>';
+        }).join('') + '</span>';
+      } else if (relapseDays[k]) {
+        marks = '<span class="cal-types"><span class="cal-mark legacy" title="破戒">' + ic('cloud-rain') + '</span></span>';
+      }
+      html += '<div class="' + cls + '" title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + marks + '</div>';
     }
     $('calGrid').innerHTML = html;
+    $('calLegend').innerHTML = lapseTypes().map(function (t) {
+      return '<span class="lg-item" data-type="' + t.id + '">' + ic(t.icon) + esc(t.label) + '</span>';
+    }).join('') + '<span class="lg-item"><i class="lg lg-mood"></i>无类型时底色为心情</span>';
   }
   $('calPrev').addEventListener('click', function () { calOffset--; renderCalendar(); });
   $('calNext').addEventListener('click', function () { if (calOffset < 0) { calOffset++; renderCalendar(); } });
@@ -315,6 +410,43 @@
     }).join('');
     $('badgeCount').textContent = '已解锁 ' + on + '/' + D.milestones.length;
   }
+
+  var GOAL_PRESETS = [7, 14, 30, 60, 90, 180, 365];
+  function setGoal(n) {
+    n = Math.round(+n);
+    if (!(n >= 1 && n <= 3650)) { toast('请输入 1–3650 之间的天数'); return false; }
+    state.goalDays = n;
+    state.goalSetAt = Date.now();
+    save();
+    if (current === 'home') updateTimer();
+    if (current === 'settings') renderGoalControl();
+    toast('目标已设为 ' + n + ' 天');
+    return true;
+  }
+  function renderGoalControl() {
+    var box = $('goalPresets'); if (!box) return;
+    box.innerHTML = GOAL_PRESETS.map(function (n) {
+      return '<button type="button" class="tag' + (state.goalDays === n ? ' sel' : '') + '" data-goal-preset="' + n + '">' + n + ' 天</button>';
+    }).join('');
+    if ($('goalInput')) $('goalInput').value = state.goalDays;
+  }
+  $('btnSetGoal').addEventListener('click', function () {
+    openModal({
+      title: '设置目标天数',
+      html: '<p>圆环按已戒天数占目标的比例前进。例如 30 天或 90 天。</p>' +
+        '<div class="tags" id="goalModalPresets">' + GOAL_PRESETS.map(function (n) {
+          return '<button type="button" class="tag' + (state.goalDays === n ? ' sel' : '') + '" data-goal="' + n + '">' + n + ' 天</button>';
+        }).join('') + '</div>' +
+        '<input type="number" id="goalModalInput" min="1" max="3650" step="1" value="' + state.goalDays + '" />',
+      ok: '保存',
+      onOk: function () { return setGoal($('goalModalInput').value); }
+    });
+  });
+  $('goalPresets').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-goal-preset]'); if (!b) return;
+    setGoal(b.dataset.goalPreset);
+  });
+  $('btnSaveGoal').addEventListener('click', function () { setGoal($('goalInput').value); });
 
   $('btnAdjustStart').addEventListener('click', function () {
     openModal({
@@ -435,28 +567,61 @@
 
   /* ---------------- 记录 ---------------- */
   var selTriggers = {};
+  var selTypes = {};
+  var editDate = dateKey(Date.now());
+  var dayMood = null;
+
+  function selectedTypes(map) { return lapseTypes().filter(function (t) { return map[t.id]; }).map(function (t) { return t.id; }); }
+  function renderTypeTags() {
+    $('typeTags').innerHTML = typeButtons(selTypes, 'data-lapse');
+  }
   function renderLog() {
     $('relapseTime').value = toLocalInput(Date.now());
     $('relapseTime').max = toLocalInput(Date.now() + 60000);
+    if ($('editDate')) {
+      $('editDate').max = dateKey(Date.now());
+      if (!editDate || editDate > dateKey(Date.now())) editDate = dateKey(Date.now());
+      $('editDate').value = editDate;
+      if (dayMood == null && state.checkins[editDate]) dayMood = state.checkins[editDate].mood;
+    }
+    renderTypeTags();
     renderTriggerTags();
+    renderDayEditor();
     renderHistory();
   }
   function renderTriggerTags() {
     $('triggerTags').innerHTML = D.triggers.map(function (t) {
-      return '<button class="tag' + (selTriggers[t] ? ' sel' : '') + '" data-t="' + t + '">' + t + '</button>';
+      return '<button type="button" class="tag' + (selTriggers[t] ? ' sel' : '') + '" data-t="' + t + '">' + esc(t) + '</button>';
     }).join('');
     $('otherTrigger').classList.toggle('hidden', !selTriggers['其他']);
   }
+  $('typeTags').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lapse]'); if (!b) return;
+    selTypes[b.dataset.lapse] = !selTypes[b.dataset.lapse];
+    renderTypeTags();
+  });
   $('triggerTags').addEventListener('click', function (e) {
     var b = e.target.closest('.tag'); if (!b) return;
     var t = b.dataset.t; selTriggers[t] = !selTriggers[t];
     renderTriggerTags();
   });
 
+  function refreshChrome() {
+    if (window.ZFCloud && window.ZFCloud.refreshChrome) window.ZFCloud.refreshChrome();
+  }
+  function readTagMap(root, attr) {
+    var map = {};
+    if (!root) return map;
+    root.querySelectorAll('[' + attr + '].sel').forEach(function (b) { map[b.getAttribute(attr)] = true; });
+    return map;
+  }
+
   $('btnLogRelapse').addEventListener('click', function () {
     var ts = parseLocalInput($('relapseTime').value);
     if (!isFinite(ts)) { toast('请选择发生时间'); return; }
     if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return; }
+    var types = selectedTypes(selTypes);
+    if (!types.length) { toast('请至少选择一个类型'); return; }
     var triggers = D.triggers.filter(function (t) { return selTriggers[t]; });
     var other = selTriggers['其他'] ? $('otherTrigger').value.trim() : '';
     var note = $('relapseNote').value.trim();
@@ -470,43 +635,217 @@
       warm: true,
       onOk: function () {
         var streak = resets ? ts - state.streakStart : 0;
-        state.relapses.push({ id: uid(), ts: ts, triggers: triggers, other: other, note: note, streakMs: streak });
+        state.relapses.push({ id: uid(), ts: ts, triggers: triggers, types: types, other: other, note: note, streakMs: streak, editedAt: Date.now() });
         if (resets) {
           state.bestStreakMs = Math.max(state.bestStreakMs, streak);
           state.streakStart = ts; state.streakStartSetAt = Date.now();
         }
         save();
-        selTriggers = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
+        selTriggers = {}; selTypes = {}; $('otherTrigger').value = ''; $('relapseNote').value = '';
         renderLog();
         toast(resets ? '已记录。新的开始，从现在起' : '已添加到历史记录');
       }
     });
   });
 
+  function syncDayMood() {
+    var c = state.checkins[editDate];
+    dayMood = c ? c.mood : null;
+  }
+  function renderDayEditor() {
+    var box = $('dayEditor'); if (!box) return;
+    var k = editDate;
+    var c = state.checkins[k];
+    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; });
+    var html = '<p class="field-label">这天的打卡</p><div class="moods day-moods" id="dayMoods">';
+    html += D.moods.map(function (m) {
+      return '<button type="button" class="mood' + (dayMood === m.v ? ' sel' : '') + '" data-day-mood="' + m.v + '"><span class="e">' + ic(m.icon) + '</span>' + m.t + '</button>';
+    }).join('');
+    html += '</div><label class="field"><span>这天的备注</span><textarea id="dayNote" rows="2" maxlength="500" placeholder="可选。例如：晚上状态不错，提前放下了手机。">' + esc(c && c.note || '') + '</textarea></label>';
+    html += '<div class="day-actions"><button class="btn btn-primary" type="button" id="btnSaveDayCheckin">' + ic('check') + '保存这天的打卡</button>';
+    if (c) html += '<button class="btn btn-ghost" type="button" id="btnClearDayCheckin">清除打卡</button>';
+    html += '<button class="btn btn-ghost" type="button" id="btnPrefillRelapse">' + ic('pen-line') + '把破戒时间设为这天</button></div>';
+    html += '<p class="field-label">这天的破戒记录</p>';
+    if (!rels.length) html += emptyState('notebook', '这天还没有破戒记录。在下方选择类型，并把发生时间设为这一天即可补记。');
+    else html += '<div class="history day-history">' + rels.map(function (r) { return relapseItem(r); }).join('') + '</div>';
+    box.innerHTML = html;
+  }
+  $('editDate').addEventListener('change', function () {
+    var v = this.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > dateKey(Date.now())) { toast('只能选择今天或更早的日期'); this.value = editDate; return; }
+    editDate = v; syncDayMood(); renderDayEditor();
+  });
+  $('dayEditor').addEventListener('click', function (e) {
+    var moodBtn = e.target.closest('[data-day-mood]');
+    if (moodBtn) {
+      dayMood = +moodBtn.dataset.dayMood;
+      var draftNote = $('dayNote') ? $('dayNote').value : '';
+      renderDayEditor();
+      if ($('dayNote')) $('dayNote').value = draftNote;
+      return;
+    }
+    if (e.target.closest('.h-del')) { onHistoryClick(e); return; }
+    if (e.target.closest('#btnSaveDayCheckin')) { saveDayCheckin(); return; }
+    if (e.target.closest('#btnClearDayCheckin')) { clearDayCheckin(); return; }
+    if (e.target.closest('#btnPrefillRelapse')) {
+      $('relapseTime').value = editDate + 'T12:00';
+      var card = $('relapseTime').closest('.card');
+      if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('发生时间已设为 ' + editDate + ' 12:00，选择类型后即可记录');
+      return;
+    }
+    var editBtn = e.target.closest('[data-edit="relapse"]');
+    if (editBtn) openRelapseEditor(editBtn.dataset.id);
+  });
+
+  function saveDayCheckin() {
+    if (!dayMood) { toast('请先选择这天的心情'); return; }
+    var k = editDate;
+    var prev = state.checkins[k];
+    var note = ($('dayNote') && $('dayNote').value || '').trim();
+    var row = { mood: dayMood, ts: (prev && prev.ts) || Date.parse(k + 'T12:00:00'), editedAt: Date.now() };
+    if (note) row.note = note;
+    state.checkins[k] = row;
+    if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
+    save();
+    renderDayEditor(); renderHistory();
+    toast(k === dateKey(Date.now()) ? '今日打卡已保存' : '已保存 ' + k + ' 的打卡');
+  }
+  function clearDayCheckin() {
+    var k = editDate;
+    if (!state.checkins[k]) return;
+    openModal({
+      title: '清除这天的打卡？',
+      html: '<p>会去掉 ' + esc(k) + ' 的心情打卡。破戒记录不受影响。</p>',
+      ok: '清除', danger: true,
+      onOk: function () {
+        delete state.checkins[k];
+        state.removed.checkins[k] = Date.now();
+        dayMood = null;
+        save(); renderDayEditor(); renderHistory(); toast('已清除打卡');
+      }
+    });
+  }
+
+  function relapseItem(r) {
+    var tags = typeChips(r.types);
+    var trigs = (r.triggers || []).map(function (t) { return '<span>' + esc(t === '其他' && r.other ? '其他：' + r.other : t) + '</span>'; }).join('');
+    var primary = (normalizeTypes(r.types)[0]) || '';
+    return '<div class="h-item relapse" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(primary && typeById(primary) ? typeById(primary).icon : 'cloud-rain') + '</div><div class="h-main"><b>破戒记录</b>' +
+      (r.streakMs ? '<span class="small muted"> · 本次坚持 ' + fmtDays(r.streakMs) + ' 天</span>' : '') +
+      '<div class="small muted">' + fmtDT(r.ts) + '</div>' +
+      (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
+      (trigs ? '<div class="h-tags">' + trigs + '</div>' : '') +
+      (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
+      '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
+      '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+  }
+
+  function openRelapseEditor(id) {
+    var r = null;
+    for (var i = 0; i < state.relapses.length; i++) if (state.relapses[i].id === id) r = state.relapses[i];
+    if (!r) return;
+    var typeMap = {};
+    normalizeTypes(r.types).forEach(function (t) { typeMap[t] = true; });
+    var trigMap = {};
+    (r.triggers || []).forEach(function (t) { trigMap[t] = true; });
+    openModal({
+      title: '编辑这条记录',
+      html: '<p class="small muted">可以改时间、类型、触发因素和备注，用来补记或更正。若这条记录就是当前连续天数的起点，起点会跟着新时间移动；其它历史记录不会重算整段连续天数。</p>' +
+        '<label class="field"><span>发生时间</span><input type="datetime-local" id="edTime" value="' + toLocalInput(r.ts) + '" max="' + toLocalInput(Date.now() + 60000) + '" /></label>' +
+        '<div class="field"><span>类型（可多选）</span><div class="tags" id="edTypes">' + typeButtons(typeMap, 'data-ed-type') + '</div></div>' +
+        '<div class="field"><span>触发因素（可多选）</span><div class="tags" id="edTriggers">' + D.triggers.map(function (t) {
+          return '<button type="button" class="tag' + (trigMap[t] ? ' sel' : '') + '" data-ed-trigger="' + esc(t) + '">' + esc(t) + '</button>';
+        }).join('') + '</div>' +
+        '<input type="text" id="edOther" class="' + (trigMap['其他'] ? '' : 'hidden') + '" maxlength="20" placeholder="其他触发因素" value="' + esc(r.other || '') + '" /></div>' +
+        '<label class="field"><span>备注 / 复盘</span><textarea id="edNote" rows="3" maxlength="500">' + esc(r.note || '') + '</textarea></label>',
+      ok: '保存修改',
+      onOk: function () {
+        var ts = parseLocalInput($('edTime').value);
+        if (!isFinite(ts)) { toast('请选择有效的时间'); return false; }
+        if (ts > Date.now() + 60000) { toast('时间不能晚于现在'); return false; }
+        var types = selectedTypes(readTagMap($('edTypes'), 'data-ed-type'));
+        if (!types.length) { toast('请至少选择一个类型'); return false; }
+        var trigSel = readTagMap($('edTriggers'), 'data-ed-trigger');
+        var triggers = D.triggers.filter(function (t) { return trigSel[t]; });
+        var other = trigSel['其他'] ? $('edOther').value.trim() : '';
+        var note = $('edNote').value.trim();
+        var wasAnchor = Math.abs(r.ts - state.streakStart) < 1500;
+        r.ts = ts;
+        r.types = types;
+        r.triggers = triggers;
+        r.other = other;
+        r.note = note;
+        r.editedAt = Date.now();
+        if (wasAnchor) {
+          state.streakStart = ts;
+          state.streakStartSetAt = Date.now();
+        }
+        save();
+        renderDayEditor(); renderHistory();
+        toast('记录已更新');
+      }
+    });
+  }
+
   function renderHistory() {
     var items = state.relapses.map(function (r) { return { type: 'relapse', ts: r.ts, r: r }; })
       .concat(state.urges.map(function (u) { return { type: 'urge', ts: u.ts, r: u }; }))
+      .concat(Object.keys(state.checkins).map(function (k) {
+        var c = state.checkins[k];
+        return { type: 'checkin', ts: c.ts || Date.parse(k + 'T12:00:00'), k: k, r: c };
+      }))
       .sort(function (a, b) { return b.ts - a.ts; });
     $('historyCount').textContent = '共 ' + items.length + ' 条';
-    if (!items.length) { $('historyList').innerHTML = '<div class="empty-state">还没有记录。每一次坚持和复盘都会出现在这里。</div>'; return; }
-    $('historyList').innerHTML = items.slice(0, 60).map(function (it) {
+    if (!items.length) { $('historyList').innerHTML = emptyState('notebook', '还没有记录。每一次坚持和复盘都会出现在这里。'); return; }
+    $('historyList').innerHTML = items.slice(0, 80).map(function (it) {
       var r = it.r;
       if (it.type === 'urge') {
         return '<div class="h-item urge"><div class="h-ico">' + ic('shield-check') + '</div><div class="h-main"><b>成功抵御一次冲动</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
-          '<button class="h-del" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div>';
+          '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
       }
-      var tags = r.triggers.map(function (t) { return '<span>' + esc(t === '其他' && r.other ? '其他：' + r.other : t) + '</span>'; }).join('');
-      return '<div class="h-item relapse"><div class="h-ico">' + ic('cloud-rain') + '</div><div class="h-main"><b>破戒记录</b>' +
-        (r.streakMs ? '<span class="small muted"> · 本次坚持 ' + fmtDays(r.streakMs) + ' 天</span>' : '') +
-        '<div class="small muted">' + fmtDT(r.ts) + '</div>' +
-        (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
-        (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-        '</div><button class="h-del" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div>';
+      if (it.type === 'checkin') {
+        var m = D.moods.filter(function (x) { return x.v === r.mood; })[0] || D.moods[2];
+        return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>打卡 · ' + esc(m.t) + '</b>' +
+          '<div class="small muted">' + esc(it.k) + '</div>' +
+          (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
+          '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(it.k) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+      }
+      return relapseItem(r);
     }).join('');
   }
-  $('historyList').addEventListener('click', function (e) {
+  function onHistoryClick(e) {
+    var edit = e.target.closest('[data-edit]');
+    if (edit) {
+      if (edit.dataset.edit === 'relapse') openRelapseEditor(edit.dataset.id);
+      else if (edit.dataset.edit === 'checkin') {
+        editDate = edit.dataset.date;
+        if ($('editDate')) $('editDate').value = editDate;
+        syncDayMood();
+        renderDayEditor();
+        var card = $('dayCard');
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
     var b = e.target.closest('.h-del'); if (!b) return;
     var type = b.dataset.del, id = b.dataset.id;
+    if (type === 'checkin') {
+      var dk = b.dataset.date;
+      openModal({
+        title: '删除这天的打卡？',
+        html: '<p>会去掉 ' + esc(dk) + ' 的心情打卡，无法从这里撤销。</p>',
+        ok: '删除', danger: true,
+        onOk: function () {
+          delete state.checkins[dk];
+          state.removed.checkins[dk] = Date.now();
+          if (editDate === dk) dayMood = null;
+          save(); renderDayEditor(); renderHistory(); toast('已删除');
+        }
+      });
+      return;
+    }
     openModal({
       title: '删除这条记录？',
       html: '<p>删除后无法恢复。' + (type === 'relapse' ? '（不会改变当前连续天数）' : '') + '</p>',
@@ -516,10 +855,11 @@
         var i = arr.findIndex(function (x) { return x.id === id; });
         if (i >= 0) arr.splice(i, 1);
         state.removed.ids[id] = Date.now();
-        save(); renderHistory(); toast('已删除');
+        save(); renderDayEditor(); renderHistory(); toast('已删除');
       }
     });
-  });
+  }
+  $('historyList').addEventListener('click', onHistoryClick);
 
   /* ---------------- 统计 ---------------- */
   var BUCKETS = [['凌晨', 0], ['清晨', 4], ['上午', 8], ['下午', 12], ['傍晚', 16], ['夜间', 20]];
@@ -545,7 +885,7 @@
     var tc = {};
     state.relapses.forEach(function (x) { x.triggers.forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
     var trows = Object.keys(tc).map(function (k) { return [k, tc[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
-    $('triggerChart').innerHTML = trows.length ? hbars(trows) : '<div class="empty-state">暂无数据。记录破戒时选择触发因素，这里会帮你找到规律。</div>';
+    $('triggerChart').innerHTML = trows.length ? hbars(trows) : emptyState('zap', '暂无数据。记录破戒时选择触发因素，这里会帮你找到规律。');
 
     // 时段分布（SVG 分组柱状图）
     var rb = [0, 0, 0, 0, 0, 0], ub = [0, 0, 0, 0, 0, 0];
@@ -572,7 +912,7 @@
     var mc = {};
     Object.keys(state.checkins).forEach(function (k) { var m = state.checkins[k].mood; mc[m] = (mc[m] || 0) + 1; });
     var mrows = D.moods.map(function (m) { return ['<span class="mood-tint" data-mood="' + m.v + '">' + ic(m.icon) + '</span>' + m.t, mc[m.v] || 0]; });
-    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : '<div class="empty-state">每天打卡并选择心情后，这里会显示你的心情分布。</div>';
+    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '每天打卡并选择心情后，这里会显示你的心情分布。');
 
     // 建议
     var ins = [];
@@ -625,7 +965,7 @@
   }
   function renderThemeControl() {
     var t = getTheme();
-    document.querySelectorAll('#themeSeg .seg-btn, #themeSegSide .seg-btn').forEach(function (b) {
+    document.querySelectorAll('#themeSeg .seg-btn').forEach(function (b) {
       var on = b.dataset.themeOpt === t;
       b.classList.toggle('active', on);
       b.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -633,7 +973,7 @@
     var isDark = t === 'dark' || (t === 'system' && sysDark && sysDark.matches);
     $('themeHint').textContent = t === 'system' ? ('当前系统：' + (isDark ? '深色' : '浅色')) : '';
   }
-  ['themeSeg', 'themeSegSide'].forEach(function (id) {
+  ['themeSeg'].forEach(function (id) {
     var el = $(id); if (!el) return;
     el.addEventListener('click', function (e) {
       var b = e.target.closest('.seg-btn'); if (!b) return;
@@ -648,10 +988,20 @@
 
   /* ---------------- 设置 ---------------- */
   function renderSettings() {
+    renderGoalControl();
+    if ($('displayNameInput') && document.activeElement !== $('displayNameInput')) $('displayNameInput').value = state.displayName || '';
     $('reasonsEdit').innerHTML = state.reasons.length
       ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由，写下第一条吧。</span></li>';
   }
+  $('btnSaveDisplayName').addEventListener('click', function () {
+    var v = $('displayNameInput').value.trim().slice(0, 20);
+    state.displayName = v;
+    state.displayNameSetAt = Date.now();
+    save();
+    refreshChrome();
+    toast(v ? '显示名称已保存' : '已清除显示名称');
+  });
   function addReason() {
     var v = $('reasonInput').value.trim();
     if (!v) { toast('请输入内容'); return; }
@@ -740,7 +1090,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '15';
+  var APP_VERSION = '16';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
