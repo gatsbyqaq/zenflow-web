@@ -106,6 +106,7 @@
     var takeA = a.streakStartSetAt > b.streakStartSetAt || (a.streakStartSetAt === b.streakStartSetAt && a.streakStart >= b.streakStart);
     var goalA = (a.goalSetAt || 0) >= (b.goalSetAt || 0);
     var nameA = (a.displayNameSetAt || 0) >= (b.displayNameSetAt || 0);
+    var avatarA = (a.avatarSetAt || 0) >= (b.avatarSetAt || 0);
     var resetA = (a.resetTypesSetAt || 0) >= (b.resetTypesSetAt || 0);
     var manualA = (a.manualStreakStartSetAt || 0) >= (b.manualStreakStartSetAt || 0);
     var merged = {
@@ -118,6 +119,8 @@
       goalSetAt: Math.max(a.goalSetAt || 0, b.goalSetAt || 0),
       displayName: nameA ? a.displayName : b.displayName,
       displayNameSetAt: Math.max(a.displayNameSetAt || 0, b.displayNameSetAt || 0),
+      avatarDataUrl: avatarA ? (a.avatarDataUrl || '') : (b.avatarDataUrl || ''),
+      avatarSetAt: Math.max(a.avatarSetAt || 0, b.avatarSetAt || 0),
       resetTypes: resetA ? a.resetTypes : b.resetTypes,
       resetTypesSetAt: Math.max(a.resetTypesSetAt || 0, b.resetTypesSetAt || 0),
       manualStreakStart: manualA ? (a.manualStreakStart || 0) : (b.manualStreakStart || 0),
@@ -144,7 +147,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=19'; s.async = true;
+      s.src = 'vendor/supabase.js?v=22'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -152,25 +155,35 @@
   }
 
   /* ---------------- 错误信息（中文） ---------------- */
+  function errText(err) {
+    if (!err) return '';
+    if (typeof err === 'string') return err;
+    return [err.message, err.details, err.hint, err.error_description, err.msg, err.code].filter(Boolean).join(' ');
+  }
   function cn(err) {
-    var m = String((err && (err.message || err.error_description || err.msg)) || err || '');
+    var m = errText(err);
     var code = err && (err.code || err.error_code) || '';
-    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已被使用';
+    if (/HANDLE_TAKEN/.test(m)) return '@ID 已被占用';
+    if (/HANDLE_INVALID/.test(m)) return '@ID 需为 3–20 位小写字母、数字或下划线';
+    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已使用';
     if (/Invalid login credentials/i.test(m) || code === 'invalid_credentials') return '邮箱或密码不正确';
-    if (/Email not confirmed/i.test(m)) return '邮箱尚未确认，请先点击确认邮件中的链接';
-    if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '这个邮箱已经注册过了，请直接登录';
-    if (/Password should be|weak_password|password.*(short|characters)/i.test(m + code)) return '密码太弱：至少 8 位，建议包含字母和数字';
-    if (/rate limit|too many|over_email_send_rate_limit|429/i.test(m + code)) return '操作太频繁，请稍后再试';
+    if (/Email not confirmed/i.test(m)) return '邮箱还没确认';
+    if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '邮箱已注册，请登录';
+    if (/Password should be|weak_password|password.*(short|characters)/i.test(m + code)) return '密码至少 8 位';
+    if (/rate limit|too many|over_email_send_rate_limit|429/i.test(m + code)) return '操作太频繁';
     if (/invalid.*email|email.*invalid|validation_failed/i.test(m + code)) return '邮箱格式不正确';
     if (/signups? not allowed|signup_disabled/i.test(m + code)) return '服务器已关闭注册';
-    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络连接失败，请检查网络后重试';
-    if (/NOT_ADMIN/.test(m)) return '只有管理员可以执行此操作';
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return '网络失败';
+    if (/NOT_ADMIN/.test(m)) return '需要管理员';
+    if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
+    if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB';
+    if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
     if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
-    if (/provider is not enabled/i.test(m)) return 'Google 登录尚未启用，请在 Supabase Authentication → Providers 中配置';
+    if (/provider is not enabled/i.test(m)) return 'Google 登录未开启';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
     if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
     if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
-    if (/JWT|session|refresh_token/i.test(m)) return '登录已过期，请重新登录';
+    if (/JWT|session|refresh_token/i.test(m)) return '登录已过期';
     return m || '出现未知错误';
   }
 
@@ -197,7 +210,7 @@
       if (lastUid && lastUid !== uid && !replaceAll) {
         // 这台设备上的数据属于另一个账号：不混入当前账号，改用当前账号的云端数据
         merged = remote || Z.defaultState();
-        Z.toast('已切换账号，载入该账号的云端数据');
+        Z.toast('已切换账号');
       } else if (!remote || replaceAll) merged = local;
       else merged = merge(local, remote);
       if (stable(merged) !== stable(local)) Z.replaceState(merged);
@@ -231,40 +244,73 @@
   function localDisplayName() {
     try { return ((Z.getState().displayName) || '').trim(); } catch (e) { return ''; }
   }
-  function renderSideUser() {
-    var nameEl = $('sideName'), subEl = $('sideUserSub'), letterEl = $('sideAvatarLetter'), avatarEl = $('sideAvatar');
-    if (!nameEl || !avatarEl) return;
+  function localAvatarUrl() {
+    try { return Z.getState().avatarDataUrl || ''; } catch (e) { return ''; }
+  }
+  function googleAvatar() {
+    var meta = (user() && user().user_metadata) || {};
+    return meta.avatar_url || meta.picture || '';
+  }
+  function shownName() {
     var u = user();
     var meta = (u && u.user_metadata) || {};
+    var cloudName = (profile && profile.display_name) || '';
     var emailName = u && u.email ? u.email.split('@')[0] : '';
-    var cloudName = (profile && profile.display_name) || meta.full_name || meta.name || '';
-    var name = (cloudName || localDisplayName() || (u ? emailName : '') || '').trim();
-    var img = avatarEl.querySelector('img');
-    if (!u) {
-      nameEl.textContent = name || '未登录';
-      subEl.textContent = configured ? '前往设置' : '本机模式';
-      letterEl.textContent = (name || '?').slice(0, 1).toUpperCase();
-      if (img) img.remove();
-      avatarEl.classList.remove('has-photo');
-      return;
+    if (u) return (cloudName || meta.full_name || meta.name || localDisplayName() || emailName || '').trim();
+    return localDisplayName();
+  }
+  function shownHandle() {
+    return (profile && profile.handle) ? ('@' + profile.handle) : '';
+  }
+  function shownAvatar() {
+    if (user() && profile && profile.avatar_url) return profile.avatar_url;
+    if (user()) {
+      var g = googleAvatar();
+      if (g) return g;
     }
-    nameEl.textContent = name || '已登录';
-    subEl.textContent = syncLabel().text;
-    letterEl.textContent = (name || emailName || '?').slice(0, 1).toUpperCase();
-    var url = meta.avatar_url || meta.picture || '';
+    if (!user()) return localAvatarUrl();
+    return '';
+  }
+  function paintAvatar(el, letterEl, url, letter) {
+    if (!el) return;
+    if (letterEl) letterEl.textContent = (letter || '?').slice(0, 1).toUpperCase();
+    var img = el.querySelector('img');
     if (url) {
       if (!img) {
         img = document.createElement('img');
         img.alt = '';
-        img.className = 'side-avatar-img';
-        avatarEl.insertBefore(img, letterEl);
+        img.className = 'avatar-img';
+        el.insertBefore(img, letterEl || el.firstChild);
       }
       if (img.getAttribute('src') !== url) img.src = url;
-      avatarEl.classList.add('has-photo');
+      img.onerror = function () { el.classList.remove('has-photo'); img.remove(); };
+      el.classList.add('has-photo');
     } else {
       if (img) img.remove();
-      avatarEl.classList.remove('has-photo');
+      el.classList.remove('has-photo');
     }
+  }
+  function avatarHtml(url, letter, extra) {
+    var cls = 'avatar' + (extra ? ' ' + extra : '') + (url ? ' has-photo' : '');
+    var img = url ? '<img class="avatar-img" alt="" src="' + esc(url) + '" />' : '';
+    return '<span class="' + cls + '">' + img + '<span>' + esc((letter || '?').slice(0, 1).toUpperCase()) + '</span></span>';
+  }
+  function renderSideUser() {
+    var nameEl = $('sideName'), subEl = $('sideUserSub'), letterEl = $('sideAvatarLetter'), avatarEl = $('sideAvatar');
+    if (!nameEl || !avatarEl) return;
+    var u = user();
+    var name = shownName();
+    var handle = shownHandle();
+    nameEl.textContent = name || (u ? '已登录' : '未登录');
+    if (handle) subEl.textContent = handle;
+    else if (!u) subEl.textContent = configured ? '前往设置' : '本机模式';
+    else subEl.textContent = syncLabel().text;
+    paintAvatar(avatarEl, letterEl, shownAvatar(), name || (u && u.email) || '?');
+    var meName = $('settingsMeName'), meSub = $('settingsMeSub');
+    if (meName) meName.textContent = name || (u ? '已登录' : '未登录');
+    if (meSub) meSub.textContent = handle || (!u ? (configured ? '前往设置' : '本机模式') : (u.email || syncLabel().text));
+    paintAvatar($('settingsMeAvatar'), $('settingsMeLetter'), shownAvatar(), name || '?');
+    fillProfileForm();
   }
   function renderChrome() {
     var L = syncLabel();
@@ -272,7 +318,7 @@
     if (pill) { pill.className = 'sync-pill ' + L.cls; pill.innerHTML = ic(L.icon) + esc(L.text); }
     var logged = configured && user();
     var pp = document.querySelector('#screen-home .privacy-pill');
-    if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步到你的账号' : '所有数据只保存在本机浏览器中'; pp.classList.toggle('synced', !!logged); }
+    if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步' : '数据只在这台设备'; pp.classList.toggle('synced', !!logged); }
     renderSideUser();
     if (window.ZenFlowCore && window.ZenFlowCore.updateSettingsChrome) window.ZenFlowCore.updateSettingsChrome();
   }
@@ -289,8 +335,8 @@
     if (statusOnly && user()) { var st = $('acctSync'); if (st) { st.innerHTML = syncLine(); return; } }
     if (!configured) {
       body.innerHTML =
-        '<p class="small">当前为<b>本机模式</b>：所有功能都可以正常使用，数据只保存在这台设备上。</p>' +
-        '<p class="muted small">' + (cfgError ? '<span class="danger-text">连接配置有误：' + esc(cfgError) + '</span>' : '登录与云同步尚未启用：需要先在 <code>config.js</code> 中填写 Supabase 项目地址和 anon key（见仓库 supabase/README.md）。') + '</p>' +
+        '<p class="small">本机模式。数据只在这台设备。</p>' +
+        '<p class="muted small">' + (cfgError ? '<span class="danger-text">连接配置有误：' + esc(cfgError) + '</span>' : '云同步未开启。在 <code>config.js</code> 填写 Supabase 地址和 anon key。') + '</p>' +
         '<div class="acct-actions"><button class="btn btn-ghost" id="btnCloudSetup">' + ic('plug') + '填写连接信息</button></div>';
       return;
     }
@@ -302,24 +348,25 @@
     var u = user();
     if (!u) {
       body.innerHTML =
-        '<p class="small">登录后即可使用 ZenFlow，打卡 / 记录 / 理由会自动同步。当前站点已启用云端，<b>需要登录</b>（邮箱或 Google；新用户需邀请码）。</p>' +
+        '<p class="small">需要登录。新用户要邀请码。</p>' +
         '<div class="acct-actions"><button class="btn btn-primary" id="btnOpenLogin">' + ic('log-in') + '登录</button>' +
         '<button class="btn btn-ghost" id="btnOpenRegister">' + ic('ticket') + '邀请码注册</button></div>' +
         (cfg.source === 'local' ? '<p class="muted small acct-src">使用本机连接设置 · <button class="btn-link" id="btnCloudSetup">修改</button></p>' : '');
       return;
     }
-    var name = (profile && profile.display_name) || (u.email || '').split('@')[0];
-    var h = '<div class="acct-head"><span class="avatar">' + esc((name || '?').slice(0, 1).toUpperCase()) + '</span><div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
-      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div>' +
-      '<button class="icon-btn" id="btnEditName" aria-label="修改昵称" title="修改昵称">' + ic('pen-line') + '</button></div>' +
+    var name = shownName() || (u.email || '').split('@')[0];
+    var handle = shownHandle();
+    var h = '<div class="acct-head">' + avatarHtml(shownAvatar(), name, 'story-avatar acct-avatar') + '<div class="acct-id"><b id="acctName">' + esc(name) + '</b>' +
+      (handle ? '<span class="acct-handle">' + esc(handle) + '</span>' : '') +
+      (profile && profile.is_admin ? '<span class="admin-tag">管理员</span>' : '') + '<span class="muted small" id="acctEmail">' + esc(u.email || '') + '</span></div></div>' +
       '<div class="acct-sync" id="acctSync">' + syncLine() + '</div>' +
       '<div class="acct-actions"><button class="btn btn-ghost" id="btnSyncNow">' + ic('refresh-cw') + '立即同步</button></div>' +
-      '<p class="muted small">退出登录在设置列表最下方。管理员入口也在设置列表里。</p>';
+      '<p class="muted small">退出在设置列表底部。</p>';
     body.innerHTML = h;
   }
   function syncLine() {
     var s = sync.status;
-    var t = s === 'syncing' ? '正在同步…' : s === 'error' ? '同步失败：' + esc(sync.error) + '（会自动重试）' : s === 'offline' ? '当前离线，联网后自动同步' : '上次同步：' + fmtTime(sync.at);
+    var t = s === 'syncing' ? '正在同步…' : s === 'error' ? '同步失败：' + esc(sync.error) : s === 'offline' ? '离线，联网后会同步' : '上次同步：' + fmtTime(sync.at);
     return ic(s === 'error' || s === 'offline' ? 'cloud-off' : s === 'syncing' ? 'refresh-cw' : 'cloud-check') + '<span>' + t + '</span>';
   }
   function inviteListHtml() {
@@ -335,9 +382,9 @@
   async function loadProfile() {
     profile = null; invites = null; profileReady = false;
     if (!user()) { profileReady = true; updateGate(); return; }
-    var r = await sb.from('profiles').select('display_name,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
+    var r = await sb.from('profiles').select('display_name,handle,avatar_url,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
     if (!r.error) profile = r.data;
-    if (!profile) profile = { display_name: null, is_admin: false, invite_ok: false };
+    if (!profile) profile = { display_name: null, handle: null, avatar_url: null, is_admin: false, invite_ok: false };
     profileReady = true;
     renderAccount();
     renderChrome();
@@ -360,7 +407,7 @@
     $('authMask').classList.remove('hidden');
     if (!isGated()) Z.lockScroll();
     setTimeout(function () {
-      var focusEl = (authMode === 'register' ? $('regInvite') : $('loginEmail'));
+      var focusEl = (authMode === 'register' ? $('regName') : $('loginEmail'));
       if (focusEl) focusEl.focus();
     }, 60);
   }
@@ -381,8 +428,8 @@
     $('formRegister').classList.toggle('hidden', authMode !== 'register');
     $('authTitle').textContent = authMode === 'login' ? '登录 ZenFlow' : '用邀请码注册';
     $('authSub').textContent = authMode === 'login'
-      ? '登录后即可使用全部功能，数据会安全同步到你的账号。'
-      : '注册需要有效邀请码。也可用 Google 登录后再补填邀请码。';
+      ? '登录后会同步数据。'
+      : '需要唯一 @ID 和邀请码。';
   }
   function peekPersistedSession() {
     try {
@@ -422,12 +469,44 @@
     $('authSeg').classList.add('hidden');
     if ($('authMainPane')) $('authMainPane').classList.add('hidden');
     $('formInviteGate').classList.remove('hidden');
-    $('authTitle').textContent = '输入邀请码完成注册';
+    if ($('gateInviteField')) $('gateInviteField').classList.remove('hidden');
+    if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
+    $('authTitle').textContent = '完成注册';
     var email = (user() && user().email) || '';
-    $('authSub').textContent = email ? ('已登录为 ' + email) : '还差一步即可进入 ZenFlow';
-    $('inviteGateHint').textContent = 'Google / 第三方登录成功。ZenFlow 仅限邀请制，请输入管理员发给你的邀请码。';
+    $('authSub').textContent = email ? ('已登录 ' + email) : '填写邀请码和 @ID';
+    $('inviteGateHint').textContent = '填写邀请码和 @ID。';
+    var btn = $('btnCompleteInvite');
+    if (btn) btn.innerHTML = ic('ticket') + '完成注册';
+    prefillGateProfile();
     $('gateMsg').textContent = '';
     setTimeout(function () { var el = $('gateInvite'); if (el) el.focus(); }, 60);
+  }
+  function showHandleOnlyGate() {
+    gateMode = 'handle';
+    document.body.classList.remove('auth-booting');
+    document.body.classList.add('auth-gated');
+    document.body.classList.add('auth-ready');
+    $('authMask').classList.remove('hidden');
+    $('authSeg').classList.add('hidden');
+    if ($('authMainPane')) $('authMainPane').classList.add('hidden');
+    $('formInviteGate').classList.remove('hidden');
+    if ($('gateInviteField')) $('gateInviteField').classList.add('hidden');
+    if ($('gateHandleField')) $('gateHandleField').classList.remove('hidden');
+    $('authTitle').textContent = '设置 @ID';
+    var email = (user() && user().email) || '';
+    $('authSub').textContent = email ? ('已登录 ' + email) : '设置一个唯一的 @ID';
+    $('inviteGateHint').textContent = '这个账号还没有 @ID。';
+    var btn = $('btnCompleteInvite');
+    if (btn) btn.innerHTML = ic('circle-check') + '保存并进入';
+    prefillGateProfile();
+    $('gateMsg').textContent = '';
+    setTimeout(function () { var el = $('gateHandle'); if (el) el.focus(); }, 60);
+  }
+  function prefillGateProfile() {
+    var nameEl = $('gateName');
+    var handleEl = $('gateHandle');
+    if (nameEl && document.activeElement !== nameEl && !nameEl.value) nameEl.value = (profile && profile.display_name) || '';
+    if (handleEl && document.activeElement !== handleEl && profile && profile.handle && !handleEl.value) handleEl.value = profile.handle;
   }
   function showLoginGate() {
     gateMode = 'login';
@@ -475,7 +554,8 @@
       showBootSplash('正在进入…');
       return;
     }
-    if (profile.invite_ok) { clearGate(); return; }
+    if (profile.invite_ok && profile.handle) { clearGate(); return; }
+    if (profile.invite_ok && !profile.handle) { showHandleOnlyGate(); return; }
     showInviteGate();
   }
   function msg(id, text, ok) { var el = $(id); el.textContent = text || ''; el.classList.toggle('ok', !!ok); }
@@ -484,7 +564,55 @@
     else { btn.disabled = false; if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
   }
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var HANDLE_RE = /^[a-z0-9_]{3,20}$/;
   function normInvite(v) { return String(v || '').replace(/\s+/g, '').toUpperCase(); }
+  function normalizeHandleInput(raw) {
+    return String(raw || '').replace(/^@+/, '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
+  }
+  function handleProblem(h) {
+    if (!h) return '请设置一个 @ID';
+    if (h.length < 3) return '@ID 至少 3 位';
+    if (!HANDLE_RE.test(h)) return '@ID 只能使用小写字母、数字或下划线';
+    return '';
+  }
+  function bindHandleInput(input, stateEl) {
+    if (!input || !stateEl) return { check: function () { return Promise.resolve(null); } };
+    var timer = null, seq = 0;
+    function paint(cls, html) {
+      stateEl.className = 'invite-state' + (cls ? ' ' + cls : '');
+      stateEl.innerHTML = html || '';
+    }
+    function applyValue() {
+      var h = normalizeHandleInput(input.value);
+      if (input.value !== h) input.value = h;
+      return h;
+    }
+    async function check() {
+      var h = applyValue();
+      if (!h) { paint('', ''); return null; }
+      var problem = handleProblem(h);
+      if (problem) { paint('bad', ic('circle-alert') + (h.length < 3 ? '至少 3 位' : '格式不对')); return 'invalid'; }
+      if (!sb) { paint('', ''); return null; }
+      var my = ++seq;
+      paint('', ic('loader-circle', 'spin'));
+      var r = await sb.rpc('is_handle_available', { p_handle: h });
+      if (my !== seq) return null;
+      if (r.error) { paint('', ''); return null; }
+      paint(r.data ? 'good' : 'bad', r.data ? (ic('circle-check') + '可用') : (ic('circle-alert') + '已被占用'));
+      return !!r.data;
+    }
+    function schedule() {
+      applyValue();
+      paint('', '');
+      clearTimeout(timer);
+      timer = setTimeout(check, 350);
+    }
+    input.addEventListener('compositionstart', function () { input.dataset.composing = '1'; });
+    input.addEventListener('compositionend', function () { delete input.dataset.composing; schedule(); });
+    input.addEventListener('input', function () { if (input.dataset.composing) return; schedule(); });
+    input.addEventListener('blur', function () { clearTimeout(timer); check(); });
+    return { check: check, paint: paint };
+  }
 
   var inviteCheckSeq = 0;
   async function checkInvite() {
@@ -536,19 +664,37 @@
 
   async function doCompleteInvite(e) {
     e.preventDefault();
-    var code = normInvite($('gateInvite').value), name = $('gateName').value.trim();
-    if (!code) return msg('gateMsg', '请输入邀请码');
+    var needInvite = gateMode !== 'handle';
+    var code = needInvite ? normInvite($('gateInvite').value) : '';
+    var name = $('gateName').value.trim();
+    var handle = normalizeHandleInput($('gateHandle').value);
+    var needHandle = !(profile && profile.handle) || handle !== (profile && profile.handle);
+    if (needInvite && !code) return msg('gateMsg', '请输入邀请码');
+    if (needHandle || !profile || !profile.handle) {
+      var problem = handleProblem(handle);
+      if (problem) return msg('gateMsg', problem);
+    }
     var btn = $('btnCompleteInvite'); busy(btn, true, '验证中…'); msg('gateMsg', '');
     try {
-      var valid = await checkGateInvite();
-      if (valid === false) throw new Error('INVITE_INVALID');
-      var r = await sb.rpc('complete_invite_registration', { p_code: code, p_display_name: name || null });
+      if (needInvite) {
+        var valid = await checkGateInvite();
+        if (valid === false) throw new Error('INVITE_INVALID');
+      }
+      if (needHandle || !profile || !profile.handle) {
+        var avail = gateHandleCheck ? await gateHandleCheck.check() : null;
+        if (avail === 'invalid') throw new Error('HANDLE_INVALID');
+        if (avail === false) throw new Error('HANDLE_TAKEN');
+      }
+      var r = needInvite
+        ? await sb.rpc('complete_invite_registration', { p_code: code, p_display_name: name || null, p_handle: handle || null })
+        : await sb.rpc('update_my_profile', { p_display_name: name || null, p_handle: handle, p_avatar_url: null });
       if (r.error) throw r.error;
-      profile = r.data;
-      Z.toast('注册完成，欢迎加入');
+      profile = r.data || profile;
+      Z.toast(needInvite ? '注册完成' : '已设置 @ID');
       updateGate();
       renderAccount();
-      syncNow();
+      renderChrome();
+      if (profile && profile.invite_ok) syncNow();
       if (profile && profile.is_admin && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
     } catch (err) { msg('gateMsg', cn(err)); }
     finally { busy(btn, false); }
@@ -571,39 +717,45 @@
   async function doRegister(e) {
     e.preventDefault();
     var code = normInvite($('regInvite').value), name = $('regName').value.trim(), email = $('regEmail').value.trim();
+    var handle = normalizeHandleInput($('regHandle').value);
     var pw = $('regPassword').value, pw2 = $('regPassword2').value;
-    if (!code) return msg('regMsg', '请输入邀请码');
+    var problem = handleProblem(handle);
+    if (problem) return msg('regMsg', problem);
     if (!EMAIL_RE.test(email)) return msg('regMsg', '请输入有效的邮箱');
     if (pw.length < 8) return msg('regMsg', '密码至少 8 位');
     if (pw !== pw2) return msg('regMsg', '两次输入的密码不一致');
+    if (!code) return msg('regMsg', '请输入邀请码');
     var btn = $('btnRegister'); busy(btn, true, '注册中…'); msg('regMsg', '');
     try {
+      var avail = regHandleCheck ? await regHandleCheck.check() : null;
+      if (avail === 'invalid') throw new Error('HANDLE_INVALID');
+      if (avail === false) throw new Error('HANDLE_TAKEN');
       var valid = await checkInvite();
       if (valid === false) throw new Error('INVITE_INVALID');
-      var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null }, emailRedirectTo: appUrl() } });
+      var r = await sb.auth.signUp({ email: email, password: pw, options: { data: { invite_code: code, display_name: name || null, handle: handle }, emailRedirectTo: appUrl() } });
       if (r.error) throw r.error;
       $('regPassword').value = ''; $('regPassword2').value = '';
-      if (r.data && r.data.session) { Z.toast('注册成功，欢迎加入'); }
-      else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '这个邮箱已经注册过了，请直接登录');
-      else msg('regMsg', '注册成功！确认邮件已发送到 ' + email + '，点击邮件中的链接后即可登录。', true);
+      if (r.data && r.data.session) { Z.toast('注册成功'); }
+      else if (r.data && r.data.user && r.data.user.identities && r.data.user.identities.length === 0) msg('regMsg', '邮箱已注册，请登录');
+      else msg('regMsg', '确认邮件已发到 ' + email + '。点开链接后再登录。', true);
     } catch (err) { msg('regMsg', cn(err)); }
     finally { busy(btn, false); }
   }
   async function doForgot() {
     var email = $('loginEmail').value.trim();
-    if (!EMAIL_RE.test(email)) { msg('loginMsg', '请先在上方输入你的注册邮箱'); $('loginEmail').focus(); return; }
+    if (!EMAIL_RE.test(email)) { msg('loginMsg', '先填写注册邮箱'); $('loginEmail').focus(); return; }
     var btn = $('btnForgot'); btn.disabled = true;
     try {
       var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
       if (r.error) throw r.error;
-      msg('loginMsg', '如果该邮箱已注册，重置密码的邮件已发送，请查收。', true);
+      msg('loginMsg', '如果邮箱已注册，重置邮件已发出。', true);
     } catch (err) { msg('loginMsg', cn(err)); }
     finally { btn.disabled = false; }
   }
   function promptNewPassword() {
     Z.openModal({
       title: '设置新密码', ok: '保存',
-      html: '<p>请输入新的登录密码（至少 8 位）。</p><input type="password" id="newPw" autocomplete="new-password" placeholder="新密码" />',
+      html: '<p>至少 8 位。</p><input type="password" id="newPw" autocomplete="new-password" placeholder="新密码" />',
       onOk: function () {
         var pw = $('newPw').value;
         if (pw.length < 8) { Z.toast('密码至少 8 位'); return false; }
@@ -617,7 +769,7 @@
     var o = readConfig();
     Z.openModal({
       title: '连接 Supabase', ok: '保存并连接',
-      html: '<p>填写你的 Supabase 项目信息（Project Settings → API）。只保存在这台设备上；要让所有设备都能登录，请把它们写进仓库里的 <code>config.js</code>。</p>' +
+      html: '<p>填写 Supabase 地址和 anon key。只存在这台设备；所有设备都要用，请写进 <code>config.js</code>。</p>' +
         '<input type="url" id="cfgUrl" placeholder="https://xxxx.supabase.co" value="' + esc(o.source === 'local' ? o.url : '') + '" />' +
         '<input type="text" id="cfgKey" placeholder="anon public key（eyJ… 或 sb_publishable_…）" value="' + esc(o.source === 'local' ? o.key : '') + '" />' +
         '<p class="muted small">⚠️ 不要填写 service_role 或 secret key。</p>' +
@@ -634,6 +786,454 @@
     if (c) c.addEventListener('click', function () { localStorage.removeItem(OVERRIDE_KEY); location.reload(); });
   }
 
+  /* ---------------- 资料：昵称 / @ID / 头像 ---------------- */
+  function loggedProfile() { return !!(configured && user() && profile); }
+  function fillProfileForm() {
+    var nameInput = $('profileNameInput');
+    var handleInput = $('profileHandleInput');
+    var block = $('profileHandleBlock');
+    var hint = $('profileModeHint');
+    var removeBtn = $('btnAvatarRemove');
+    var logged = loggedProfile();
+    if (block) block.classList.toggle('hidden', !logged);
+    if (hint) hint.textContent = logged
+      ? '留空昵称再保存会清除昵称。'
+      : '本机模式，不需要 @ID。';
+    if (nameInput && document.activeElement !== nameInput && nameInput.dataset.useredit !== '1') {
+      var nextName = logged ? ((profile && profile.display_name) || '') : localDisplayName();
+      if (nameInput.value !== nextName) nameInput.value = nextName;
+    }
+    if (handleInput && logged && document.activeElement !== handleInput && handleInput.dataset.useredit !== '1') {
+      var nextHandle = (profile && profile.handle) || '';
+      if (handleInput.value !== nextHandle) handleInput.value = nextHandle;
+    }
+    var letter = shownName() || '?';
+    paintAvatar($('profileAvatar'), $('profileAvatarLetter'), shownAvatar(), letter);
+    if (removeBtn) {
+      var canRemove = logged ? !!(profile && profile.avatar_url) : !!localAvatarUrl();
+      removeBtn.classList.toggle('hidden', !canRemove);
+    }
+  }
+  var ORIENT_TEST = 'data:image/jpeg;base64,/9j/4QAiRXhpZgAASUkqAAgAAAABABIBAwABAAAABgAAAAAAAAD/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD4H8Q/8h/Uv+vmX/0M0UUV/ptkP/Ipwn/XuH/pKPAzr/kZ4r/r5P8A9KZ//9k=';
+  var autoOrientPromise = null;
+  var crop = { source: null, iw: 0, ih: 0, x: 0, y: 0, zoom: 1, stage: 0, pointers: {}, pinch: null };
+
+  function cropOpen() {
+    var mask = $('cropMask');
+    return !!(mask && !mask.classList.contains('hidden'));
+  }
+  function clampNum(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function browserAutoOrients() {
+    if (!autoOrientPromise) {
+      autoOrientPromise = new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () { resolve(img.naturalWidth === 1 && img.naturalHeight === 2); };
+        img.onerror = function () { resolve(true); };
+        img.src = ORIENT_TEST;
+      });
+    }
+    return autoOrientPromise;
+  }
+  function readExifOrientation(file) {
+    var type = (file && file.type) || '';
+    var name = (file && file.name) || '';
+    if (!/jpe?g$/i.test(type) && !/\.jpe?g$/i.test(name)) return Promise.resolve(1);
+    var slice = file.slice(0, 262144);
+    var read = slice.arrayBuffer ? slice.arrayBuffer() : new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(new Error('exif')); };
+      reader.readAsArrayBuffer(slice);
+    });
+    return read.then(function (buf) { return parseExifOrientation(new DataView(buf)); }, function () { return 1; });
+  }
+  function parseExifOrientation(view) {
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return 1;
+    var offset = 2;
+    while (offset + 4 < view.byteLength) {
+      if (view.getUint8(offset) !== 0xFF) break;
+      var marker = view.getUint8(offset + 1);
+      if (marker === 0xD9 || marker === 0xDA) break;
+      if (marker === 0x00 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) { offset += 2; continue; }
+      var size = view.getUint16(offset + 2);
+      if (size < 2) break;
+      if (marker === 0xE1) {
+        var start = offset + 4;
+        if (start + 8 <= view.byteLength && view.getUint32(start) === 0x45786966 && view.getUint16(start + 4) === 0) {
+          return readTiffOrientation(view, start + 6);
+        }
+      }
+      offset += 2 + size;
+    }
+    return 1;
+  }
+  function readTiffOrientation(view, tiff) {
+    if (tiff + 8 > view.byteLength) return 1;
+    var endian = view.getUint16(tiff);
+    if (endian !== 0x4949 && endian !== 0x4D4D) return 1;
+    var le = endian === 0x4949;
+    var u16 = function (o) { return view.getUint16(o, le); };
+    var u32 = function (o) { return view.getUint32(o, le); };
+    if (u16(tiff + 2) !== 42) return 1;
+    var ifd = tiff + u32(tiff + 4);
+    if (ifd + 2 > view.byteLength) return 1;
+    var count = u16(ifd);
+    for (var i = 0; i < count; i++) {
+      var entry = ifd + 2 + i * 12;
+      if (entry + 12 > view.byteLength) break;
+      if (u16(entry) === 0x0112) {
+        var val = u16(entry + 8);
+        return val >= 1 && val <= 8 ? val : 1;
+      }
+    }
+    return 1;
+  }
+  function applyOrientation(ctx, o, cw, ch) {
+    switch (o) {
+      case 2: ctx.transform(-1, 0, 0, 1, cw, 0); break;
+      case 3: ctx.transform(-1, 0, 0, -1, cw, ch); break;
+      case 4: ctx.transform(1, 0, 0, -1, 0, ch); break;
+      case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+      case 6: ctx.transform(0, 1, -1, 0, cw, 0); break;
+      case 7: ctx.transform(0, -1, -1, 0, cw, ch); break;
+      case 8: ctx.transform(0, -1, 1, 0, 0, ch); break;
+      default: break;
+    }
+  }
+  function loadImageElement(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('无法读取图片')); };
+      img.src = url;
+    });
+  }
+  function rasterizeOriented(img, orientation) {
+    var sw = img.naturalWidth || img.width;
+    var sh = img.naturalHeight || img.height;
+    if (!sw || !sh) throw new Error('无法读取图片');
+    var swapped = orientation >= 5 && orientation <= 8;
+    var ow = swapped ? sh : sw;
+    var oh = swapped ? sw : sh;
+    var fit = Math.min(1, 1600 / Math.max(ow, oh));
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(ow * fit));
+    canvas.height = Math.max(1, Math.round(oh * fit));
+    var ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (fit !== 1) ctx.scale(fit, fit);
+    applyOrientation(ctx, orientation, ow, oh);
+    ctx.drawImage(img, 0, 0);
+    return canvas;
+  }
+  function acceptableAvatarFile(file) {
+    if (!file) return '没有选择图片';
+    var type = file.type || '';
+    var name = file.name || '';
+    var ok = /^image\/(png|jpeg|webp|gif)$/.test(type) || (!type && /\.(png|jpe?g|webp|gif)$/i.test(name));
+    if (!ok) return '请选择 PNG、JPG、WebP 或 GIF';
+    if (file.size > 12 * 1024 * 1024) return '原图太大，请换一张小一点的';
+    return '';
+  }
+  function coverScale() {
+    var S = crop.stage || 1;
+    return Math.max(S / crop.iw, S / crop.ih);
+  }
+  function clampCrop() {
+    var S = crop.stage;
+    var sc = coverScale() * crop.zoom;
+    var minX = S - crop.iw * sc;
+    var minY = S - crop.ih * sc;
+    if (crop.x > 0) crop.x = 0;
+    if (crop.y > 0) crop.y = 0;
+    if (crop.x < minX) crop.x = minX;
+    if (crop.y < minY) crop.y = minY;
+  }
+  function drawCrop() {
+    var canvas = $('cropView');
+    var S = crop.stage;
+    if (!canvas || !S || !crop.source) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var px = Math.max(1, Math.round(S * dpr));
+    if (canvas.width !== px || canvas.height !== px) { canvas.width = px; canvas.height = px; }
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, S, S);
+    var sc = coverScale() * crop.zoom;
+    ctx.drawImage(crop.source, crop.x, crop.y, crop.iw * sc, crop.ih * sc);
+  }
+  function syncCropSlider() {
+    var slider = $('cropZoom');
+    if (slider) slider.value = String(crop.zoom);
+  }
+  function zoomCropAround(nextZoom, px, py) {
+    var oldScale = coverScale() * crop.zoom;
+    var zoom = clampNum(nextZoom, 1, 4);
+    var newScale = coverScale() * zoom;
+    if (!(oldScale > 0)) return;
+    var ix = (px - crop.x) / oldScale;
+    var iy = (py - crop.y) / oldScale;
+    crop.zoom = zoom;
+    crop.x = px - ix * newScale;
+    crop.y = py - iy * newScale;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+  }
+  function resetCropLayout() {
+    var stage = $('cropStage');
+    var S = stage ? stage.clientWidth : 0;
+    if (!S || !crop.source) return false;
+    crop.stage = S;
+    crop.zoom = 1;
+    var sc = coverScale();
+    crop.x = (S - crop.iw * sc) / 2;
+    crop.y = (S - crop.ih * sc) / 2;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+    return true;
+  }
+  function cropPointerPos(e) {
+    var rect = $('cropStage').getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function cropPointerList() {
+    var out = [];
+    Object.keys(crop.pointers).forEach(function (id) { out.push(crop.pointers[id]); });
+    return out;
+  }
+  function beginPinch() {
+    var pts = cropPointerList();
+    if (pts.length < 2) { crop.pinch = null; return; }
+    crop.pinch = {
+      dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1,
+      zoom: crop.zoom,
+      midX: (pts[0].x + pts[1].x) / 2,
+      midY: (pts[0].y + pts[1].y) / 2,
+      x: crop.x,
+      y: crop.y
+    };
+  }
+  function applyPinch() {
+    var pts = cropPointerList();
+    if (pts.length < 2 || !crop.pinch) return;
+    var dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+    var midX = (pts[0].x + pts[1].x) / 2;
+    var midY = (pts[0].y + pts[1].y) / 2;
+    var next = clampNum(crop.pinch.zoom * (dist / crop.pinch.dist), 1, 4);
+    var oldScale = coverScale() * crop.pinch.zoom;
+    var newScale = coverScale() * next;
+    var ix = (crop.pinch.midX - crop.pinch.x) / oldScale;
+    var iy = (crop.pinch.midY - crop.pinch.y) / oldScale;
+    crop.zoom = next;
+    crop.x = midX - ix * newScale;
+    crop.y = midY - iy * newScale;
+    clampCrop();
+    drawCrop();
+    syncCropSlider();
+  }
+  function exportCropBlob() {
+    return new Promise(function (resolve, reject) {
+      if (!crop.source || !crop.stage) return reject(new Error('请先调整裁剪区域'));
+      var S = crop.stage;
+      var sc = coverScale() * crop.zoom;
+      var srcX = -crop.x / sc;
+      var srcY = -crop.y / sc;
+      var srcS = S / sc;
+      if (srcX < 0) srcX = 0;
+      if (srcY < 0) srcY = 0;
+      if (srcX + srcS > crop.iw) srcX = Math.max(0, crop.iw - srcS);
+      if (srcY + srcS > crop.ih) srcY = Math.max(0, crop.ih - srcS);
+      var out = document.createElement('canvas');
+      out.width = 256;
+      out.height = 256;
+      var ctx = out.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(crop.source, srcX, srcY, srcS, srcS, 0, 0, 256, 256);
+      if (!out.toBlob) return reject(new Error('浏览器不支持图片处理'));
+      out.toBlob(function (blob) {
+        if (blob) return resolve(blob);
+        out.toBlob(function (jpeg) { jpeg ? resolve(jpeg) : reject(new Error('无法处理这张图片')); }, 'image/jpeg', 0.9);
+      }, 'image/webp', 0.9);
+    });
+  }
+  function closeCrop() {
+    var mask = $('cropMask');
+    var was = mask && !mask.classList.contains('hidden');
+    if (mask) mask.classList.add('hidden');
+    crop.source = null;
+    crop.pointers = {};
+    crop.pinch = null;
+    var done = $('cropDone');
+    if (done) { done.disabled = false; done.textContent = '完成'; }
+    if (was && Z && Z.unlockScroll) Z.unlockScroll();
+  }
+  function openAvatarCrop(file) {
+    var problem = acceptableAvatarFile(file);
+    if (problem) return Promise.reject(new Error(problem));
+    return Promise.all([readExifOrientation(file), browserAutoOrients(), loadImageElement(file)]).then(function (parts) {
+      var orientation = parts[1] ? 1 : (parts[0] || 1);
+      var source = rasterizeOriented(parts[2], orientation);
+      crop.source = source;
+      crop.iw = source.width;
+      crop.ih = source.height;
+      crop.zoom = 1;
+      crop.x = 0;
+      crop.y = 0;
+      crop.pointers = {};
+      crop.pinch = null;
+      var view = $('cropView');
+      if (view) { view.width = 1; view.height = 1; }
+      var mask = $('cropMask');
+      if (!mask) throw new Error('无法打开裁剪');
+      mask.classList.remove('hidden');
+      if (Z && Z.lockScroll) Z.lockScroll();
+      return new Promise(function (resolve) {
+        var tries = 0;
+        var tick = function () {
+          if (resetCropLayout()) return resolve();
+          if (++tries > 12) return resolve();
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+    });
+  }
+  function finishCrop() {
+    var btn = $('cropDone');
+    if (btn) { btn.disabled = true; btn.textContent = '处理中…'; }
+    return exportCropBlob().then(function (blob) {
+      return applyAvatarBlob(blob);
+    }).then(function () {
+      closeCrop();
+    }).catch(function (err) {
+      if (btn && cropOpen()) { btn.disabled = false; btn.textContent = '完成'; }
+      throw err;
+    });
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.onerror = function () { reject(new Error('无法读取图片')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+  function avatarStoragePath(url) {
+    if (!url || !user()) return '';
+    var marker = '/avatars/';
+    var i = String(url).indexOf(marker);
+    if (i < 0) return '';
+    var path = String(url).slice(i + marker.length).split('?')[0];
+    try { path = decodeURIComponent(path); } catch (e) {}
+    if (path.indexOf(user().id + '/') !== 0) return '';
+    return path;
+  }
+  function deleteStoredAvatar(url) {
+    var path = avatarStoragePath(url);
+    if (!path || !sb) return Promise.resolve();
+    return sb.storage.from('avatars').remove([path]).then(function () {}, function () {});
+  }
+  async function applyAvatarBlob(blob) {
+    if (!loggedProfile()) {
+      var dataUrl = await blobToDataUrl(blob);
+      if (dataUrl.length > 180000) throw new Error('处理后的图片仍然太大，请换一张');
+      if (Z.setLocalProfile && Z.setLocalProfile({ avatarDataUrl: dataUrl }) === false) throw new Error('无法保存头像');
+      Z.toast('头像已更新');
+      renderChrome();
+      return;
+    }
+    var ext = blob.type === 'image/jpeg' ? 'jpg' : (blob.type === 'image/png' ? 'png' : 'webp');
+    var path = user().id + '/avatar-' + Date.now() + '.' + ext;
+    var up = await sb.storage.from('avatars').upload(path, blob, { contentType: blob.type || 'image/webp', cacheControl: '3600', upsert: false });
+    if (up.error) throw up.error;
+    var pub = sb.storage.from('avatars').getPublicUrl(path);
+    var url = pub && pub.data && pub.data.publicUrl;
+    if (!url) {
+      await sb.storage.from('avatars').remove([path]);
+      throw new Error('无法取得头像地址');
+    }
+    var prev = profile && profile.avatar_url;
+    var r = await sb.rpc('update_my_profile', { p_display_name: null, p_handle: null, p_avatar_url: url });
+    if (r.error) {
+      await sb.storage.from('avatars').remove([path]);
+      throw r.error;
+    }
+    profile = r.data || Object.assign({}, profile, { avatar_url: url });
+    if (prev && prev !== url) deleteStoredAvatar(prev);
+    Z.toast('头像已更新');
+    renderAccount();
+    renderChrome();
+  }
+  async function removeAvatar() {
+    if (!loggedProfile()) {
+      if (Z.setLocalProfile) Z.setLocalProfile({ avatarDataUrl: '' });
+      Z.toast('已移除头像');
+      renderChrome();
+      return;
+    }
+    var prev = profile && profile.avatar_url;
+    var r = await sb.rpc('update_my_profile', { p_display_name: null, p_handle: null, p_avatar_url: '' });
+    if (r.error) return Z.toast(cn(r.error));
+    profile = r.data || Object.assign({}, profile, { avatar_url: null });
+    if (prev) deleteStoredAvatar(prev);
+    Z.toast('已移除头像');
+    renderAccount();
+    renderChrome();
+  }
+  async function saveProfile() {
+    var nameInput = $('profileNameInput');
+    if (!nameInput) return;
+    var name = nameInput.value.trim().slice(0, 20);
+    if (!loggedProfile()) {
+      if (nameInput) delete nameInput.dataset.useredit;
+      if (Z.setLocalProfile) Z.setLocalProfile({ displayName: name });
+      Z.toast(name ? '昵称已保存' : '已清除昵称');
+      renderChrome();
+      return;
+    }
+    var handleInput = $('profileHandleInput');
+    var handle = normalizeHandleInput(handleInput ? handleInput.value : '');
+    var current = (profile && profile.handle) || '';
+    var handleChanged = handle !== current;
+    if (handleChanged) {
+      var problem = handleProblem(handle);
+      if (problem) { Z.toast(problem); return; }
+      var avail = profileHandleCheck ? await profileHandleCheck.check() : null;
+      if (avail === 'invalid') { Z.toast(cn(new Error('HANDLE_INVALID'))); return; }
+      if (avail === false) { Z.toast(cn(new Error('HANDLE_TAKEN'))); return; }
+    }
+    var btn = $('btnSaveProfile');
+    if (btn) busy(btn, true, '保存中…');
+    try {
+      var r = await sb.rpc('update_my_profile', {
+        p_display_name: name || null,
+        p_handle: handleChanged ? handle : null,
+        p_avatar_url: null
+      });
+      if (r.error) throw r.error;
+      profile = r.data || profile;
+      if (!name && profile && profile.display_name) {
+        var cleared = await sb.from('profiles').update({ display_name: null }).eq('id', user().id).select('display_name,handle,avatar_url,is_admin,invite_ok').maybeSingle();
+        if (cleared.error) throw cleared.error;
+        if (cleared.data) profile = Object.assign({}, profile, cleared.data);
+      }
+      if (nameInput) delete nameInput.dataset.useredit;
+      if (handleInput) delete handleInput.dataset.useredit;
+      Z.toast('资料已更新');
+      renderAccount();
+      renderChrome();
+    } catch (err) { Z.toast(cn(err)); }
+    finally { if (btn) busy(btn, false); }
+  }
+
   /* ---------------- 事件 ---------------- */
   document.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t) return;
@@ -647,21 +1247,8 @@
       case 'btnLogout':
         Z.openModal({
           title: '退出登录？', ok: '退出登录', danger: true,
-          html: '<p>退出后，这台设备上的数据<b>仍会保留</b>，可以继续离线使用；再次登录时会自动合并同步。</p>',
+          html: '<p>退出后本机数据还在。再次登录会合并。</p>',
           onOk: function () { clearTimeout(pushTimer); sb.auth.signOut().then(function (r) { if (r.error) Z.toast(cn(r.error)); }); }
-        });
-        break;
-      case 'btnEditName':
-        Z.openModal({
-          title: '修改昵称', ok: '保存',
-          html: '<input type="text" id="nameInput" maxlength="20" value="' + esc((profile && profile.display_name) || '') + '" placeholder="昵称" />',
-          onOk: function () {
-            var v = $('nameInput').value.trim();
-            sb.from('profiles').update({ display_name: v || null }).eq('id', user().id).then(function (r) {
-              if (r.error) return Z.toast(cn(r.error));
-              profile = Object.assign({}, profile, { display_name: v || null }); renderAccount(); renderChrome(); Z.toast('昵称已更新');
-            });
-          }
         });
         break;
       case 'btnNewInvites':
@@ -698,6 +1285,99 @@
   $('regInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('inviteState').innerHTML = ''; $('inviteState').className = 'invite-state'; });
   $('gateInvite').addEventListener('blur', checkGateInvite);
   $('gateInvite').addEventListener('input', function () { this.value = this.value.toUpperCase(); $('gateInviteState').innerHTML = ''; $('gateInviteState').className = 'invite-state'; });
+  var regHandleCheck = bindHandleInput($('regHandle'), $('regHandleState'));
+  var gateHandleCheck = bindHandleInput($('gateHandle'), $('gateHandleState'));
+  var profileHandleCheck = bindHandleInput($('profileHandleInput'), $('profileHandleState'));
+  if ($('btnSaveProfile')) $('btnSaveProfile').addEventListener('click', function () { saveProfile(); });
+  ['profileNameInput', 'profileHandleInput'].forEach(function (id) {
+    var el = $(id);
+    if (el) el.addEventListener('input', function () { this.dataset.useredit = '1'; });
+  });
+  if ($('btnAvatarChange')) $('btnAvatarChange').addEventListener('click', function () { var f = $('avatarFile'); if (f) f.click(); });
+  if ($('avatarFile')) $('avatarFile').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    this.value = '';
+    if (!file) return;
+    var btn = $('btnAvatarChange');
+    if (btn) busy(btn, true, '处理中…');
+    openAvatarCrop(file).catch(function (err) { Z.toast(cn(err)); }).then(function () { if (btn) busy(btn, false); });
+  });
+  if ($('cropCancel')) $('cropCancel').addEventListener('click', closeCrop);
+  if ($('cropDone')) $('cropDone').addEventListener('click', function () {
+    finishCrop().catch(function (err) { Z.toast(cn(err)); });
+  });
+  if ($('cropMask')) $('cropMask').addEventListener('click', function (e) { if (e.target === this) closeCrop(); });
+  if ($('cropZoom')) $('cropZoom').addEventListener('input', function () {
+    if (!cropOpen() || !crop.stage) return;
+    var z = parseFloat(this.value);
+    if (!isFinite(z)) return;
+    zoomCropAround(z, crop.stage / 2, crop.stage / 2);
+  });
+  if ($('cropStage')) {
+    var stage = $('cropStage');
+    stage.addEventListener('pointerdown', function (e) {
+      if (!cropOpen()) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      crop.pointers[e.pointerId] = cropPointerPos(e);
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      if (Object.keys(crop.pointers).length >= 2) beginPinch();
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!cropOpen() || !crop.pointers[e.pointerId]) return;
+      var prev = crop.pointers[e.pointerId];
+      var pos = cropPointerPos(e);
+      crop.pointers[e.pointerId] = pos;
+      if (Object.keys(crop.pointers).length >= 2) applyPinch();
+      else {
+        crop.x += pos.x - prev.x;
+        crop.y += pos.y - prev.y;
+        clampCrop();
+        drawCrop();
+      }
+      e.preventDefault();
+    });
+    function endCropPointer(e) {
+      if (!crop.pointers[e.pointerId]) return;
+      delete crop.pointers[e.pointerId];
+      crop.pinch = null;
+      if (Object.keys(crop.pointers).length >= 2) beginPinch();
+    }
+    stage.addEventListener('pointerup', endCropPointer);
+    stage.addEventListener('pointercancel', endCropPointer);
+    stage.addEventListener('wheel', function (e) {
+      if (!cropOpen() || !crop.stage) return;
+      e.preventDefault();
+      var rect = stage.getBoundingClientRect();
+      var delta = e.deltaY;
+      if (e.deltaMode === 1) delta *= 16;
+      else if (e.deltaMode === 2) delta *= stage.clientHeight;
+      zoomCropAround(crop.zoom * Math.exp(-delta * 0.0016), e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+    stage.addEventListener('touchmove', function (e) { if (cropOpen()) e.preventDefault(); }, { passive: false });
+  }
+  window.addEventListener('resize', function () {
+    if (!cropOpen() || !crop.stage) return;
+    var stageEl = $('cropStage');
+    var S = stageEl ? stageEl.clientWidth : 0;
+    if (!S || S === crop.stage) { drawCrop(); return; }
+    var k = S / crop.stage;
+    crop.x *= k;
+    crop.y *= k;
+    crop.stage = S;
+    clampCrop();
+    drawCrop();
+  });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (name) {
+    document.addEventListener(name, function (e) { if (cropOpen()) e.preventDefault(); }, { passive: false });
+  });
+  if ($('btnAvatarRemove')) $('btnAvatarRemove').addEventListener('click', function () {
+    Z.openModal({
+      title: '移除头像？', ok: '移除', danger: true,
+      html: '<p>移除后显示首字母。没有自定义头像时，Google 登录仍显示 Google 头像。</p>',
+      onOk: function () { removeAvatar(); }
+    });
+  });
 
   /* ---------------- 启动 ---------------- */
   window.ZFCloud = {
@@ -707,7 +1387,9 @@
     status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, client: function () { return sb; },
-    refreshChrome: renderChrome
+    refreshChrome: renderChrome,
+    cropOpen: cropOpen,
+    closeCrop: closeCrop
   };
   renderChrome(); renderAccount();
   if (!configured) {

@@ -184,7 +184,7 @@
       });
       h += '</tbody></table></div>';
     }
-    h += '<p class="muted small" style="margin-top:10px">「今日活跃」按 user_data.updated_at 是否落在今天（服务器时区）估算，未同步过的用户不计。</p></div>';
+    h += '<p class="muted small" style="margin-top:10px">今日活跃按今天有没有同步估算。</p></div>';
     el.innerHTML = h;
   }
 
@@ -197,19 +197,25 @@
     var q = (el.querySelector('#adminUserQ') && el.querySelector('#adminUserQ').value || '').trim().toLowerCase();
     var rows = cache.users.filter(function (u) {
       if (!q) return true;
-      return (u.email || '').toLowerCase().indexOf(q) >= 0 || (u.display_name || '').toLowerCase().indexOf(q) >= 0;
+      return (u.email || '').toLowerCase().indexOf(q) >= 0 || (u.display_name || '').toLowerCase().indexOf(q) >= 0 || (u.handle || '').toLowerCase().indexOf(q.replace(/^@/, '')) >= 0;
     });
     var h = '<div class="admin-card"><div class="admin-toolbar">' +
-      '<input class="grow" type="search" id="adminUserQ" placeholder="搜索邮箱 / 昵称" value="' + esc(q) + '" />' +
+      '<input class="grow" type="search" id="adminUserQ" placeholder="搜索邮箱 / 昵称 / @ID" value="' + esc(q) + '" />' +
       '<button class="btn btn-ghost btn-sm" type="button" id="adminUsersReload">' + ic('refresh-cw') + '刷新</button></div>';
     if (!rows.length) h += '<p class="admin-empty">没有匹配的用户</p>';
     else {
       h += '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>用户</th><th>角色</th><th>注册 / 同步</th><th>操作</th></tr></thead><tbody>';
       rows.forEach(function (u) {
         var isSelf = selfId && u.id === selfId;
-        h += '<tr><td><div><b>' + esc(u.display_name || (u.email || '').split('@')[0] || '用户') + '</b>' +
+        var uname = u.display_name || (u.email || '').split('@')[0] || '用户';
+        var uletter = (uname || '?').slice(0, 1).toUpperCase();
+        var uav = '<span class="avatar admin-avatar' + (u.avatar_url ? ' has-photo' : '') + '">' +
+          (u.avatar_url ? '<img class="avatar-img" alt="" src="' + esc(u.avatar_url) + '" />' : '') +
+          '<span>' + esc(uletter) + '</span></span>';
+        h += '<tr><td><div class="admin-user">' + uav + '<div><b>' + esc(uname) + '</b>' +
           (isSelf ? ' <span class="muted small">（我）</span>' : '') +
-          '</div><div class="mono muted">' + esc(u.email || '—') + '</div></td><td>' +
+          (u.handle ? '<div class="acct-handle">@' + esc(u.handle) + '</div>' : '') +
+          '<div class="mono muted">' + esc(u.email || '—') + '</div></div></div></td><td>' +
           (u.is_admin ? '<span class="pill-tag admin">管理员</span> ' : '<span class="pill-tag muted">用户</span> ') +
           (u.is_banned ? '<span class="pill-tag banned">已禁用</span>' : '') +
           '</td><td><div class="small">' + esc(fmtDT(u.created_at)) + '</div><div class="muted small">同步 ' + esc(fmtDT(u.last_sync_at)) + '</div>' +
@@ -226,7 +232,7 @@
       });
       h += '</tbody></table></div>';
     }
-    h += '<p class="muted small" style="margin-top:10px">禁用会写入 auth.users.banned_until，对方将无法再登录；本机已缓存的会话可能仍短暂有效，直到 token 过期。</p></div>';
+    h += '<p class="muted small" style="margin-top:10px">禁用后无法登录。已有会话可能要等过期。</p></div>';
     el.innerHTML = h;
   }
 
@@ -269,17 +275,15 @@
     var cssV = (getComputedStyle(document.documentElement).getPropertyValue('--zf-css') || '').replace(/["'\s]/g, '');
     el.innerHTML =
       '<div class="admin-card"><h2>' + ic('wrench') + '维护说明</h2>' +
-      '<p class="admin-note">管理后台不会在这里执行任何不可逆的批量删除。如需清理测试数据，请到 Supabase 控制台的 Table Editor / SQL Editor 操作，并先导出备份。</p>' +
-      '<p class="admin-note"><b>建议的安全流程：</b></p>' +
-      '<ul class="admin-note"><li>重要变更前让用户在「设置 → 导出数据」下载 JSON 备份。</li>' +
-      '<li>作废未使用的邀请码用「邀请码」页的作废按钮即可。</li>' +
-      '<li>禁用账号使用「用户」页的「禁用登录」（写入 <code>auth.users.banned_until</code>）。</li>' +
-      '<li>本页面不会提供“清空所有用户数据”一类危险操作。</li></ul></div>' +
+      '<p class="admin-note">这里不做批量删除。清理数据请到 Supabase，并先备份。</p>' +
+      '<ul class="admin-note"><li>变更前让用户导出 JSON。</li>' +
+      '<li>作废邀请码用邀请码页的按钮。</li>' +
+      '<li>禁用账号用用户页的「禁用登录」。</li></ul></div>' +
       '<div class="admin-card"><h2>' + ic('info') + '环境信息</h2>' +
       '<p class="admin-note">应用版本 <b>v' + esc(ver) + '</b> · 样式 <b>v' + esc(cssV || '?') + '</b></p>' +
       '<p class="admin-note">当前管理员 <code>' + esc(st.email || '—') + '</code></p>' +
       '<p class="admin-note">Supabase 项目 <code>ordgebjytixmbwabpsrj</code></p>' +
-      '<p class="admin-note">入口：设置 → 打开管理后台，或地址栏 <code>#admin</code> / <code>?admin=1</code>（非管理员会被拒绝）。</p>' +
+      '<p class="admin-note">入口：设置里的管理后台，或 <code>#admin</code>。</p>' +
       '<div class="admin-toolbar" style="margin-top:12px">' +
       '<button class="btn btn-ghost" type="button" id="adminGotoExport">' + ic('download') + '去设置导出数据</button>' +
       '<button class="btn btn-primary" type="button" id="adminClose2">' + ic('arrow-left') + '返回应用</button>' +
