@@ -1,0 +1,7 @@
+ZenFlowCore/.build/
+DerivedData/
+.build/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
