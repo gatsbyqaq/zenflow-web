@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" id="metaColorScheme" />
-  <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" id="metaThemeLight" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" id="metaThemeLight" />
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" id="metaThemeDark" />
   <script>
     /* 首帧前应用外观设置，避免闪烁（'light' | 'dark'；无属性 = 跟随系统） */
@@ -13,7 +13,7 @@
         var t = localStorage.getItem('zenflow_theme');
         if (t !== 'light' && t !== 'dark') return;
         document.documentElement.setAttribute('data-theme', t);
-        var c = t === 'dark' ? '#000000' : '#fafafa';
+        var c = t === 'dark' ? '#000000' : '#ffffff';
         // iOS 26 Safari 会根据页面背景为状态栏/工具栏着色：首帧前就把根背景设为当前主题色
         document.documentElement.style.backgroundColor = c;
         document.documentElement.style.colorScheme = t;
@@ -33,11 +33,11 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=33" />
+  <link rel="stylesheet" href="styles.css?v=34" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
-  body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
+  body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
-  #authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg,#fafafa);color:var(--muted,#737373)}
+  #authBoot{display:none;position:fixed;inset:0;z-index:90;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:var(--bg,#ffffff);color:var(--muted,#6e6e73)}
   body.auth-booting #authBoot{display:flex}
   #authBoot .auth-boot-logo{width:40px;height:40px;border-radius:50%}
   :root[data-theme="dark"] #authBoot .auth-boot-logo{box-shadow:0 0 0 1px rgba(255,255,255,.12)}
@@ -148,7 +148,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=33" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=34" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -163,54 +163,38 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=33" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
-          <p class="eyebrow" id="greeting">你好</p>
+          <p class="brand"><img src="icon.svg?v=34" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
       </header>
 
       <div class="home-main">
       <div class="card hero-card">
-        <div class="gauge" id="streakGauge" role="img" aria-label="已戒 0 天">
+        <div class="gauge" id="streakGauge" role="img" aria-label="0 天">
           <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
             <defs>
-              <linearGradient id="storyRing" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#feda75"/>
-                <stop offset="28%" stop-color="#fa7e1e"/>
-                <stop offset="55%" stop-color="#d62976"/>
-                <stop offset="78%" stop-color="#962fbf"/>
-                <stop offset="100%" stop-color="#4f5bd5"/>
+              <linearGradient id="insRing" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#833AB4"/>
+                <stop offset="50%" stop-color="#E1306C"/>
+                <stop offset="100%" stop-color="#F77737"/>
               </linearGradient>
             </defs>
             <circle class="ring-bg" cx="100" cy="100" r="86" />
-            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" stroke="url(#storyRing)" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
+            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" stroke="url(#insRing)" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
           </svg>
           <div class="gauge-copy">
-            <p class="gauge-kicker">已戒</p>
             <p class="gauge-days"><span class="days-num" id="daysNum">0</span></p>
             <p class="gauge-unit">天</p>
           </div>
         </div>
-        <p class="streak-keep" id="streakKeep"></p>
         <button class="urge-entry" id="btnUrgeHome" type="button" data-goto="sos"><span data-i18n="urge.button"></span></button>
-        <p class="next-ms" id="nextMs">目标 30 天</p>
-        <p class="goal-actions"><button class="btn-link" id="btnSetGoal" type="button"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>设置目标天数</button></p>
-        <div class="time-chips">
-          <div class="chip-t"><b id="hNum">00</b><span>小时</span></div>
-          <div class="chip-t"><b id="mNum">00</b><span>分钟</span></div>
-          <div class="chip-t"><b id="sNum">00</b><span>秒</span></div>
-        </div>
-        <div class="progress"><div class="progress-bar" id="msBar"></div></div>
-        <div class="hero-foot">
-          <span class="muted small" id="startText">开始于 —</span>
-          <button class="btn-link" id="btnAdjustStart">调整开始时间</button>
-        </div>
       </div>
 
       <div class="mini-stats">
-        <div class="mini"><span class="mini-ic tint-amber"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span><span class="mini-v" id="bestStreak">0天</span><span class="mini-l">最佳纪录</span></div>
-        <div class="mini"><span class="mini-ic tint-mint"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
-        <div class="mini"><span class="mini-ic tint-blue"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
+        <div class="mini"><span class="mini-v" id="bestStreak">0 天</span><span class="mini-l" data-i18n="stats.longest">最长连续</span></div>
+        <div class="mini"><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
+        <div class="mini"><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
       </div>
 
       </div>
@@ -237,8 +221,6 @@
         </div>
         <div class="cal-week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
         <div class="cal-grid" id="calGrid"></div>
-        <p class="muted small cal-hint">点某一天查看或补记。</p>
-        <div class="cal-legend" id="calLegend"></div>
       </div>
 
       <div class="card">
@@ -254,35 +236,35 @@
       <div class="sos-step" id="sosBreath">
         <div class="sos-top">
           <button class="icon-btn" id="btnSosClose1" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
-          <span class="muted small" data-i18n="urge.breathTitle"></span>
+          <span></span>
           <button class="btn-link" id="btnSkipBreath" type="button" data-i18n="urge.skip"></button>
         </div>
         <div class="breath-stage">
-          <div class="breath-halo"></div>
           <div class="breath-circle" id="breathCircle">
             <div class="breath-phase" id="breathPhase"></div>
             <div class="breath-count" id="breathCount"></div>
           </div>
         </div>
-        <p class="center muted" id="breathHint"></p>
-        <div class="progress thin"><div class="progress-bar" id="breathBar"></div></div>
-        <p class="center muted small" id="breathRound"></p>
+        <p class="center muted breath-hint" id="breathHint"></p>
+        <div class="breath-dots" id="breathDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       </div>
 
       <div class="sos-step" id="sosEnd">
         <div class="sos-top">
           <button class="icon-btn" id="btnSosClose2" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
-          <span class="muted small"></span>
+          <span></span>
           <span></span>
         </div>
-        <p class="urge-now" id="urgeStreakNow"></p>
-        <div class="card">
-          <h3 data-i18n="urge.reasonsTitle"></h3>
-          <ul class="reasons-view" id="reasonsView"></ul>
-        </div>
-        <div class="urge-actions">
-          <button class="btn btn-primary btn-block btn-lg" id="btnMadeIt" type="button" data-i18n="urge.resisted"></button>
-          <button class="btn btn-ghost btn-block" id="btnUrgeRecord" type="button" data-i18n="urge.notResisted"></button>
+        <div class="urge-body">
+          <p class="urge-now" id="urgeStreakNow"></p>
+          <div class="card">
+            <h3 data-i18n="urge.reasonsTitle"></h3>
+            <ul class="reasons-view" id="reasonsView"></ul>
+          </div>
+          <div class="urge-actions">
+            <button class="btn btn-primary btn-block btn-lg" id="btnMadeIt" type="button" data-i18n="urge.resisted"></button>
+            <button class="btn btn-ghost btn-block" id="btnUrgeRecord" type="button" data-i18n="urge.notResisted"></button>
+          </div>
         </div>
       </div>
     </section>
@@ -322,13 +304,10 @@
         </div>
       </header>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="stat-v" id="stUrges">0</span><span class="stat-l">抵御冲动</span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-cloud-rain"/></svg></span><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span><span class="stat-v" id="stBest">0</span><span class="stat-l">最长连续（天）</span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg></span><span class="stat-v" id="stTotal">0</span><span class="stat-l" data-i18n="stats.totalDays"></span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span><span class="stat-v" id="stCurrent">0</span><span class="stat-l">当前连续（天）</span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="stat-v" id="stCheckins">0</span><span class="stat-l">累计打卡</span></div>
-        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-percent"/></svg></span><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
+        <div class="stat stat-relapse"><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
+        <div class="stat"><span class="stat-v" id="stTotal">0 天</span><span class="stat-l" data-i18n="stats.totalDays"></span></div>
+        <div class="stat"><span class="stat-v" id="stCurrent">0 天</span><span class="stat-l">当前连续</span></div>
+        <div class="stat"><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
       </div>
 
       <div class="stats-cards">
@@ -362,13 +341,6 @@
       <header class="page-head settings-head">
         <button class="icon-btn settings-back hidden" id="settingsBack" type="button" aria-label="返回"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
         <div class="settings-head-main">
-          <div class="settings-me m-only" id="settingsMe">
-            <span class="avatar story-avatar settings-me-avatar" id="settingsMeAvatar"><span id="settingsMeLetter">?</span></span>
-            <span class="settings-me-text">
-              <b id="settingsMeName">未登录</b>
-              <small id="settingsMeSub">本机模式</small>
-            </span>
-          </div>
           <div>
             <p class="eyebrow" id="settingsEyebrow">设置</p>
             <h1 id="settingsTitle">设置</h1>
@@ -394,6 +366,11 @@
             <span class="set-row-text"><b>目标天数</b><small id="settingsGoalSub">30 天</small></span>
             <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
           </button>
+          <button class="set-row" type="button" id="btnAdjustStart">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg></span>
+            <span class="set-row-text"><b>开始时间</b><small id="settingsStartSub">—</small></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
           <button class="set-row" type="button" data-settings="resets">
             <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span>
             <span class="set-row-text"><b>重置规则</b><small id="settingsResetSub">全部重置</small></span>
@@ -415,6 +392,7 @@
           </button>
         </div>
 
+        <p class="set-label">其他</p>
         <div class="set-group">
           <button class="set-row" type="button" data-settings="data">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-hard-drive"/></svg></span>
@@ -569,7 +547,7 @@
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v33</p>
+          <p class="small muted app-version" id="appVersion">版本 v34</p>
         </div>
       </div>
       </div>
@@ -579,17 +557,16 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=33" alt="" class="side-logo" />
+      <img src="icon.svg?v=34" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
     <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
     <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
-    <button class="tab tab-sos" data-tab="sos" aria-label="急救" title="急救（快捷键 S）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span><span class="sos-dot">SOS</span><span>急救</span></button>
     <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
     <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
     <div class="side-foot d-only">
-      <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换 · <kbd>S</kbd> 急救</p>
+      <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换</p>
       <button class="side-user" id="sideUser" type="button" title="账号与设置">
         <span class="avatar side-avatar" id="sideAvatar"><span id="sideAvatarLetter">?</span></span>
         <span class="side-user-text">
@@ -631,7 +608,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=33" alt="" class="auth-logo" />
+        <img src="icon.svg?v=34" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -784,15 +761,15 @@
         <span class="sheet-head-sp"></span>
       </header>
       <div class="sheet-body" id="actBody">
-        <p class="muted small" id="actWhen"></p>
         <p class="field-label">心情</p>
         <div class="moods" id="actMoods"></div>
         <p class="field-label">行为（可多选）</p>
         <div class="tags" id="actTypes"></div>
-        <label class="field">
+        <div class="field time-field">
           <span>时间</span>
-          <input type="datetime-local" id="actTime" />
-        </label>
+          <button type="button" class="time-pick" id="actWhenBtn" tabindex="-1" aria-hidden="true">今天 15:10</button>
+          <input type="datetime-local" id="actTime" class="time-native" aria-label="时间" />
+        </div>
         <div class="field">
           <span>触发因素</span>
           <div class="tags" id="actTriggers"></div>
@@ -802,8 +779,7 @@
           <span>备注（可选）</span>
           <textarea id="actNote" rows="2" maxlength="500" placeholder="备注"></textarea>
         </label>
-        <p class="small muted" id="actHint"></p>
-        <button class="btn btn-primary btn-block" id="btnSaveAct" type="button">保存</button>
+        <button class="btn btn-primary btn-block" id="btnSaveAct" type="button" data-i18n="record.save">保存</button>
       </div>
     </div>
   </div>
@@ -834,7 +810,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=33"></script>
+<script src="config.js?v=34"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -843,11 +819,11 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=33"></script>
-<script src="streak.js?v=33"></script>
-<script src="strings.js?v=33"></script>
-<script src="app.js?v=33"></script>
-<script src="cloud.js?v=33"></script>
-<script src="admin.js?v=33"></script>
+<script src="data.js?v=34"></script>
+<script src="streak.js?v=34"></script>
+<script src="strings.js?v=34"></script>
+<script src="app.js?v=34"></script>
+<script src="cloud.js?v=34"></script>
+<script src="admin.js?v=34"></script>
 </body>
 </html>

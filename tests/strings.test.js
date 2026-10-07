@@ -30,6 +30,16 @@ assert.strictEqual(Z.table.en['urge.button'], "I'm having an urge");
 assert.strictEqual(Z.table.en['urge.resisted'], 'I made it through');
 assert.strictEqual(Z.table.en['stats.longest'], 'Longest streak');
 assert.strictEqual(Z.table.en['stats.totalDays'], 'Total days');
+assert.strictEqual(Z.t('record.save'), '保存');
+assert.strictEqual(Z.t('day.timeline'), '时间线');
+assert.strictEqual(Z.t('relapse.kept'), '已记录 · 天数不变');
+assert.strictEqual(Z.t('time.today', { time: '15:10' }), '今天 15:10');
+assert.strictEqual(Z.t('time.date', { m: 10, d: 5, time: '15:10' }), '10月5日 15:10');
+assert.strictEqual(Z.table.en['record.save'], 'Save');
+assert.strictEqual(Z.table.en['day.timeline'], 'Timeline');
+assert.strictEqual(Z.table.en['relapse.kept'], 'Logged · Streak kept');
+assert.strictEqual(Z.render(Z.table.en['time.today'], { time: '15:10' }, 'en'), 'Today 15:10');
+assert.strictEqual(Z.render(Z.table.en['time.date'], { month: 'Oct', d: 5, time: '15:10' }, 'en'), 'Oct 5 15:10');
 Object.keys(Z.table.zh).forEach(function (k) {
   assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
 });

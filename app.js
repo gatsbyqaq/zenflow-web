@@ -21,6 +21,33 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
   function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
+  function dayText(ms) {
+    var n = fmtDays(ms);
+    var unit = t('stats.dayUnit');
+    return unit ? (n + ' ' + unit) : n;
+  }
+  function hour12() {
+    try { return !!Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12; } catch (e) { return false; }
+  }
+  function fmtClock(ts) {
+    var d = new Date(ts);
+    if (!hour12()) return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    try {
+      return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
+    } catch (e2) {
+      var h = d.getHours();
+      return (h % 12 || 12) + ':' + pad(d.getMinutes()) + (h < 12 ? ' AM' : ' PM');
+    }
+  }
+  var MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmtWhen(ts) {
+    var d = new Date(ts);
+    var time = fmtClock(ts);
+    var k = dateKey(ts);
+    if (k === dateKey(Date.now())) return t('time.today', { time: time });
+    if (k === dateKey(Date.now() - DAY)) return t('time.yesterday', { time: time });
+    return t('time.date', { m: d.getMonth() + 1, d: d.getDate(), time: time, month: MONTHS_EN[d.getMonth()] });
+  }
   function t(key, vars) { return (window.ZFStrings && window.ZFStrings.t) ? window.ZFStrings.t(key, vars) : key; }
   function applyNewCopy() {
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
@@ -305,6 +332,7 @@
       }
     }
     current = tab;
+    document.body.classList.toggle('sos-open', tab === 'sos');
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
     document.querySelectorAll('.tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
@@ -366,9 +394,7 @@
   function updateTimer() {
     var ms = curMs();
     var days = Math.floor(ms / DAY);
-    var h = Math.floor(ms % DAY / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
-    $('daysNum').textContent = days;
-    $('hNum').textContent = pad(h); $('mNum').textContent = pad(m); $('sNum').textContent = pad(s);
+    if ($('daysNum')) $('daysNum').textContent = days;
     var dFloat = ms / DAY;
     var goal = state.goalDays || 30;
     var p = goal > 0 ? Math.min(1, Math.max(0, dFloat / goal)) : 0;
@@ -377,34 +403,15 @@
       ring.style.strokeDasharray = String(RING_LEN);
       ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
     }
-    var bar = $('msBar');
-    if (bar) bar.style.width = (p * 100).toFixed(1) + '%';
     var pct = Math.round(p * 100);
-    var left = goal - dFloat;
-    if (p >= 1) $('nextMs').textContent = '已达成 ' + goal + ' 天目标';
-    else $('nextMs').textContent = '目标 ' + goal + ' 天 · ' + (left >= 1 ? ('还差 ' + Math.ceil(left) + ' 天') : '还差不到 1 天') + ' · ' + pct + '%';
     var gauge = $('streakGauge');
-    if (gauge) gauge.setAttribute('aria-label', '已戒 ' + days + ' 天，目标 ' + goal + ' 天，完成 ' + pct + '%');
-    $('bestStreak').textContent = fmtDays(bestMs()) + '天';
-    if ($('streakKeep')) $('streakKeep').textContent = keepLineText();
-  }
-
-  function greeting() {
-    var h = new Date().getHours();
-    if (h < 5) return ['夜深了', 'moon-star'];
-    if (h < 11) return ['早上好', 'sunrise'];
-    if (h < 14) return ['中午好', 'sun'];
-    if (h < 18) return ['下午好', 'cloud-sun'];
-    if (h < 23) return ['晚上好', 'sunset'];
-    return ['夜深了', 'moon'];
+    if (gauge) gauge.setAttribute('aria-label', days + ' 天，目标 ' + goal + ' 天，完成 ' + pct + '%');
+    if ($('bestStreak')) $('bestStreak').textContent = dayText(bestMs());
   }
 
   function renderHome() {
-    var g = greeting();
-    $('greeting').innerHTML = ic(g[1], 'tint-amber') + ' ' + g[0];
-    $('startText').textContent = '开始于 ' + fmtDT(state.streakStart);
-    $('urgeCountHome').textContent = state.urges.length;
-    $('checkinCountHome').textContent = Object.keys(state.checkins).length;
+    if ($('urgeCountHome')) $('urgeCountHome').textContent = state.urges.length;
+    if ($('checkinCountHome')) $('checkinCountHome').textContent = Object.keys(state.checkins).length;
     var now = new Date();
     $('todayDate').textContent = (now.getMonth() + 1) + '月' + now.getDate() + '日 星期' + '日一二三四五六'[now.getDay()];
     updateTimer();
@@ -431,11 +438,11 @@
       html += '<div class="today-rel">' + rels.map(function (r) {
         var primary = (normalizeTypes(r.types)[0]) || '';
         var t = primary && typeById(primary);
-        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? ' · 会重置天数' : ' · 不重置天数') + '</div></div></button>';
+        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? '' : ' · ' + t('relapse.kept')) + '</div></div></button>';
       }).join('') + '</div>';
     }
     if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录</p>';
-    else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">查看今天的线性图</button></p>';
+    else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">' + t('day.timeline') + '</button></p>';
     box.innerHTML = html;
   }
   $('checkinCard').addEventListener('click', function (e) {
@@ -472,35 +479,31 @@
     for (var d = 1; d <= count; d++) {
       var k = y + '-' + pad(mo + 1) + '-' + pad(d);
       var cls = 'cal-cell';
-      var c = state.checkins[k];
       var types = typesByDay[k] || [];
-      if (c) cls += ' m' + c.mood;
-      if (relapseDays[k]) cls += ' relapse';
-      if (urgeDays[k]) cls += ' has-urge';
-      if (types.length) cls += ' has-types';
-      if (types.length === 1) cls += ' one-type';
       if (k === todayK) cls += ' today';
       else if (k > todayK) cls += ' future';
-      var names = types.map(function (id) { return typeById(id).label; });
-      var urgeMark = urgeDays[k] ? '<span class="cal-mark urge" title="' + esc(t('urge.resisted')) + '">' + ic('circle') + '</span>' : '';
-      var title = k + (c ? ' 已打卡' : '') + (names.length ? ' · ' + names.join('、') : (relapseDays[k] ? ' · 有破戒记录' : '')) + (urgeDays[k] ? ' · ' + t('urge.resisted') : '');
-      var marks = '';
-      if (types.length || relapseDays[k] || urgeDays[k]) {
-        var bits = types.map(function (id) {
-          var tp = typeById(id);
-          return '<span class="cal-mark" data-type="' + tp.id + '" title="' + esc(tp.label) + '">' + ic(tp.icon) + '</span>';
-        }).join('');
-        if (!types.length && relapseDays[k]) bits += '<span class="cal-mark legacy" title="破戒">' + ic('cloud-rain') + '</span>';
-        marks = '<span class="cal-types">' + bits + urgeMark + '</span>';
+      var markType = '';
+      if (relapseDays[k]) {
+        var resetting = types.filter(function (id) { return state.resetTypes[id]; });
+        var pool = resetting.length ? resetting : types;
+        if (pool.indexOf('masturbation') >= 0) markType = 'masturbation';
+        else markType = pool[0] || 'masturbation';
+      }
+      var mark = '';
+      var title = k;
+      if (markType) {
+        var tp = typeById(markType);
+        title += ' · ' + (tp ? tp.label : '破戒');
+        mark = '<span class="cal-types"><span class="cal-mark dot" data-type="' + esc(markType) + '"></span></span>';
+      } else if (urgeDays[k]) {
+        title += ' · ' + t('urge.resisted');
+        mark = '<span class="cal-types"><span class="cal-mark urge-ring" title="' + esc(t('urge.resisted')) + '"></span></span>';
       }
       var future = k > todayK;
       var tag = future ? 'div' : 'button';
-      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + marks + '</' + tag + '>';
+      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
     }
     $('calGrid').innerHTML = html;
-    $('calLegend').innerHTML = lapseTypes().map(function (tp) {
-      return '<span class="lg-item" data-type="' + tp.id + '">' + ic(tp.icon) + esc(tp.label) + '</span>';
-    }).join('') + '<span class="lg-item"><span class="cal-mark urge">' + ic('circle') + '</span>' + esc(t('urge.resisted')) + '</span><span class="lg-item"><i class="lg lg-mood"></i>无类型时底色为心情</span>';
   }
   $('calPrev').addEventListener('click', function () { calOffset--; renderCalendar(); });
   $('calNext').addEventListener('click', function () { if (calOffset < 0) { calOffset++; renderCalendar(); } });
@@ -543,18 +546,6 @@
     }).join('');
     if ($('goalInput')) $('goalInput').value = state.goalDays;
   }
-  $('btnSetGoal').addEventListener('click', function () {
-    openModal({
-      title: '设置目标天数',
-      html: '<p>圆环按已戒天数 / 目标天数显示。</p>' +
-        '<div class="tags" id="goalModalPresets">' + GOAL_PRESETS.map(function (n) {
-          return '<button type="button" class="tag' + (state.goalDays === n ? ' sel' : '') + '" data-goal="' + n + '">' + n + ' 天</button>';
-        }).join('') + '</div>' +
-        '<input type="number" id="goalModalInput" min="1" max="3650" step="1" value="' + state.goalDays + '" />',
-      ok: '保存',
-      onOk: function () { return setGoal($('goalModalInput').value); }
-    });
-  });
   $('goalPresets').addEventListener('click', function (e) {
     var b = e.target.closest('[data-goal-preset]'); if (!b) return;
     setGoal(b.dataset.goalPreset);
@@ -573,14 +564,17 @@
         state.manualStreakStart = t;
         state.manualStreakStartSetAt = Date.now();
         var changed = applyStreak(true);
-        save(); renderHome();
+        save();
+        if (current === 'home') renderHome();
+        else updateTimer();
+        updateSettingsChrome();
         toast(changed && state.streakStart !== t ? '已保存。天数从最近一次会重置的破戒算起' : '开始时间已更新');
       }
     });
   });
 
   /* ---------------- 冲动：约 60 秒呼吸，然后记下或去记录行为 ---------------- */
-  var BREATH_IN = 5, BREATH_OUT = 5, BREATH_ROUNDS = 6;
+  var BREATH_IN = 4, BREATH_OUT = 4, BREATH_ROUNDS = 6;
   var breathTimer = null, sosLogged = false;
 
   function showSosStep(id) {
@@ -598,7 +592,15 @@
     var total = BREATH_ROUNDS * (BREATH_IN + BREATH_OUT);
     var elapsed = 0;
     circle.style.transitionDuration = '0s';
-    circle.style.transform = 'scale(.55)';
+    circle.style.transform = 'scale(.6)';
+    function paintDots(round) {
+      var dots = $('breathDots');
+      if (!dots) return;
+      dots.querySelectorAll('i').forEach(function (el, i) {
+        el.classList.toggle('on', i < round - 1);
+        el.classList.toggle('now', i === round - 1);
+      });
+    }
     function frame() {
       if (elapsed >= total) { finishBreath(); return; }
       var cycle = BREATH_IN + BREATH_OUT;
@@ -608,12 +610,12 @@
       var left = inhale ? (BREATH_IN - pos) : (BREATH_OUT - (pos - BREATH_IN));
       $('breathPhase').textContent = t(inhale ? 'urge.inhale' : 'urge.exhale');
       $('breathCount').textContent = left;
-      $('breathHint').textContent = t('urge.breathHint');
-      $('breathRound').textContent = t('urge.round', { n: round, total: BREATH_ROUNDS });
-      $('breathBar').style.width = (elapsed / total * 100).toFixed(1) + '%';
+      if ($('breathHint')) $('breathHint').textContent = round === 1 ? t('urge.breathHint') : '';
+      paintDots(round);
       if (pos === 0 || pos === BREATH_IN) {
         circle.style.transitionDuration = (inhale ? BREATH_IN : BREATH_OUT) + 's';
-        circle.style.transform = inhale ? 'scale(1)' : 'scale(.55)';
+        circle.style.transitionTimingFunction = 'ease-in-out';
+        circle.style.transform = inhale ? 'scale(1)' : 'scale(.6)';
       }
       elapsed++;
       breathTimer = setTimeout(frame, 1000);
@@ -622,12 +624,14 @@
   }
   function finishBreath() {
     stopBreath();
-    if ($('breathBar')) $('breathBar').style.width = '100%';
     showUrgeEnd();
   }
   function showUrgeEnd() {
     showSosStep('sosEnd');
-    $('urgeStreakNow').textContent = t('urge.streakNow', { n: fmtDays(curMs()) });
+    var n = fmtDays(curMs());
+    var unit = t('stats.dayUnit');
+    $('urgeStreakNow').innerHTML = '<span class="gauge-days">' + esc(n) + '</span>' + (unit ? '<span class="gauge-unit">' + esc(unit) + '</span>' : '');
+    $('urgeStreakNow').setAttribute('aria-label', t('urge.streakNow', { n: n }));
     $('reasonsView').innerHTML = state.reasons.length
       ? state.reasons.map(function (r) { return '<li><span>' + esc(r) + '</span></li>'; }).join('')
       : '<li class="muted"><span>' + esc(t('urge.reasonsEmpty')) + '</span></li>';
@@ -700,51 +704,48 @@
     events.sort(function (a, b) { return a.ts - b.ts; });
     return events;
   }
+  function tlActions(html) {
+    return '<div class="day-tl-actions">' + html + '</div>';
+  }
   function timelineHtml(k) {
     var events = dayEvents(k);
-    var ticks = '<span class="day-tl-tick start">00:00</span><span class="day-tl-tick mid">12:00</span><span class="day-tl-tick end">24:00</span>';
-    var used = [];
-    var dots = events.map(function (ev) {
-      var p = Math.max(0, Math.min(100, minuteOf(ev.ts) / 1440 * 100));
-      var lane = 0;
-      while (used.some(function (u) { return u.lane === lane && Math.abs(u.p - p) < 5; })) lane++;
-      if (lane > 1) lane = 1;
-      used.push({ lane: lane, p: p });
-      var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
-      var kindCls = ev.kind === 'relapse' ? ' relapse' : (ev.kind === 'urge' ? ' urge' : '');
-      var kindLabel = ev.kind === 'checkin' ? ' 打卡' : (ev.kind === 'urge' ? ' ' + t('urge.resisted') : ' 破戒');
-      return '<span class="day-tl-dot' + kindCls + (lane ? ' lane1' : '') + '" style="left:' + p.toFixed(2) + '%" data-type="' + esc(primary) + '" title="' + esc(hm(ev.ts) + kindLabel) + '"></span>';
-    }).join('');
     var list = events.length ? events.map(function (ev) {
       var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
       var kindCls = ev.kind === 'relapse' ? ' relapse' : (ev.kind === 'urge' ? ' urge' : '');
-      var body;
+      var body, actions = '';
       if (ev.kind === 'checkin') {
         var m = D.moods.filter(function (x) { return x.v === ev.mood; })[0] || D.moods[2];
-        body = '<b>心情打卡 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
+        body = '<b>心情 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
+        actions = tlActions(
+          '<button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(k) + '" aria-label="删除">' + ic('x') + '</button>'
+        );
       } else if (ev.kind === 'urge') {
         body = '<b>' + esc(t('urge.resisted')) + '</b>';
+        actions = tlActions('<button class="h-del" type="button" data-del="urge" data-id="' + esc(ev.u.id) + '" aria-label="删除">' + ic('x') + '</button>');
       } else {
         var r = ev.r;
-        body = '<b>破戒' + (relapseResets(r.types) ? '' : ' · 不重置天数') + '</b>' +
+        body = '<b>' + (relapseResets(r.types) ? '破戒' : esc(t('relapse.kept'))) + '</b>' +
           (typeChips(r.types) ? '<div class="h-tags">' + typeChips(r.types) + '</div>' : '<div class="small muted">未标类型（仍会计入重置）</div>') +
-          ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (t) { return t === '其他' && r.other ? '其他：' + r.other : t; }).join('、')) + '</div>' : '') +
+          ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (tg) { return tg === '其他' && r.other ? '其他：' + r.other : tg; }).join('、')) + '</div>' : '') +
           (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
+        actions = tlActions(
+          '<button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button>'
+        );
       }
-      return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + kindCls + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + '</div></li>';
+      return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + kindCls + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + actions + '</div></li>';
     }).join('') : '<li class="day-tl-item"><span class="day-tl-time">—</span><span class="day-tl-node"></span><div class="day-tl-card"><span class="muted small">这一天还没有记录。用下面的「记录行为」补上。</span></div></li>';
-    return '<p class="field-label">线性图 · 00:00–24:00</p><div class="day-tl-bar" role="img" aria-label="当天 0 点到 24 点的事件"><div class="day-tl-rail"></div>' + ticks + dots + '</div><ol class="day-tl-list">' + list + '</ol>';
+    return '<p class="field-label">' + esc(t('day.timeline')) + '</p><ol class="day-tl-list">' + list + '</ol>';
   }
   function renderDaySheet() {
     if (!dayKey) return;
     $('dayTitle').textContent = fmtDayTitle(dayKey);
     var k = dayKey;
     var c = state.checkins[k];
-    var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
     var html = timelineHtml(k);
     html += '<button class="btn btn-primary btn-block" type="button" id="btnOpenActFromDay">' + ic('pen-line') + '记录行为</button>';
     if (c) html += '<button class="btn-link center-block" type="button" id="btnClearDayCheckin">清除这天的心情</button>';
-    if (rels.length) html += '<div class="day-section"><p class="field-label">已记下的行为</p><div class="history">' + rels.map(relapseItem).join('') + '</div></div>';
     $('dayBody').innerHTML = html;
   }
   function openDay(k) {
@@ -800,24 +801,31 @@
     var note = ($('actNote') && $('actNote').value || '').trim();
     var moodWrite = actWillWriteMood(prev, note, types);
     var can = moodWrite || types.length > 0;
-    var tsPreview = parseLocalInput($('actTime') && $('actTime').value);
-    var movesStreak = types.length && relapseResets(types) && isFinite(tsPreview) && previewStart(tsPreview, types) !== state.streakStart;
-    var hint = types.length ? resetHint(types) : '不选行为，只记心情。';
-    if (prev && actDraft.mood === prev.mood && !types.length) hint = '心情已是「' + ((moodByValue(prev.mood) || {}).t || '') + '」。可改心情，或选行为。';
-    $('actHint').textContent = hint;
-    $('btnSaveAct').disabled = !can;
-    var label = '选择心情或行为';
-    if (movesStreak) label = '保存，并重新计算天数';
-    else if (types.length) label = '保存（天数不变）';
-    else if (moodWrite) label = prev ? '更新心情' : '保存心情';
-    $('btnSaveAct').innerHTML = (can ? ic('check') : '') + label;
+    if ($('btnSaveAct')) {
+      $('btnSaveAct').disabled = !can;
+      $('btnSaveAct').textContent = t('record.save');
+    }
+    paintActWhen();
+  }
+  function paintActWhen() {
+    var btn = $('actWhenBtn');
+    var raw = $('actTime') && $('actTime').value;
+    var ts = parseLocalInput(raw);
+    if (btn) btn.textContent = isFinite(ts) ? fmtWhen(ts) : '';
+  }
+  function openTimePicker() {
+    var input = $('actTime');
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      try { input.showPicker(); return; } catch (e) {}
+    }
+    input.focus();
   }
   function openAct(k) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能记录未来的日期'); return; }
     var c = state.checkins[k];
     actDay = k;
     actDraft = { mood: c ? c.mood : null, types: {}, triggers: {} };
-    $('actWhen').textContent = (k === dateKey(Date.now()) ? '今天 · ' : '') + fmtDayTitle(k);
     $('actTime').value = k === dateKey(Date.now()) ? toLocalInput(Date.now()) : (k + 'T12:00');
     $('actTime').max = toLocalInput(Date.now() + 60000);
     $('actNote').value = '';
@@ -875,7 +883,7 @@
     if (types.length && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
       openModal({
         title: '这次会重置戒色天数',
-        html: '<p>保存后连续天数从这次重算。历史和最佳纪录保留。</p>',
+        html: '<p>保存后连续天数从这次重算。历史和最长连续保留。</p>',
         ok: '保存并重新计算', warm: true, onOk: write
       });
       return;
@@ -903,6 +911,8 @@
   });
   $('actNote').addEventListener('input', function () { if (actDay) renderActForm(); });
   $('actTime').addEventListener('change', function () { if (actDay) renderActForm(); });
+  $('actTime').addEventListener('input', function () { if (actDay) paintActWhen(); });
+  if ($('actWhenBtn')) $('actWhenBtn').addEventListener('click', openTimePicker);
   $('btnSaveAct').addEventListener('click', saveAct);
   $('dayClose').addEventListener('click', closeDay);
   $('dayMask').addEventListener('click', function (e) { if (e.target === this) closeDay(); });
@@ -1003,7 +1013,10 @@
     var edit = e.target.closest('[data-edit]');
     if (edit) {
       if (edit.dataset.edit === 'relapse') openRelapseEditor(edit.dataset.id);
-      else if (edit.dataset.edit === 'checkin') openDay(edit.dataset.date);
+      else if (edit.dataset.edit === 'checkin') {
+        if (dayKey === edit.dataset.date) openAct(edit.dataset.date);
+        else openDay(edit.dataset.date);
+      }
       return;
     }
     var b = e.target.closest('.h-del'); if (!b) return;
@@ -1049,28 +1062,28 @@
   var BUCKETS = [['凌晨', 0], ['清晨', 4], ['上午', 8], ['下午', 12], ['傍晚', 16], ['夜间', 20]];
   function bucketOf(ts) { return Math.floor(new Date(ts).getHours() / 4); }
 
-  function hbars(rows, cls, raw) {
-    var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
+  function hbars(rows, cls, raw, mode) {
+    var vals = rows.map(function (r) { return r[1]; });
+    var max = Math.max.apply(null, vals.concat([1]));
+    var sum = vals.reduce(function (a, b) { return a + b; }, 0) || 1;
     return rows.map(function (r) {
-      return '<div class="hbar"><span class="hbar-l">' + (raw ? r[0] : esc(r[0])) + '</span><div class="hbar-track"><div class="hbar-fill ' + (cls || '') + '" style="width:' + (r[1] / max * 100).toFixed(1) + '%"></div></div><span class="hbar-n">' + r[1] + '</span></div>';
+      var w = mode === 'share' ? (r[1] / sum * 100) : (r[1] / max * 100);
+      return '<div class="hbar"><span class="hbar-l">' + (raw ? r[0] : esc(r[0])) + '</span><div class="hbar-track"><div class="hbar-fill ' + (cls || '') + '" style="width:' + w.toFixed(1) + '%"></div></div><span class="hbar-n">' + r[1] + '</span></div>';
     }).join('');
   }
 
   function renderStats() {
     var u = state.urges.length, r = state.relapses.length;
-    $('stUrges').textContent = u;
-    $('stRelapses').textContent = r;
-    $('stBest').textContent = fmtDays(bestMs());
-    if ($('stTotal')) $('stTotal').textContent = fmtDays(totalCleanMs());
-    $('stCurrent').textContent = fmtDays(curMs());
-    $('stCheckins').textContent = Object.keys(state.checkins).length;
-    $('stRate').textContent = (u + r) ? Math.round(u / (u + r) * 100) + '%' : '—';
+    if ($('stRelapses')) $('stRelapses').textContent = r;
+    if ($('stTotal')) $('stTotal').textContent = dayText(totalCleanMs());
+    if ($('stCurrent')) $('stCurrent').textContent = dayText(curMs());
+    if ($('stRate')) $('stRate').textContent = (u + r) ? Math.round(u / (u + r) * 100) + '%' : '—';
 
     // 触发因素
     var tc = {};
     state.relapses.forEach(function (x) { x.triggers.forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); });
     var trows = Object.keys(tc).map(function (k) { return [k, tc[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
-    $('triggerChart').innerHTML = trows.length ? hbars(trows) : emptyState('zap', '还没有数据');
+    $('triggerChart').innerHTML = trows.length ? hbars(trows, '', false, 'share') : emptyState('zap', '还没有数据');
 
     // 时段分布（SVG 分组柱状图）
     var rb = [0, 0, 0, 0, 0, 0], ub = [0, 0, 0, 0, 0, 0];
@@ -1114,7 +1127,7 @@
 
   /* ---------------- 外观（浅色 / 深色 / 跟随系统） ---------------- */
   var THEME_KEY = 'zenflow_theme';
-  var THEME_COLOR = { light: '#fafafa', dark: '#000000' };
+  var THEME_COLOR = { light: '#ffffff', dark: '#000000' };
   var sysDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   var reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function getTheme() {
@@ -1252,6 +1265,7 @@
       $('settingsAccountSub').textContent = acct;
     }
     if ($('settingsGoalSub')) $('settingsGoalSub').textContent = (state.goalDays || 30) + ' 天';
+    if ($('settingsStartSub')) $('settingsStartSub').textContent = fmtWhen(state.streakStart);
     if ($('settingsResetSub')) $('settingsResetSub').textContent = resetSummary();
     if ($('settingsThemeSub')) {
       var theme = getTheme();
@@ -1397,7 +1411,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '33';
+  var APP_VERSION = '34';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

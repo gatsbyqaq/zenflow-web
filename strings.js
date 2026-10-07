@@ -22,7 +22,13 @@
       'urge.count': '已撑过',
       'stats.longest': '最长连续',
       'stats.totalDays': '累计坚持天数',
-      'stats.dayUnit': '天'
+      'stats.dayUnit': '天',
+      'time.today': '今天 {time}',
+      'time.yesterday': '昨天 {time}',
+      'time.date': '{m}月{d}日 {time}',
+      'record.save': '保存',
+      'day.timeline': '时间线',
+      'relapse.kept': '已记录 · 天数不变'
     },
     en: {
       'urge.button': "I'm having an urge",
@@ -41,7 +47,13 @@
       'urge.count': 'Urges resisted',
       'stats.longest': 'Longest streak',
       'stats.totalDays': 'Total days',
-      'stats.dayUnit': ''
+      'stats.dayUnit': '',
+      'time.today': 'Today {time}',
+      'time.yesterday': 'Yesterday {time}',
+      'time.date': '{month} {d} {time}',
+      'record.save': 'Save',
+      'day.timeline': 'Timeline',
+      'relapse.kept': 'Logged · Streak kept'
     }
   };
 
