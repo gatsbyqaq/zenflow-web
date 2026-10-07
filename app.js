@@ -620,7 +620,7 @@
       elapsed++;
       breathTimer = setTimeout(frame, 1000);
     }
-    requestAnimationFrame(frame);
+    requestAnimationFrame(function () { requestAnimationFrame(frame); });
   }
   function finishBreath() {
     stopBreath();
