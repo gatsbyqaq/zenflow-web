@@ -33,7 +33,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=31" />
+  <link rel="stylesheet" href="styles.css?v=32" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#fafafa)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -66,6 +66,7 @@
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></symbol>
 <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/></symbol>
 <symbol id="i-circle-user-round" viewBox="0 0 24 24"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
@@ -147,7 +148,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=31" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=32" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -162,7 +163,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=31" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=32" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <p class="eyebrow" id="greeting">你好</p>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -190,6 +191,8 @@
             <p class="gauge-unit">天</p>
           </div>
         </div>
+        <p class="streak-keep" id="streakKeep"></p>
+        <button class="urge-entry" id="btnUrgeHome" type="button" data-goto="sos"><span data-i18n="urge.button"></span></button>
         <p class="next-ms" id="nextMs">目标 30 天</p>
         <p class="goal-actions"><button class="btn-link" id="btnSetGoal" type="button"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>设置目标天数</button></p>
         <div class="time-chips">
@@ -210,12 +213,6 @@
         <div class="mini"><span class="mini-ic tint-blue"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
       </div>
 
-      <!-- 桌面端：SOS 入口紧跟计时器（移动端使用页面底部的横幅） -->
-      <button class="sos-banner sos-banner-lg d-only" data-goto="sos">
-        <span class="sb-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span>
-        <div><b>有冲动？</b><small>去急救 · S</small></div>
-        <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></span>
-      </button>
       </div>
 
       <div class="home-side">
@@ -249,94 +246,43 @@
         <div class="badges" id="badges"></div>
       </div>
 
-      <button class="sos-banner m-only" data-goto="sos">
-        <span class="sb-ic"><svg class="ic" aria-hidden="true"><use href="#i-life-buoy"/></svg></span>
-        <div><b>有冲动？</b><small>去急救</small></div>
-        <span class="arrow"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></span>
-      </button>
       </div>
     </section>
 
-    <!-- ========== 急救 SOS ========== -->
+    <!-- ========== 急救：呼吸，然后两条路 ========== -->
     <section class="screen" id="screen-sos" data-screen="sos">
-      <!-- step 0 -->
-      <div class="sos-step active" id="sosStart">
-        <header class="page-head center">
-          <div>
-            <h1>急救</h1>
-          </div>
-        </header>
-        <div class="sos-btn-wrap">
-          <button class="sos-big" id="btnSosStart">
-            <span class="sos-pulse"></span>
-            <span class="sos-pulse p2"></span>
-            <span class="sos-inner">SOS<small>现在有冲动</small></span>
-          </button>
-        </div>
-        <div class="card sos-c">
-          <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-waves"/></svg>先呼吸</h3>
-          <p class="small">冲动一般几分钟就会过去。</p>
-        </div>
-        <div class="card sos-c">
-          <h3><svg class="ic h-ic" aria-hidden="true"><use href="#i-wind"/></svg>选择呼吸方式</h3>
-          <div class="seg" id="breathMode">
-            <button class="seg-btn active" data-mode="box">箱式呼吸 4-4-4-4</button>
-            <button class="seg-btn" data-mode="478">4-7-8 呼吸</button>
-          </div>
-          <p class="muted small" id="breathDesc">吸气 4 秒，屏息 4 秒，呼气 4 秒，屏息 4 秒，共 4 轮。</p>
-        </div>
-        <p class="muted small center sos-count">已挡住 <b id="urgeCountSos">0</b> 次</p>
-      </div>
-
-      <!-- step 1: breathing -->
       <div class="sos-step" id="sosBreath">
         <div class="sos-top">
-          <button class="icon-btn" id="btnSosClose1" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
-          <span class="muted small">第 1 步 · 呼吸</span>
-          <button class="btn-link" id="btnSkipBreath">跳过</button>
+          <button class="icon-btn" id="btnSosClose1" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+          <span class="muted small" data-i18n="urge.breathTitle"></span>
+          <button class="btn-link" id="btnSkipBreath" type="button" data-i18n="urge.skip"></button>
         </div>
         <div class="breath-stage">
           <div class="breath-halo"></div>
           <div class="breath-circle" id="breathCircle">
-            <div class="breath-phase" id="breathPhase">准备</div>
-            <div class="breath-count" id="breathCount">3</div>
+            <div class="breath-phase" id="breathPhase"></div>
+            <div class="breath-count" id="breathCount"></div>
           </div>
         </div>
-        <p class="center muted" id="breathHint">跟着圆圈</p>
+        <p class="center muted" id="breathHint"></p>
         <div class="progress thin"><div class="progress-bar" id="breathBar"></div></div>
         <p class="center muted small" id="breathRound"></p>
       </div>
 
-      <!-- step 2: actions -->
-      <div class="sos-step" id="sosActions">
+      <div class="sos-step" id="sosEnd">
         <div class="sos-top">
-          <button class="icon-btn" id="btnSosClose2" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
-          <span class="muted small">第 2 步 · 转移注意力</span>
+          <button class="icon-btn" id="btnSosClose2" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+          <span class="muted small"></span>
           <span></span>
         </div>
-        <div class="card soft-blue sa-acts">
-          <p class="small">选一件马上能做的：</p>
-          <div class="actions" id="actionList"></div>
-          <button class="btn btn-ghost btn-block" id="btnShuffle"><svg class="ic" aria-hidden="true"><use href="#i-refresh-cw"/></svg>换一批建议</button>
-        </div>
-        <div class="card sa-reasons">
-          <h3><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>我的理由</h3>
+        <p class="urge-now" id="urgeStreakNow"></p>
+        <div class="card">
+          <h3 data-i18n="urge.reasonsTitle"></h3>
           <ul class="reasons-view" id="reasonsView"></ul>
         </div>
-        <div class="sa-foot">
-        <button class="btn btn-success btn-block btn-lg" id="btnMadeIt"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg>挡住了</button>
-        <button class="btn-link center-block" id="btnRebreath">再呼吸一次</button>
-        <button class="btn-link center-block muted" id="btnSosRelapse">去记录</button>
-        </div>
-      </div>
-
-      <!-- step 3: success -->
-      <div class="sos-step" id="sosDone">
-        <div class="done-wrap">
-          <div class="done-icon"><svg class="ic" aria-hidden="true"><use href="#i-party-popper"/></svg></div>
-          <h1>挡住了</h1>
-          <p class="muted">第 <b id="urgeCountDone">1</b> 次。</p>
-          <button class="btn btn-primary btn-block" data-goto="home">回到首页</button>
+        <div class="urge-actions">
+          <button class="btn btn-primary btn-block btn-lg" id="btnMadeIt" type="button" data-i18n="urge.resisted"></button>
+          <button class="btn btn-ghost btn-block" id="btnUrgeRecord" type="button" data-i18n="urge.notResisted"></button>
         </div>
       </div>
     </section>
@@ -379,6 +325,7 @@
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield-check"/></svg></span><span class="stat-v" id="stUrges">0</span><span class="stat-l">抵御冲动</span></div>
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-cloud-rain"/></svg></span><span class="stat-v" id="stRelapses">0</span><span class="stat-l">破戒次数</span></div>
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg></span><span class="stat-v" id="stBest">0</span><span class="stat-l">最长连续（天）</span></div>
+        <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg></span><span class="stat-v" id="stTotal">0</span><span class="stat-l" data-i18n="stats.totalDays"></span></div>
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></span><span class="stat-v" id="stCurrent">0</span><span class="stat-l">当前连续（天）</span></div>
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar-check"/></svg></span><span class="stat-v" id="stCheckins">0</span><span class="stat-l">累计打卡</span></div>
         <div class="stat"><span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-percent"/></svg></span><span class="stat-v" id="stRate">—</span><span class="stat-l">冲动抵御率</span></div>
@@ -622,7 +569,7 @@
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-info"/></svg>关于</h2>
           <p class="small muted">不能替代专业帮助。持续难受请找医生或咨询师。</p>
-          <p class="small muted app-version" id="appVersion">版本 v31</p>
+          <p class="small muted app-version" id="appVersion">版本 v32</p>
         </div>
       </div>
       </div>
@@ -632,7 +579,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=31" alt="" class="side-logo" />
+      <img src="icon.svg?v=32" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -684,7 +631,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=31" alt="" class="auth-logo" />
+        <img src="icon.svg?v=32" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -887,7 +834,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=31"></script>
+<script src="config.js?v=32"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -896,10 +843,11 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=31"></script>
-<script src="streak.js?v=31"></script>
-<script src="app.js?v=31"></script>
-<script src="cloud.js?v=31"></script>
-<script src="admin.js?v=31"></script>
+<script src="data.js?v=32"></script>
+<script src="streak.js?v=32"></script>
+<script src="strings.js?v=32"></script>
+<script src="app.js?v=32"></script>
+<script src="cloud.js?v=32"></script>
+<script src="admin.js?v=32"></script>
 </body>
 </html>

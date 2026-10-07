@@ -79,4 +79,37 @@ assert.strictEqual(ended, 3 * DAY);
 assert.strictEqual(S.endedStreakMs(base(), t0 + 5 * DAY, ['porn'], null), 5 * DAY);
 assert.strictEqual(S.endedStreakMs(base({ resetTypes: S.normalizeResetTypes({ dream: false }) }), t0 + 5 * DAY, ['dream'], null), 0);
 
+assert.strictEqual(S.historicalBest(gaps), 7 * DAY);
+assert.strictEqual(S.totalCleanMs(gaps, t0 + 12 * DAY), 12 * DAY);
+
+var oneReset = base({
+  relapses: [{ ts: t0 + 10 * DAY, types: ['porn'], streakMs: 0 }]
+});
+assert.strictEqual(S.historicalBest(oneReset), 10 * DAY);
+assert.strictEqual(S.totalCleanMs(oneReset, t0 + 13 * DAY), 13 * DAY);
+assert.strictEqual(S.computeStreakStart(oneReset, t0 + 13 * DAY), t0 + 10 * DAY);
+
+var kept = base({
+  bestStreakMs: 10 * DAY,
+  relapses: [
+    { ts: t0 + 10 * DAY, types: ['masturbation'], streakMs: 10 * DAY },
+    { ts: t0 + 12 * DAY, types: ['porn'], streakMs: 2 * DAY }
+  ]
+});
+assert.strictEqual(S.historicalBest(kept), 10 * DAY);
+assert.strictEqual(S.totalCleanMs(kept, t0 + 15 * DAY), 15 * DAY);
+
+var dreamOnly = base({
+  resetTypes: S.normalizeResetTypes({ dream: false }),
+  relapses: [{ ts: t0 + 4 * DAY, types: ['dream'] }]
+});
+assert.strictEqual(S.totalCleanMs(dreamOnly, t0 + 6 * DAY), 6 * DAY);
+
+var manualLater = base({
+  manualStreakStart: t0 + 10 * DAY,
+  relapses: [{ ts: t0 + 4 * DAY, types: ['porn'], streakMs: 4 * DAY }]
+});
+assert.strictEqual(S.computeStreakStart(manualLater, t0 + 12 * DAY), t0 + 10 * DAY);
+assert.strictEqual(S.totalCleanMs(manualLater, t0 + 12 * DAY), 6 * DAY);
+
 console.log('streak tests ok');

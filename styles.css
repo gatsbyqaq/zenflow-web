@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"31";
+  --zf-css:"32";
   --type-masturbation:#e24b4b;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -246,7 +246,18 @@ html,body{background-color:#fafafa}
 .gauge-unit{margin:4px 0 0;font-size:13px;font-weight:600;letter-spacing:.08em;color:var(--muted)}
 .goal-actions{margin:2px 0 12px}
 .goal-actions .ic{width:14px;height:14px;margin-right:4px}
-.next-ms{font-size:14px;font-weight:600;line-height:1.45;color:var(--text);margin:0 0 14px}
+.streak-keep{margin:2px 8px 0;font-size:13px;font-weight:600;color:var(--muted);line-height:1.45;text-align:center}
+.urge-entry{
+  display:inline-flex;align-items:center;justify-content:center;
+  margin:10px auto 2px;padding:8px 16px;
+  border:1px solid var(--line-strong);border-radius:999px;
+  background:transparent;color:var(--text);
+  font-size:15px;font-weight:600;
+}
+.urge-now{margin:8px 0 14px;text-align:center;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.urge-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.urge-actions .btn{margin-top:0}
+.next-ms{font-size:14px;font-weight:600;line-height:1.45;color:var(--text);margin:8px 0 14px}
 .time-chips{display:flex;gap:8px;margin:0 0 12px}
 .chip-t{
   flex:1;background:var(--field);border-radius:10px;padding:10px 4px;
@@ -313,6 +324,7 @@ button.cal-cell:hover{box-shadow:inset 0 0 0 1.5px var(--text)}
 .cal-mark[data-type="fantasy"]{color:var(--type-fantasy)}
 .cal-mark[data-type="dream"]{color:var(--type-dream)}
 .cal-mark.legacy{color:var(--warm)}
+.cal-mark.urge{color:var(--muted)}
 .cal-cell.one-type .cal-n{font-weight:700}
 .cal-cell.empty{background:transparent}
 .cal-cell.future{color:var(--muted);opacity:.4}
@@ -691,7 +703,7 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   #screen-log .page-head{grid-column:1/-1}
   .log-main,.log-side{min-width:0}
 
-  .stat-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .stat-grid{grid-template-columns:repeat(auto-fit,minmax(108px,1fr))}
   .stat-v{font-size:22px}
   .stats-cards{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
   .st-trig{grid-column:1;grid-row:1}
@@ -702,19 +714,8 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
 
   .settings-wrap{max-width:520px}
 
-  #sosStart.active{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.1fr);column-gap:28px;align-items:center}
-  #sosStart .page-head{grid-column:1/-1}
-  #sosStart .sos-btn-wrap{grid-column:1;grid-row:2/span 3;padding:12px 0}
-  #sosStart .sos-c,#sosStart .sos-count{grid-column:2}
-  .sos-big{width:210px;height:210px}
-  .sos-inner{font-size:44px}
-  #sosBreath.active,#sosDone.active{max-width:640px;margin:0}
+  #sosBreath.active,#sosEnd.active{max-width:640px;margin:0}
   .breath-stage{height:360px}
-  #sosActions.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto 1fr auto;column-gap:16px;align-items:start}
-  #sosActions .sos-top{grid-column:1/-1}
-  #sosActions .sa-acts{grid-column:1;grid-row:2/span 2}
-  #sosActions .sa-reasons{grid-column:2}
-  #sosActions .sa-foot{grid-column:1/-1;justify-self:start;width:100%;max-width:440px}
   .modal{max-width:420px;border-radius:16px;padding:22px 20px 18px;align-self:center}
   .modal-mask{align-items:center;padding:24px}
 }
@@ -1073,6 +1074,7 @@ a.set-row{color:inherit;text-decoration:none}
   border:2px solid var(--card);background:var(--primary);box-shadow:0 0 0 1px var(--line);
 }
 .day-tl-dot.relapse{background:var(--warm)}
+.day-tl-dot.urge{background:var(--muted)}
 .day-tl-dot[data-type="masturbation"]{background:var(--type-masturbation)}
 .day-tl-dot[data-type="porn"]{background:var(--type-porn)}
 .day-tl-dot[data-type="sex"]{background:var(--type-sex)}
@@ -1085,6 +1087,7 @@ a.set-row{color:inherit;text-decoration:none}
 .day-tl-time{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:2px}
 .day-tl-node{width:12px;height:12px;border-radius:50%;background:var(--primary);margin-top:4px;position:relative;z-index:1;box-shadow:0 0 0 3px var(--bg)}
 .day-tl-node.relapse{background:var(--warm)}
+.day-tl-node.urge{background:var(--muted)}
 .day-tl-node[data-type="masturbation"]{background:var(--type-masturbation)}
 .day-tl-node[data-type="porn"]{background:var(--type-porn)}
 .day-tl-node[data-type="sex"]{background:var(--type-sex)}

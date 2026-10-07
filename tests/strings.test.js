@@ -1,0 +1,23 @@
+/* node tests/strings.test.js */
+var assert = require('assert');
+var fs = require('fs');
+var vm = require('vm');
+var ctx = { console: console };
+vm.runInNewContext(fs.readFileSync(require('path').join(__dirname, '..', 'strings.js'), 'utf8'), ctx);
+var Z = ctx.ZFStrings;
+assert.strictEqual(Z.locale, 'zh');
+assert.strictEqual(Z.t('urge.button'), '我现在很想');
+assert.strictEqual(Z.t('urge.round', { n: 2, total: 6 }), '第 2 / 6 轮');
+assert.strictEqual(Z.table.en['urge.button'], "I'm having an urge");
+assert.strictEqual(Z.table.en['urge.resisted'], 'I made it through');
+assert.strictEqual(Z.table.en['stats.longest'], 'Longest streak');
+assert.strictEqual(Z.table.en['stats.totalDays'], 'Total days');
+Object.keys(Z.table.zh).forEach(function (k) {
+  assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
+});
+['fail', 'shame', 'relapse', 'broke'].forEach(function (word) {
+  Object.keys(Z.table.en).forEach(function (k) {
+    assert.strictEqual(String(Z.table.en[k]).toLowerCase().indexOf(word), -1, k + ' has ' + word);
+  });
+});
+console.log('strings tests ok');
