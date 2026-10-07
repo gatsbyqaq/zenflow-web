@@ -429,6 +429,7 @@
     var k = dateKey(Date.now());
     var today = state.checkins[k];
     var rels = state.relapses.filter(function (r) { return dateKey(r.ts) === k; }).sort(function (a, b) { return a.ts - b.ts; });
+    var urgesToday = state.urges.filter(function (u) { return u && dateKey(u.ts) === k; });
     var html = '';
     if (today) {
       var m = moodByValue(today.mood) || D.moods[2];
@@ -438,12 +439,12 @@
     if (rels.length) {
       html += '<div class="today-rel">' + rels.map(function (r) {
         var primary = (normalizeTypes(r.types)[0]) || '';
-        var t = primary && typeById(primary);
-        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtWhen(r.ts) + (relapseResets(r.types) ? '' : ' · ' + t('relapse.kept')) + '</div></div></button>';
+        var tp = primary && typeById(primary);
+        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(tp ? tp.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtWhen(r.ts) + (relapseResets(r.types) ? '' : ' · ' + t('relapse.kept')) + '</div></div></button>';
       }).join('') + '</div>';
     }
-    if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录</p>';
-    else html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">' + t('day.timeline') + '</button></p>';
+    if (!today && !rels.length && !urgesToday.length) html = '<p class="muted small act-entry-empty">还没有记录</p>';
+    else if (rels.length || urgesToday.length) html += '<p class="small" style="margin:4px 0 12px"><button type="button" class="btn-link" data-open-day="' + k + '">' + t('day.timeline') + '</button></p>';
     box.innerHTML = html;
   }
   $('checkinCard').addEventListener('click', function (e) {
@@ -1448,7 +1449,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '35';
+  var APP_VERSION = '36';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

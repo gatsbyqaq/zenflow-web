@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"35";
+  --zf-css:"36";
   --type-masturbation:#ff2d2d;
   --type-porn:#0095f6;
   --type-sex:#d62976;
@@ -32,14 +32,14 @@
   --track:#e5e5ea;
   --raised:#ffffff;
 
-  --primary:#0095f6;
-  --primary-press:#1877f2;
-  --on-primary:#ffffff;
+  --primary:var(--text);
+  --primary-press:var(--text);
+  --on-primary:var(--bg);
   --mint:#1c9c6c;
   --warm:#ed4956;
   --amber:#e0a100;
   --pink:#d62976;
-  --blue:#0095f6;
+  --blue:var(--text);
   --lav:#7c5cbf;
   --gold:#e0a100;
   --sos1:#ed4956;
@@ -130,7 +130,7 @@ body{
 }
 button{font-family:inherit;cursor:pointer;color:inherit}
 input,textarea{font-family:inherit;font-size:16px;color:var(--text)}
-::selection{background:#0095f6;color:#fff}
+::selection{background:color-mix(in srgb,var(--text) 18%,transparent);color:var(--text)}
 .hidden{display:none!important}
 .muted{color:var(--muted)}
 .small{font-size:13px;line-height:1.55}
@@ -221,6 +221,7 @@ html,body{background-color:#ffffff}
 }
 .btn:active,.icon-btn:active,.mood:active,.tag:active,.action:active,.seg-btn:active,.sos-banner:active,.tab:active,.btn-link:active{opacity:.72}
 .btn:disabled,.btn-link:disabled{opacity:.3;cursor:not-allowed}
+.btn-primary:disabled{background:var(--text);color:var(--bg);opacity:.3}
 .btn-block{display:flex;align-items:center;justify-content:center;width:100%;margin-top:12px}
 .btn-lg{padding:12px 16px;font-size:17px;min-height:52px}
 .btn-primary{color:var(--bg);background:var(--text);border-color:transparent;min-height:52px}
@@ -288,7 +289,7 @@ html,body{background-color:#ffffff}
   font-size:11px;font-weight:600;color:var(--muted);
 }
 .mood .e{display:flex;color:var(--text2)}
-.mood.sel{background:var(--field);color:var(--text);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--text)}
+.mood.sel{background:color-mix(in srgb,var(--text) 8%,transparent);color:var(--text);font-weight:700;box-shadow:none}
 .checkin-done{
   display:flex;align-items:center;gap:12px;background:var(--field);
   border-radius:12px;padding:12px;margin-top:4px;
@@ -327,22 +328,22 @@ button.cal-cell:hover{background:color-mix(in srgb,var(--text) 6%,transparent)}
 .cal-cell.empty{background:transparent}
 .cal-cell.future{color:var(--muted);opacity:.4}
 .cal-cell.today{box-shadow:0 0 0 1.5px var(--text);color:var(--text);font-weight:700}
-.cal-cell.m1{background:color-mix(in srgb,#0095f6 12%,var(--card));color:var(--text)}
-.cal-cell.m2{background:color-mix(in srgb,#0095f6 24%,var(--card));color:var(--text)}
-.cal-cell.m3{background:color-mix(in srgb,#0095f6 42%,var(--card));color:var(--text)}
-.cal-cell.m4{background:color-mix(in srgb,#0095f6 72%,var(--card));color:#fff}
-.cal-cell.m5{background:#0095f6;color:#fff}
+.cal-cell.m1{background:color-mix(in srgb,var(--text) 8%,var(--card));color:var(--text)}
+.cal-cell.m2{background:color-mix(in srgb,var(--text) 14%,var(--card));color:var(--text)}
+.cal-cell.m3{background:color-mix(in srgb,var(--text) 22%,var(--card));color:var(--text)}
+.cal-cell.m4{background:color-mix(in srgb,var(--text) 40%,var(--card));color:var(--text)}
+.cal-cell.m5{background:var(--text);color:var(--bg)}
 .cal-cell.has-types{background:transparent;color:var(--text)}
 .cal-cell.has-types.today{box-shadow:0 0 0 1.5px var(--text);color:var(--text)}
 .cal-cell.relapse:not(.one-type)::after{content:none}
 .cal-legend{display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap;margin-top:12px;font-size:11px;font-weight:600;color:var(--muted)}
 .cal-legend span{display:flex;align-items:center;gap:5px}
 .lg{width:10px;height:10px;border-radius:3px;display:inline-block}
-.lg-1{background:color-mix(in srgb,#0095f6 24%,var(--card))}
-.lg-3{background:color-mix(in srgb,#0095f6 55%,var(--card))}
-.lg-5{background:#0095f6}
+.lg-1{background:color-mix(in srgb,var(--text) 14%,var(--card))}
+.lg-3{background:color-mix(in srgb,var(--text) 32%,var(--card))}
+.lg-5{background:var(--text)}
 .lg-r{background:var(--warm);border-radius:50%}
-.lg-mood{background:color-mix(in srgb,#0095f6 40%,var(--card))}
+.lg-mood{background:color-mix(in srgb,var(--text) 24%,var(--card))}
 .lg-item{display:inline-flex;align-items:center;gap:4px}
 .lg-item .ic{width:13px;height:13px;stroke-width:2}
 .lg-item[data-type="masturbation"]{color:var(--type-masturbation)}
@@ -643,6 +644,7 @@ h1 .ic-title{display:inline-block;width:20px;height:20px;margin-right:6px;vertic
 .tab.active .ti .ic{stroke-width:1.5}
 .tab.active .ti .ic.fillable{fill:currentColor}
 .mood .e .ic{width:26px;height:26px;stroke-width:1.7}
+.mood.sel .e .ic{stroke-width:2.6}
 .mood.sel .e{color:var(--text)}
 .checkin-done .e .ic{width:28px;height:28px;stroke-width:1.7}
 [data-mood="5"]{--mc:var(--amber)}
@@ -1078,12 +1080,12 @@ a.set-row{color:inherit;text-decoration:none}
 .reset-copy b{display:block;font-size:15px;font-weight:700}
 .reset-copy p{margin:2px 0 0;font-size:12px;font-weight:500;color:var(--muted)}
 .switch{
-  width:48px;height:28px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  width:48px;height:28px;border-radius:999px;border:1px solid transparent;background:var(--ghost);
   position:relative;flex-shrink:0;padding:0;
 }
-.switch.on{background:var(--primary);border-color:var(--primary)}
-.switch-knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .18s ease}
-.switch.on .switch-knob{transform:translateX(20px)}
+.switch.on{background:var(--text);border-color:var(--text)}
+.switch-knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .18s ease,background-color .18s ease}
+.switch.on .switch-knob{transform:translateX(20px);background:var(--bg)}
 .switch:disabled{opacity:.55;cursor:not-allowed}
 
 /* ---------- 某天详情 ---------- */
