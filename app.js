@@ -26,27 +26,19 @@
     var unit = t('stats.dayUnit');
     return unit ? (n + ' ' + unit) : n;
   }
-  function hour12() {
-    try { return !!Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12; } catch (e) { return false; }
+  function hourCycle() {
+    return (window.ZFStrings && window.ZFStrings.deviceHourCycle) ? window.ZFStrings.deviceHourCycle() : 'h23';
   }
   function fmtClock(ts) {
+    var ui = (window.ZFStrings && window.ZFStrings.locale) || 'zh';
+    if (window.ZFStrings && window.ZFStrings.formatClock) return window.ZFStrings.formatClock(ts, ui, hourCycle());
     var d = new Date(ts);
-    if (!hour12()) return pad(d.getHours()) + ':' + pad(d.getMinutes());
-    try {
-      return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
-    } catch (e2) {
-      var h = d.getHours();
-      return (h % 12 || 12) + ':' + pad(d.getMinutes()) + (h < 12 ? ' AM' : ' PM');
-    }
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
-  var MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   function fmtWhen(ts) {
-    var d = new Date(ts);
-    var time = fmtClock(ts);
-    var k = dateKey(ts);
-    if (k === dateKey(Date.now())) return t('time.today', { time: time });
-    if (k === dateKey(Date.now() - DAY)) return t('time.yesterday', { time: time });
-    return t('time.date', { m: d.getMonth() + 1, d: d.getDate(), time: time, month: MONTHS_EN[d.getMonth()] });
+    var ui = (window.ZFStrings && window.ZFStrings.locale) || 'zh';
+    if (window.ZFStrings && window.ZFStrings.formatWhen) return window.ZFStrings.formatWhen(ts, ui, hourCycle());
+    return fmtClock(ts);
   }
   function t(key, vars) { return (window.ZFStrings && window.ZFStrings.t) ? window.ZFStrings.t(key, vars) : key; }
   function applyNewCopy() {
@@ -395,6 +387,7 @@
     var ms = curMs();
     var days = Math.floor(ms / DAY);
     if ($('daysNum')) $('daysNum').textContent = days;
+    if ($('gaugeUnit')) $('gaugeUnit').textContent = t('ring.unit', { n: days });
     var dFloat = ms / DAY;
     var goal = state.goalDays || 30;
     var p = goal > 0 ? Math.min(1, Math.max(0, dFloat / goal)) : 0;
@@ -402,6 +395,14 @@
     if (ring) {
       ring.style.strokeDasharray = String(RING_LEN);
       ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
+    }
+    var grad = $('insRing');
+    if (grad) {
+      var ang = Math.max(p, 0.001) * Math.PI * 2;
+      grad.setAttribute('x1', '100');
+      grad.setAttribute('y1', '14');
+      grad.setAttribute('x2', (100 + 86 * Math.sin(ang)).toFixed(2));
+      grad.setAttribute('y2', (100 - 86 * Math.cos(ang)).toFixed(2));
     }
     var pct = Math.round(p * 100);
     var gauge = $('streakGauge');
@@ -438,7 +439,7 @@
       html += '<div class="today-rel">' + rels.map(function (r) {
         var primary = (normalizeTypes(r.types)[0]) || '';
         var t = primary && typeById(primary);
-        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtDT(r.ts) + (relapseResets(r.types) ? '' : ' · ' + t('relapse.kept')) + '</div></div></button>';
+        return '<button type="button" class="h-item relapse" data-open-day="' + k + '" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(t ? t.icon : 'cloud-rain') + '</div><div class="h-main"><b>' + (typeChips(r.types) || '行为') + '</b><div class="small muted">' + fmtWhen(r.ts) + (relapseResets(r.types) ? '' : ' · ' + t('relapse.kept')) + '</div></div></button>';
       }).join('') + '</div>';
     }
     if (!today && !rels.length) html = '<p class="muted small act-entry-empty">还没有记录</p>';
@@ -459,7 +460,8 @@
     $('calNext').disabled = calOffset >= 0; $('calNext').style.opacity = calOffset >= 0 ? .35 : 1;
     var first = (new Date(y, mo, 1).getDay() + 6) % 7; // 周一为第一天
     var count = new Date(y, mo + 1, 0).getDate();
-    var todayK = dateKey(Date.now());
+    var nowD = new Date();
+    var todayK = dateKey(nowD.getTime());
     var typesByDay = {};
     var relapseDays = {};
     var urgeDays = {};
@@ -480,7 +482,8 @@
       var k = y + '-' + pad(mo + 1) + '-' + pad(d);
       var cls = 'cal-cell';
       var types = typesByDay[k] || [];
-      if (k === todayK) cls += ' today';
+      var isToday = y === nowD.getFullYear() && mo === nowD.getMonth() && d === nowD.getDate();
+      if (isToday) cls += ' today';
       else if (k > todayK) cls += ' future';
       var markType = '';
       if (relapseDays[k]) {
@@ -513,17 +516,44 @@
     openDay(cell.dataset.date);
   });
 
+  var badgesExpanded = false;
+  function badgeHtml(m, cls, sub) {
+    return '<div class="' + cls + '"><div class="b-ico">' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
+  }
   function renderBadges() {
     var cd = curMs() / DAY, bd = bestMs() / DAY;
-    var nextSet = false, on = 0;
-    $('badges').innerHTML = D.milestones.map(function (m) {
-      var cls = 'badge', sub = m.name;
-      if (cd >= m.days) { cls += ' on'; on++; }
-      else if (!nextSet) { cls += ' next'; nextSet = true; sub = '下一个'; }
-      else if (bd >= m.days) { sub = '曾达成'; }
-      return '<div class="' + cls + '"><div class="b-ico">' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
+    var items = D.milestones.map(function (m) {
+      var on = cd >= m.days;
+      return { m: m, on: on };
+    });
+    var unlocked = items.filter(function (x) { return x.on; });
+    var next = null;
+    for (var i = 0; i < items.length; i++) if (!items[i].on) { next = items[i]; break; }
+    var shown = items;
+    if (!badgesExpanded) {
+      shown = next ? unlocked.slice(-3).concat([next]) : unlocked.slice(-4);
+      if (!shown.length) shown = items.slice(0, 1);
+    }
+    $('badges').classList.toggle('expanded', badgesExpanded);
+    $('badges').innerHTML = shown.map(function (item) {
+      var m = item.m, cls = 'badge', sub = m.name;
+      if (item.on) cls += ' on';
+      else if (next && next.m === m) { cls += ' next'; sub = '下一个'; }
+      else if (bd >= m.days) sub = '曾达成';
+      return badgeHtml(m, cls, sub);
     }).join('');
-    $('badgeCount').textContent = '已解锁 ' + on + '/' + D.milestones.length;
+    $('badgeCount').textContent = '已解锁 ' + unlocked.length + '/' + D.milestones.length;
+    var card = $('badgeCard');
+    if (card) card.setAttribute('aria-expanded', badgesExpanded ? 'true' : 'false');
+  }
+  if ($('badgeCard')) {
+    $('badgeCard').addEventListener('click', function () { badgesExpanded = !badgesExpanded; renderBadges(); });
+    $('badgeCard').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      badgesExpanded = !badgesExpanded;
+      renderBadges();
+    });
   }
 
   var GOAL_PRESETS = [7, 14, 30, 60, 90, 180, 365];
@@ -629,14 +659,19 @@
   function showUrgeEnd() {
     showSosStep('sosEnd');
     var n = fmtDays(curMs());
-    var unit = t('stats.dayUnit');
+    var unit = t('ring.unit', { n: n });
     $('urgeStreakNow').innerHTML = '<span class="gauge-days">' + esc(n) + '</span>' + (unit ? '<span class="gauge-unit">' + esc(unit) + '</span>' : '');
     $('urgeStreakNow').setAttribute('aria-label', t('urge.streakNow', { n: n }));
     $('reasonsView').innerHTML = state.reasons.length
       ? state.reasons.map(function (r) { return '<li><span>' + esc(r) + '</span></li>'; }).join('')
-      : '<li class="muted"><span>' + esc(t('urge.reasonsEmpty')) + '</span></li>';
+      : '<li class="reasons-empty"><span class="muted">' + esc(t('urge.reasonsEmpty')) + '</span><button type="button" class="reason-add" id="btnGoAddReason">' + esc(t('urge.addReason')) + '</button></li>';
   }
 
+  if ($('reasonsView')) $('reasonsView').addEventListener('click', function (e) {
+    if (!e.target.closest('#btnGoAddReason')) return;
+    go('settings');
+    showSettings('reasons');
+  });
   $('btnSkipBreath').addEventListener('click', finishBreath);
   $('btnSosClose1').addEventListener('click', function () { go('home'); });
   $('btnSosClose2').addEventListener('click', function () { go('home'); });
@@ -686,7 +721,7 @@
     var y = d.getFullYear() === new Date().getFullYear() ? '' : (d.getFullYear() + '年');
     return y + (d.getMonth() + 1) + '月' + d.getDate() + '日 星期' + '日一二三四五六'[d.getDay()];
   }
-  function hm(ts) { var d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function hm(ts) { return fmtClock(ts); }
   function minuteOf(ts) { var d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); }
   function dayEvents(k) {
     var events = [];
@@ -744,7 +779,7 @@
     var k = dayKey;
     var c = state.checkins[k];
     var html = timelineHtml(k);
-    html += '<button class="btn btn-primary btn-block" type="button" id="btnOpenActFromDay">' + ic('pen-line') + '记录行为</button>';
+    html += '<button class="btn btn-gray btn-block" type="button" id="btnOpenActFromDay">' + ic('pen-line') + '记录行为</button>';
     if (c) html += '<button class="btn-link center-block" type="button" id="btnClearDayCheckin">清除这天的心情</button>';
     $('dayBody').innerHTML = html;
   }
@@ -928,7 +963,7 @@
     var primary = (normalizeTypes(r.types)[0]) || '';
     return '<div class="h-item relapse" data-type="' + esc(primary) + '"><div class="h-ico">' + ic(primary && typeById(primary) ? typeById(primary).icon : 'cloud-rain') + '</div><div class="h-main"><b>破戒记录</b>' +
       (r.streakMs ? '<span class="small muted"> · 本次坚持 ' + fmtDays(r.streakMs) + ' 天</span>' : '') +
-      '<div class="small muted">' + fmtDT(r.ts) + '</div>' +
+      '<div class="small muted">' + fmtWhen(r.ts) + '</div>' +
       (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
       (trigs ? '<div class="h-tags">' + trigs + '</div>' : '') +
       (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
@@ -995,7 +1030,7 @@
     $('historyList').innerHTML = items.slice(0, 80).map(function (it) {
       var r = it.r;
       if (it.type === 'urge') {
-        return '<div class="h-item urge"><div class="h-ico">' + ic('circle') + '</div><div class="h-main"><b>' + esc(t('urge.resisted')) + '</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
+        return '<div class="h-item urge"><div class="h-ico">' + ic('circle') + '</div><div class="h-main"><b>' + esc(t('urge.resisted')) + '</b><div class="small muted">' + fmtWhen(r.ts) + '</div></div>' +
           '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
       }
       if (it.type === 'checkin') {
@@ -1097,8 +1132,10 @@
       var cx = gw * i + gw / 2;
       [[rb[i], 'bar-rel', cx - bw - 2], [ub[i], 'bar-urge', cx + 2]].forEach(function (bar) {
         var h = bar[0] / max * chartH, y = top + chartH - h;
-        svg += '<rect x="' + bar[2] + '" y="' + (bar[0] ? y : top + chartH - 2) + '" width="' + bw + '" height="' + (bar[0] ? h : 2) + '" rx="0" class="' + bar[1] + '" opacity="' + (bar[0] ? 1 : .28) + '"/>';
-        if (bar[0]) svg += '<text x="' + (bar[2] + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" class="val">' + bar[0] + '</text>';
+        if (bar[0]) {
+          svg += '<rect x="' + bar[2] + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="0" class="' + bar[1] + '"/>';
+          svg += '<text x="' + (bar[2] + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" font-size="10" class="val">' + bar[0] + '</text>';
+        }
       });
       svg += '<text x="' + cx + '" y="' + (H - 22) + '" text-anchor="middle" font-size="12" class="lbl">' + b[0] + '</text>';
       svg += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9" class="sub">' + b[1] + '-' + (b[1] + 4) + '点</text>';
@@ -1411,7 +1448,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '34';
+  var APP_VERSION = '35';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

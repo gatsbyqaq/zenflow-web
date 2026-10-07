@@ -33,7 +33,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=34" />
+  <link rel="stylesheet" href="styles.css?v=35" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -148,7 +148,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=34" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=35" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -163,7 +163,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=34" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=35" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -174,18 +174,18 @@
         <div class="gauge" id="streakGauge" role="img" aria-label="0 天">
           <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
             <defs>
-              <linearGradient id="insRing" x1="0%" y1="100%" x2="100%" y2="0%">
+              <linearGradient id="insRing" gradientUnits="userSpaceOnUse" x1="100" y1="14" x2="186" y2="100">
                 <stop offset="0%" stop-color="#833AB4"/>
                 <stop offset="50%" stop-color="#E1306C"/>
                 <stop offset="100%" stop-color="#F77737"/>
               </linearGradient>
             </defs>
             <circle class="ring-bg" cx="100" cy="100" r="86" />
-            <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="86" stroke="url(#insRing)" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
+            <path id="ringFg" class="ring-fg" fill="none" stroke="url(#insRing)" d="M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
           </svg>
           <div class="gauge-copy">
             <p class="gauge-days"><span class="days-num" id="daysNum">0</span></p>
-            <p class="gauge-unit">天</p>
+            <p class="gauge-unit" id="gaugeUnit">天</p>
           </div>
         </div>
         <button class="urge-entry" id="btnUrgeHome" type="button" data-goto="sos"><span data-i18n="urge.button"></span></button>
@@ -193,8 +193,8 @@
 
       <div class="mini-stats">
         <div class="mini"><span class="mini-v" id="bestStreak">0 天</span><span class="mini-l" data-i18n="stats.longest">最长连续</span></div>
-        <div class="mini"><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l">抵御冲动</span></div>
-        <div class="mini"><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l">打卡天数</span></div>
+        <div class="mini"><span class="mini-v" id="urgeCountHome">0</span><span class="mini-l" data-i18n="home.urges">抵御冲动</span></div>
+        <div class="mini"><span class="mini-v" id="checkinCountHome">0</span><span class="mini-l" data-i18n="home.checkins">打卡天数</span></div>
       </div>
 
       </div>
@@ -207,7 +207,7 @@
           <span class="muted small" id="todayDate"></span>
         </div>
         <div id="actSummary"></div>
-        <button class="btn btn-primary btn-block" id="btnOpenAct" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg>记录行为</button>
+        <button class="btn btn-gray btn-block" id="btnOpenAct" type="button"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg>记录行为</button>
       </div>
 
       <div class="card" id="calCard">
@@ -223,7 +223,7 @@
         <div class="cal-grid" id="calGrid"></div>
       </div>
 
-      <div class="card">
+      <div class="card badge-card" id="badgeCard" role="button" tabindex="0" aria-expanded="false" aria-label="里程碑徽章">
         <div class="card-title"><h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-award"/></svg>里程碑徽章</h2><span class="muted small" id="badgeCount"></span></div>
         <div class="badges" id="badges"></div>
       </div>
@@ -240,13 +240,17 @@
           <button class="btn-link" id="btnSkipBreath" type="button" data-i18n="urge.skip"></button>
         </div>
         <div class="breath-stage">
-          <div class="breath-circle" id="breathCircle">
-            <div class="breath-phase" id="breathPhase"></div>
-            <div class="breath-count" id="breathCount"></div>
+          <div class="breath-group">
+            <div class="breath-slot">
+              <div class="breath-circle" id="breathCircle">
+                <div class="breath-phase" id="breathPhase"></div>
+                <div class="breath-count" id="breathCount"></div>
+              </div>
+            </div>
+            <p class="center muted breath-hint" id="breathHint"></p>
+            <div class="breath-dots" id="breathDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </div>
         </div>
-        <p class="center muted breath-hint" id="breathHint"></p>
-        <div class="breath-dots" id="breathDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       </div>
 
       <div class="sos-step" id="sosEnd">
@@ -312,7 +316,7 @@
 
       <div class="stats-cards">
       <div class="card st-trig">
-        <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-zap"/></svg>常见触发因素</h2>
+        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-zap"/></svg>常见触发因素</h2>
         <div id="triggerChart" class="hbars"></div>
       </div>
 
@@ -325,7 +329,7 @@
       </div>
 
       <div class="card st-mood">
-        <h2><svg class="ic h-ic tint-mint" aria-hidden="true"><use href="#i-smile"/></svg>心情分布</h2>
+        <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-smile"/></svg>心情分布</h2>
         <div id="moodChart" class="hbars"></div>
       </div>
 
@@ -474,7 +478,7 @@
 
       <div class="settings-page hidden" data-settings-page="resets">
         <div class="card">
-          <h2><svg class="ic h-ic tint-warm" aria-hidden="true"><use href="#i-flame"/></svg>重置规则</h2>
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-flame"/></svg>重置规则</h2>
           <p class="muted small">打开会清零天数。关掉只记在日历上。</p>
           <div id="resetTypeList" class="reset-list"></div>
         </div>
@@ -557,14 +561,14 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=34" alt="" class="side-logo" />
+      <img src="icon.svg?v=35" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
-    <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span>打卡</span></button>
-    <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span>记录</span></button>
-    <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>统计</span></button>
-    <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span>设置</span></button>
+    <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span data-i18n="nav.checkin">打卡</span></button>
+    <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span data-i18n="nav.log">记录</span></button>
+    <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span data-i18n="nav.stats">统计</span></button>
+    <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span data-i18n="nav.settings">设置</span></button>
     <div class="side-foot d-only">
       <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换</p>
       <button class="side-user" id="sideUser" type="button" title="账号与设置">
@@ -608,7 +612,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=34" alt="" class="auth-logo" />
+        <img src="icon.svg?v=35" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -810,7 +814,7 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=34"></script>
+<script src="config.js?v=35"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -819,11 +823,11 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=34"></script>
-<script src="streak.js?v=34"></script>
-<script src="strings.js?v=34"></script>
-<script src="app.js?v=34"></script>
-<script src="cloud.js?v=34"></script>
-<script src="admin.js?v=34"></script>
+<script src="data.js?v=35"></script>
+<script src="streak.js?v=35"></script>
+<script src="strings.js?v=35"></script>
+<script src="app.js?v=35"></script>
+<script src="cloud.js?v=35"></script>
+<script src="admin.js?v=35"></script>
 </body>
 </html>
