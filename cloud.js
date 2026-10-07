@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=31'; s.async = true;
+      s.src = 'vendor/supabase.js?v=32'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -1690,7 +1690,7 @@
       var parts = path.split('/');
       var base = parts[parts.length - 1] || '';
       if (!base) return true;
-      if (/^(index\.html|privacy\.html|styles\.css|data\.js|streak\.js|app\.js|cloud\.js|admin\.js|config\.js|sw\.js|manifest\.json)$/i.test(base)) return true;
+      if (/^(index\.html|privacy\.html|styles\.css|data\.js|streak\.js|strings\.js|app\.js|cloud\.js|admin\.js|config\.js|sw\.js|manifest\.json)$/i.test(base)) return true;
       if (/^icon.*\.(svg|png)$/i.test(base)) return true;
       if (parts.length >= 2 && parts[parts.length - 2] === 'vendor' && base === 'supabase.js') return true;
       return false;

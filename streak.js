@@ -97,17 +97,40 @@
     return Math.max(0, ts - prev);
   }
 
+  function resettingTimes(s, now) {
+    var limit = (typeof now === 'number' ? now : Date.now()) + 60000;
+    return (s.relapses || []).filter(function (r) {
+      return r && typeof r.ts === 'number' && r.ts <= limit && relapseResets(r, s.resetTypes);
+    }).map(function (r) { return r.ts; }).sort(function (a, b) { return a - b; });
+  }
+
   /* 已结束的间隔。不含「现在还在走的这一段」，避免每次同步都把 best 改掉。 */
   function historicalBest(s) {
-    var times = (s.relapses || []).filter(function (r) {
-      return r && typeof r.ts === 'number' && relapseResets(r, s.resetTypes);
-    }).map(function (r) { return r.ts; }).sort(function (a, b) { return a - b; });
+    var times = resettingTimes(s);
     var best = (typeof s.bestStreakMs === 'number' && s.bestStreakMs > 0) ? s.bestStreakMs : 0;
+    if (times.length) best = Math.max(best, Math.max(0, times[0] - segmentStartBefore(s, times[0])));
     for (var i = 1; i < times.length; i++) best = Math.max(best, times[i] - times[i - 1]);
     (s.relapses || []).forEach(function (r) {
       if (r && typeof r.streakMs === 'number' && r.streakMs > best) best = r.streakMs;
     });
     return best;
+  }
+
+  /* 历史里每一段干净时间，加上现在还在走的这一段。破戒只结束当前段，不把前面的天数减掉。 */
+  function totalCleanMs(s, now) {
+    now = typeof now === 'number' ? now : Date.now();
+    var created = (typeof s.createdAt === 'number' && s.createdAt > 0) ? s.createdAt : now;
+    var times = resettingTimes(s, now);
+    var total = 0;
+    var cursor = created;
+    for (var i = 0; i < times.length; i++) {
+      if (times[i] > cursor) total += times[i] - cursor;
+      if (times[i] > cursor) cursor = times[i];
+    }
+    var openStart = computeStreakStart(s, now);
+    if (openStart < cursor) openStart = cursor;
+    if (now > openStart) total += now - openStart;
+    return total;
   }
 
   root.ZFStreak = {
@@ -121,6 +144,7 @@
     looksLikeManualStart: looksLikeManualStart,
     segmentStartBefore: segmentStartBefore,
     endedStreakMs: endedStreakMs,
-    historicalBest: historicalBest
+    historicalBest: historicalBest,
+    totalCleanMs: totalCleanMs
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

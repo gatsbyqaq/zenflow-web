@@ -21,6 +21,12 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
   function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
+  function t(key, vars) { return (window.ZFStrings && window.ZFStrings.t) ? window.ZFStrings.t(key, vars) : key; }
+  function applyNewCopy() {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+  }
   function lapseTypes() { return D.lapseTypes || []; }
   function typeById(id) {
     for (var i = 0; i < lapseTypes().length; i++) if (lapseTypes()[i].id === id) return lapseTypes()[i];
@@ -165,7 +171,13 @@
   }
 
   function curMs() { return Math.max(0, Date.now() - state.streakStart); }
-  function bestMs() { return Math.max(state.bestStreakMs, curMs()); }
+  function bestMs() { return Math.max(window.ZFStreak.historicalBest(state), curMs()); }
+  function totalCleanMs() { return window.ZFStreak.totalCleanMs(state, Date.now()); }
+  function keepLineText() {
+    var unit = t('stats.dayUnit');
+    var bestBit = t('stats.longest') + ' ' + fmtDays(bestMs()) + (unit ? ' ' + unit : '');
+    return bestBit + ' · ' + t('stats.totalDays') + ' ' + fmtDays(totalCleanMs()) + ' · ' + t('urge.count') + ' ' + state.urges.length;
+  }
   function applyStreak(touchSetAt) {
     var next = window.ZFStreak.computeStreakStart(state);
     var changed = next !== state.streakStart;
@@ -335,7 +347,7 @@
 
   function render(tab) {
     if (tab === 'home') renderHome();
-    else if (tab === 'sos') renderSosStart();
+    else if (tab === 'sos') startBreath();
     else if (tab === 'log') renderLog();
     else if (tab === 'stats') renderStats();
     else if (tab === 'settings') renderSettings();
@@ -374,6 +386,7 @@
     var gauge = $('streakGauge');
     if (gauge) gauge.setAttribute('aria-label', '已戒 ' + days + ' 天，目标 ' + goal + ' 天，完成 ' + pct + '%');
     $('bestStreak').textContent = fmtDays(bestMs()) + '天';
+    if ($('streakKeep')) $('streakKeep').textContent = keepLineText();
   }
 
   function greeting() {
@@ -442,6 +455,7 @@
     var todayK = dateKey(Date.now());
     var typesByDay = {};
     var relapseDays = {};
+    var urgeDays = {};
     state.relapses.forEach(function (r) {
       var dk = dateKey(r.ts);
       relapseDays[dk] = true;
@@ -449,6 +463,9 @@
         if (!typesByDay[dk]) typesByDay[dk] = [];
         if (typesByDay[dk].indexOf(id) < 0) typesByDay[dk].push(id);
       });
+    });
+    state.urges.forEach(function (u) {
+      if (u && typeof u.ts === 'number') urgeDays[dateKey(u.ts)] = true;
     });
     var html = '';
     for (var i = 0; i < first; i++) html += '<div class="cal-cell empty"></div>';
@@ -459,29 +476,31 @@
       var types = typesByDay[k] || [];
       if (c) cls += ' m' + c.mood;
       if (relapseDays[k]) cls += ' relapse';
+      if (urgeDays[k]) cls += ' has-urge';
       if (types.length) cls += ' has-types';
       if (types.length === 1) cls += ' one-type';
       if (k === todayK) cls += ' today';
       else if (k > todayK) cls += ' future';
       var names = types.map(function (id) { return typeById(id).label; });
-      var title = k + (c ? ' 已打卡' : '') + (names.length ? ' · ' + names.join('、') : (relapseDays[k] ? ' · 有破戒记录' : ''));
+      var urgeMark = urgeDays[k] ? '<span class="cal-mark urge" title="' + esc(t('urge.resisted')) + '">' + ic('circle') + '</span>' : '';
+      var title = k + (c ? ' 已打卡' : '') + (names.length ? ' · ' + names.join('、') : (relapseDays[k] ? ' · 有破戒记录' : '')) + (urgeDays[k] ? ' · ' + t('urge.resisted') : '');
       var marks = '';
-      if (types.length) {
-        marks = '<span class="cal-types">' + types.map(function (id) {
-          var t = typeById(id);
-          return '<span class="cal-mark" data-type="' + t.id + '" title="' + esc(t.label) + '">' + ic(t.icon) + '</span>';
-        }).join('') + '</span>';
-      } else if (relapseDays[k]) {
-        marks = '<span class="cal-types"><span class="cal-mark legacy" title="破戒">' + ic('cloud-rain') + '</span></span>';
+      if (types.length || relapseDays[k] || urgeDays[k]) {
+        var bits = types.map(function (id) {
+          var tp = typeById(id);
+          return '<span class="cal-mark" data-type="' + tp.id + '" title="' + esc(tp.label) + '">' + ic(tp.icon) + '</span>';
+        }).join('');
+        if (!types.length && relapseDays[k]) bits += '<span class="cal-mark legacy" title="破戒">' + ic('cloud-rain') + '</span>';
+        marks = '<span class="cal-types">' + bits + urgeMark + '</span>';
       }
       var future = k > todayK;
       var tag = future ? 'div' : 'button';
       html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + marks + '</' + tag + '>';
     }
     $('calGrid').innerHTML = html;
-    $('calLegend').innerHTML = lapseTypes().map(function (t) {
-      return '<span class="lg-item" data-type="' + t.id + '">' + ic(t.icon) + esc(t.label) + '</span>';
-    }).join('') + '<span class="lg-item"><i class="lg lg-mood"></i>无类型时底色为心情</span>';
+    $('calLegend').innerHTML = lapseTypes().map(function (tp) {
+      return '<span class="lg-item" data-type="' + tp.id + '">' + ic(tp.icon) + esc(tp.label) + '</span>';
+    }).join('') + '<span class="lg-item"><span class="cal-mark urge">' + ic('circle') + '</span>' + esc(t('urge.resisted')) + '</span><span class="lg-item"><i class="lg lg-mood"></i>无类型时底色为心情</span>';
   }
   $('calPrev').addEventListener('click', function () { calOffset--; renderCalendar(); });
   $('calNext').addEventListener('click', function () { if (calOffset < 0) { calOffset++; renderCalendar(); } });
@@ -560,104 +579,72 @@
     });
   });
 
-  /* ---------------- SOS 急救 ---------------- */
-  var BREATH = {
-    box: { desc: '吸气 4 秒，屏息 4 秒，呼气 4 秒，屏息 4 秒，共 4 轮。', rounds: 4,
-      phases: [['吸气', 4, 'in'], ['屏息', 4, 'hold'], ['呼气', 4, 'out'], ['屏息', 4, 'hold']] },
-    '478': { desc: '吸气 4 秒，屏息 7 秒，呼气 8 秒，共 4 轮。', rounds: 4,
-      phases: [['吸气', 4, 'in'], ['屏息', 7, 'hold'], ['呼气', 8, 'out']] }
-  };
-  var breathMode = 'box', breathTimer = null, sosLogged = false;
+  /* ---------------- 冲动：约 60 秒呼吸，然后记下或去记录行为 ---------------- */
+  var BREATH_IN = 5, BREATH_OUT = 5, BREATH_ROUNDS = 6;
+  var breathTimer = null, sosLogged = false;
 
   function showSosStep(id) {
     document.querySelectorAll('.sos-step').forEach(function (s) { s.classList.toggle('active', s.id === id); });
     window.scrollTo(0, 0);
   }
-  function renderSosStart() { $('urgeCountSos').textContent = state.urges.length; }
-  function resetSos() { stopBreath(); showSosStep('sosStart'); }
-
-  document.querySelectorAll('#breathMode .seg-btn').forEach(function (b) {
-    b.addEventListener('click', function () {
-      breathMode = b.dataset.mode;
-      document.querySelectorAll('#breathMode .seg-btn').forEach(function (x) { x.classList.toggle('active', x === b); });
-      $('breathDesc').textContent = BREATH[breathMode].desc;
-    });
-  });
-
+  function resetSos() { stopBreath(); sosLogged = false; }
   function stopBreath() { if (breathTimer) { clearTimeout(breathTimer); breathTimer = null; } }
 
   function startBreath() {
     stopBreath();
     sosLogged = false;
     showSosStep('sosBreath');
-    var cfg = BREATH[breathMode];
-    var seq = [['准备', 3, 'prep', 0]];
-    for (var r = 1; r <= cfg.rounds; r++) cfg.phases.forEach(function (p) { seq.push([p[0], p[1], p[2], r]); });
-    var total = seq.reduce(function (a, p) { return a + p[1]; }, 0);
     var circle = $('breathCircle');
-    var idx = -1, left = 0, elapsed = 0;
-    circle.style.transitionDuration = '0.6s';
+    var total = BREATH_ROUNDS * (BREATH_IN + BREATH_OUT);
+    var elapsed = 0;
+    circle.style.transitionDuration = '0s';
     circle.style.transform = 'scale(.55)';
-    var hints = { prep: '准备', in: '吸气', hold: '屏住', out: '呼气' };
-
-    function nextPhase() {
-      idx++;
-      if (idx >= seq.length) { finishBreath(); return; }
-      var p = seq[idx]; left = p[1];
-      $('breathPhase').textContent = p[0];
-      $('breathHint').textContent = hints[p[2]];
-      $('breathRound').textContent = p[3] ? ('第 ' + p[3] + ' / ' + cfg.rounds + ' 轮') : '';
-      if (p[2] === 'in' || p[2] === 'out') {
-        circle.style.transitionDuration = p[1] + 's';
-        circle.style.transform = p[2] === 'in' ? 'scale(1)' : 'scale(.55)';
-      }
-    }
-    function tick() {
-      if (left <= 0) nextPhase();
-      if (idx >= seq.length) return;
+    function frame() {
+      if (elapsed >= total) { finishBreath(); return; }
+      var cycle = BREATH_IN + BREATH_OUT;
+      var pos = elapsed % cycle;
+      var round = Math.floor(elapsed / cycle) + 1;
+      var inhale = pos < BREATH_IN;
+      var left = inhale ? (BREATH_IN - pos) : (BREATH_OUT - (pos - BREATH_IN));
+      $('breathPhase').textContent = t(inhale ? 'urge.inhale' : 'urge.exhale');
       $('breathCount').textContent = left;
+      $('breathHint').textContent = t('urge.breathHint');
+      $('breathRound').textContent = t('urge.round', { n: round, total: BREATH_ROUNDS });
       $('breathBar').style.width = (elapsed / total * 100).toFixed(1) + '%';
-      left--; elapsed++;
-      breathTimer = setTimeout(tick, 1000);
+      if (pos === 0 || pos === BREATH_IN) {
+        circle.style.transitionDuration = (inhale ? BREATH_IN : BREATH_OUT) + 's';
+        circle.style.transform = inhale ? 'scale(1)' : 'scale(.55)';
+      }
+      elapsed++;
+      breathTimer = setTimeout(frame, 1000);
     }
-    tick();
+    requestAnimationFrame(frame);
   }
   function finishBreath() {
     stopBreath();
-    $('breathBar').style.width = '100%';
-    showActions();
+    if ($('breathBar')) $('breathBar').style.width = '100%';
+    showUrgeEnd();
   }
-
-  function showActions() {
-    showSosStep('sosActions');
-    renderActionList();
+  function showUrgeEnd() {
+    showSosStep('sosEnd');
+    $('urgeStreakNow').textContent = t('urge.streakNow', { n: fmtDays(curMs()) });
     $('reasonsView').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r) { return '<li>' + ic('sparkle', 'tint-blue') + '<span>' + esc(r) + '</span></li>'; }).join('')
-      : '<li class="muted"><span>还没有理由。到设置里添加。</span></li>';
+      ? state.reasons.map(function (r) { return '<li><span>' + esc(r) + '</span></li>'; }).join('')
+      : '<li class="muted"><span>' + esc(t('urge.reasonsEmpty')) + '</span></li>';
   }
-  function renderActionList() {
-    $('actionList').innerHTML = shuffle(D.actions).slice(0, 3).map(function (a) {
-      return '<button class="action"><span class="e">' + ic(a.icon) + '</span><span>' + esc(a.t) + '</span></button>';
-    }).join('');
-  }
-  $('actionList').addEventListener('click', function (e) {
-    var b = e.target.closest('.action'); if (b) b.classList.toggle('done');
-  });
 
-  $('btnSosStart').addEventListener('click', startBreath);
   $('btnSkipBreath').addEventListener('click', finishBreath);
-  $('btnRebreath').addEventListener('click', startBreath);
-  $('btnShuffle').addEventListener('click', renderActionList);
-  $('btnSosClose1').addEventListener('click', resetSos);
-  $('btnSosClose2').addEventListener('click', resetSos);
-  $('btnSosRelapse').addEventListener('click', function () { go('home'); openAct(dateKey(Date.now())); });
+  $('btnSosClose1').addEventListener('click', function () { go('home'); });
+  $('btnSosClose2').addEventListener('click', function () { go('home'); });
+  $('btnUrgeRecord').addEventListener('click', function () { go('home'); openAct(dateKey(Date.now())); });
   $('btnMadeIt').addEventListener('click', function () {
     if (!sosLogged) {
       state.urges.push({ id: uid(), ts: Date.now() });
-      sosLogged = true; save();
+      sosLogged = true;
+      save();
     }
-    $('urgeCountDone').textContent = state.urges.length;
-    showSosStep('sosDone');
+    toast(t('urge.logged'));
+    go('home');
   });
 
   /* ---------------- 记录 ---------------- */
@@ -707,6 +694,9 @@
     state.relapses.forEach(function (r) {
       if (dateKey(r.ts) === k) events.push({ kind: 'relapse', ts: r.ts, r: r });
     });
+    state.urges.forEach(function (u) {
+      if (dateKey(u.ts) === k) events.push({ kind: 'urge', ts: u.ts, u: u });
+    });
     events.sort(function (a, b) { return a.ts - b.ts; });
     return events;
   }
@@ -721,14 +711,19 @@
       if (lane > 1) lane = 1;
       used.push({ lane: lane, p: p });
       var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
-      return '<span class="day-tl-dot' + (ev.kind === 'relapse' ? ' relapse' : '') + (lane ? ' lane1' : '') + '" style="left:' + p.toFixed(2) + '%" data-type="' + esc(primary) + '" title="' + esc(hm(ev.ts) + (ev.kind === 'checkin' ? ' 打卡' : ' 破戒')) + '"></span>';
+      var kindCls = ev.kind === 'relapse' ? ' relapse' : (ev.kind === 'urge' ? ' urge' : '');
+      var kindLabel = ev.kind === 'checkin' ? ' 打卡' : (ev.kind === 'urge' ? ' ' + t('urge.resisted') : ' 破戒');
+      return '<span class="day-tl-dot' + kindCls + (lane ? ' lane1' : '') + '" style="left:' + p.toFixed(2) + '%" data-type="' + esc(primary) + '" title="' + esc(hm(ev.ts) + kindLabel) + '"></span>';
     }).join('');
     var list = events.length ? events.map(function (ev) {
       var primary = ev.kind === 'relapse' ? ((normalizeTypes(ev.r.types)[0]) || '') : '';
+      var kindCls = ev.kind === 'relapse' ? ' relapse' : (ev.kind === 'urge' ? ' urge' : '');
       var body;
       if (ev.kind === 'checkin') {
         var m = D.moods.filter(function (x) { return x.v === ev.mood; })[0] || D.moods[2];
         body = '<b>心情打卡 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
+      } else if (ev.kind === 'urge') {
+        body = '<b>' + esc(t('urge.resisted')) + '</b>';
       } else {
         var r = ev.r;
         body = '<b>破戒' + (relapseResets(r.types) ? '' : ' · 不重置天数') + '</b>' +
@@ -736,7 +731,7 @@
           ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (t) { return t === '其他' && r.other ? '其他：' + r.other : t; }).join('、')) + '</div>' : '') +
           (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
       }
-      return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + (ev.kind === 'relapse' ? ' relapse' : '') + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + '</div></li>';
+      return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + kindCls + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + '</div></li>';
     }).join('') : '<li class="day-tl-item"><span class="day-tl-time">—</span><span class="day-tl-node"></span><div class="day-tl-card"><span class="muted small">这一天还没有记录。用下面的「记录行为」补上。</span></div></li>';
     return '<p class="field-label">线性图 · 00:00–24:00</p><div class="day-tl-bar" role="img" aria-label="当天 0 点到 24 点的事件"><div class="day-tl-rail"></div>' + ticks + dots + '</div><ol class="day-tl-list">' + list + '</ol>';
   }
@@ -990,7 +985,7 @@
     $('historyList').innerHTML = items.slice(0, 80).map(function (it) {
       var r = it.r;
       if (it.type === 'urge') {
-        return '<div class="h-item urge"><div class="h-ico">' + ic('shield-check') + '</div><div class="h-main"><b>成功抵御一次冲动</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
+        return '<div class="h-item urge"><div class="h-ico">' + ic('circle') + '</div><div class="h-main"><b>' + esc(t('urge.resisted')) + '</b><div class="small muted">' + fmtDT(r.ts) + '</div></div>' +
           '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
       }
       if (it.type === 'checkin') {
@@ -1066,6 +1061,7 @@
     $('stUrges').textContent = u;
     $('stRelapses').textContent = r;
     $('stBest').textContent = fmtDays(bestMs());
+    if ($('stTotal')) $('stTotal').textContent = fmtDays(totalCleanMs());
     $('stCurrent').textContent = fmtDays(curMs());
     $('stCheckins').textContent = Object.keys(state.checkins).length;
     $('stRate').textContent = (u + r) ? Math.round(u / (u + r) * 100) + '%' : '—';
@@ -1377,6 +1373,7 @@
       if (k !== lastDay) { lastDay = k; renderHome(); }
     }
   }, 1000);
+  applyNewCopy();
   renderHome();
   var bootSettings = settingsViewFromHash();
   if (bootSettings) {
@@ -1400,7 +1397,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '31';
+  var APP_VERSION = '32';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -1426,7 +1423,8 @@
       state = sanitize(s);
       save({ fromCloud: true });
       if (dayKey && $('dayMask') && !$('dayMask').classList.contains('hidden')) renderDaySheet();
-      if (current !== 'sos') render(current);
+      if (current === 'sos' && $('sosEnd') && $('sosEnd').classList.contains('active')) showUrgeEnd();
+      else if (current !== 'sos') render(current);
       updateSettingsChrome();
     },
     updateSettingsChrome: updateSettingsChrome,
