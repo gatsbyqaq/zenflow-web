@@ -4,9 +4,9 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"36";
+  --zf-css:"37";
   --type-masturbation:#ff2d2d;
-  --type-porn:#0095f6;
+  --type-porn:#405de6;
   --type-sex:#d62976;
   --type-fantasy:#d4880f;
   --type-dream:#7c5cbf;
@@ -78,7 +78,7 @@
   --amber:#f5c451;
   --mint:#3dd68c;
   --type-masturbation:#ff453a;
-  --type-porn:#4cb5ff;
+  --type-porn:#6d82f0;
   --type-sex:#ff7eb3;
   --type-fantasy:#ffc56b;
   --type-dream:#c4b5fd;
@@ -105,7 +105,7 @@
     --amber:#f5c451;
     --mint:#3dd68c;
     --type-masturbation:#ff453a;
-    --type-porn:#4cb5ff;
+    --type-porn:#6d82f0;
     --type-sex:#ff7eb3;
     --type-fantasy:#ffc56b;
     --type-dream:#c4b5fd;
