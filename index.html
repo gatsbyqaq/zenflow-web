@@ -44,7 +44,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=40" />
+  <link rel="stylesheet" href="styles.css?v=41" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -60,6 +60,13 @@
 <body>
 <!-- ICONS:START  Lucide icons (ISC License, https://lucide.dev) — see LICENSE-icons -->
 <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+<mask id="i-nb-gap" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="-6" y="-6" width="36" height="36">
+  <rect x="-6" y="-6" width="36" height="36" fill="white"/>
+  <path fill="black" stroke="black" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" style="fill:black;stroke:black;stroke-width:4.5;stroke-linejoin:round;stroke-linecap:round" d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>
+</mask>
+<clipPath id="i-settings-clip" clipPathUnits="userSpaceOnUse">
+  <path d="M9.63 5.62A1 1 0 0 0 10.12 4.91L10.5 2.48A1 1 0 0 1 11.49 1.64H12.51A1 1 0 0 1 13.5 2.48L13.88 4.91A1 1 0 0 0 14.37 5.62L16.34 6.76A1 1 0 0 0 17.19 6.82L19.49 5.94A1 1 0 0 1 20.72 6.38L21.23 7.26A1 1 0 0 1 20.99 8.54L19.08 10.09A1 1 0 0 0 18.71 10.87V13.13A1 1 0 0 0 19.08 13.91L20.99 15.46A1 1 0 0 1 21.23 16.74L20.72 17.62A1 1 0 0 1 19.49 18.06L17.19 17.18A1 1 0 0 0 16.34 17.24L14.37 18.38A1 1 0 0 0 13.88 19.09L13.5 21.52A1 1 0 0 1 12.51 22.36H11.49A1 1 0 0 1 10.5 21.52L10.12 19.09A1 1 0 0 0 9.63 18.38L7.66 17.24A1 1 0 0 0 6.81 17.18L4.51 18.06A1 1 0 0 1 3.28 17.62L2.77 16.74A1 1 0 0 1 3.01 15.46L4.92 13.91A1 1 0 0 0 5.29 13.13V10.87A1 1 0 0 0 4.92 10.09L3.01 8.54A1 1 0 0 1 2.77 7.26L3.28 6.38A1 1 0 0 1 4.51 5.94L6.81 6.82A1 1 0 0 0 7.66 6.76Z"/>
+</clipPath>
 <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
 <symbol id="i-annoyed" viewBox="0 0 24 24"><path d="M14 10h2"/><path d="M8 10h2"/><path d="M8 16h8"/><circle cx="12" cy="12" r="10"/></symbol>
 <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 6.528V3a1 1 0 0 1 1-1h0"/><path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21"/></symbol>
@@ -124,7 +131,7 @@
 <symbol id="i-mountain-snow" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></symbol>
 <symbol id="i-notebook" viewBox="0 0 24 24"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M16 2v20"/></symbol>
 <symbol id="i-notebook-pen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
-<symbol id="i-notebook-pen-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" style="fill:currentColor;stroke:none" d="M5.1 7.4H14.5A2.05 2.05 0 0 1 16.55 9.45V20.35A2.05 2.05 0 0 1 14.5 22.4H5.1A2.05 2.05 0 0 1 3.05 20.35V19.85H1.15V18.15H3.05V17.15H1.15V15.45H3.05V14.45H1.15V12.75H3.05V11.75H1.15V10.05H3.05V9.45A2.05 2.05 0 0 1 5.1 7.4z"/><path fill="currentColor" stroke="none" style="fill:currentColor;stroke:none" d="M16.78 6.72 19.81 5.38A.3.3 0 0 0 19.91 5.32L22.69 2.53A.7.7 0 0 0 22.69 1.54L21.96.81A.7.7 0 0 0 20.97.81L18.18 3.59A.3.3 0 0 0 18.12 3.69z"/></symbol>
+<symbol id="i-notebook-pen-fill" viewBox="0 0 24 24"><g mask="url(#i-nb-gap)"><path fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="fill:currentColor;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round" d="M2 6h4M2 10h4M2 14h4M2 18h4"/></g><path fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" style="fill:currentColor;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round" d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
 <symbol id="i-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></symbol>
 <symbol id="i-pen-line" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></symbol>
 <symbol id="i-percent" viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
@@ -132,8 +139,8 @@
 <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/></symbol>
 <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
 <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
-<symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></symbol>
-<symbol id="i-settings-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" clip-rule="evenodd" style="fill:currentColor;stroke:none" d="M9.69 5.59A.85.85 0 0 0 10.1 4.98L10.52 2.36A.85.85 0 0 1 11.36 1.64H12.64A.85.85 0 0 1 13.48 2.36L13.9 4.98A.85.85 0 0 0 14.31 5.59L16.4 6.79A.85.85 0 0 0 17.13 6.85L19.61 5.9A.85.85 0 0 1 20.65 6.27L21.29 7.37A.85.85 0 0 1 21.09 8.46L19.02 10.13A.85.85 0 0 0 18.71 10.79V13.21A.85.85 0 0 0 19.02 13.87L21.09 15.54A.85.85 0 0 1 21.29 16.63L20.65 17.73A.85.85 0 0 1 19.61 18.1L17.13 17.15A.85.85 0 0 0 16.4 17.21L14.31 18.41A.85.85 0 0 0 13.9 19.02L13.48 21.64A.85.85 0 0 1 12.64 22.36H11.36A.85.85 0 0 1 10.52 21.64L10.1 19.02A.85.85 0 0 0 9.69 18.41L7.6 17.21A.85.85 0 0 0 6.87 17.15L4.39 18.1A.85.85 0 0 1 3.35 17.73L2.71 16.63A.85.85 0 0 1 2.91 15.54L4.98 13.87A.85.85 0 0 0 5.29 13.21V10.79A.85.85 0 0 0 4.98 10.13L2.91 8.46A.85.85 0 0 1 2.71 7.37L3.35 6.27A.85.85 0 0 1 4.39 5.9L6.87 6.85A.85.85 0 0 0 7.6 6.79zM15.25 12a3.25 3.25 0 1 1-6.5 0 3.25 3.25 0 1 1 6.5 0z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><g clip-path="url(#i-settings-clip)"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" style="fill:none;stroke:currentColor;stroke-width:3;stroke-linejoin:round;stroke-linecap:round" d="M9.63 5.62A1 1 0 0 0 10.12 4.91L10.5 2.48A1 1 0 0 1 11.49 1.64H12.51A1 1 0 0 1 13.5 2.48L13.88 4.91A1 1 0 0 0 14.37 5.62L16.34 6.76A1 1 0 0 0 17.19 6.82L19.49 5.94A1 1 0 0 1 20.72 6.38L21.23 7.26A1 1 0 0 1 20.99 8.54L19.08 10.09A1 1 0 0 0 18.71 10.87V13.13A1 1 0 0 0 19.08 13.91L20.99 15.46A1 1 0 0 1 21.23 16.74L20.72 17.62A1 1 0 0 1 19.49 18.06L17.19 17.18A1 1 0 0 0 16.34 17.24L14.37 18.38A1 1 0 0 0 13.88 19.09L13.5 21.52A1 1 0 0 1 12.51 22.36H11.49A1 1 0 0 1 10.5 21.52L10.12 19.09A1 1 0 0 0 9.63 18.38L7.66 17.24A1 1 0 0 0 6.81 17.18L4.51 18.06A1 1 0 0 1 3.28 17.62L2.77 16.74A1 1 0 0 1 3.01 15.46L4.92 13.91A1 1 0 0 0 5.29 13.13V10.87A1 1 0 0 0 4.92 10.09L3.01 8.54A1 1 0 0 1 2.77 7.26L3.28 6.38A1 1 0 0 1 4.51 5.94L6.81 6.82A1 1 0 0 0 7.66 6.76Z"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.5" style="fill:none;stroke:currentColor;stroke-width:1.5"/></g></symbol>
+<symbol id="i-settings-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" clip-rule="evenodd" style="fill:currentColor;stroke:none" d="M9.63 5.62A1 1 0 0 0 10.12 4.91L10.5 2.48A1 1 0 0 1 11.49 1.64H12.51A1 1 0 0 1 13.5 2.48L13.88 4.91A1 1 0 0 0 14.37 5.62L16.34 6.76A1 1 0 0 0 17.19 6.82L19.49 5.94A1 1 0 0 1 20.72 6.38L21.23 7.26A1 1 0 0 1 20.99 8.54L19.08 10.09A1 1 0 0 0 18.71 10.87V13.13A1 1 0 0 0 19.08 13.91L20.99 15.46A1 1 0 0 1 21.23 16.74L20.72 17.62A1 1 0 0 1 19.49 18.06L17.19 17.18A1 1 0 0 0 16.34 17.24L14.37 18.38A1 1 0 0 0 13.88 19.09L13.5 21.52A1 1 0 0 1 12.51 22.36H11.49A1 1 0 0 1 10.5 21.52L10.12 19.09A1 1 0 0 0 9.63 18.38L7.66 17.24A1 1 0 0 0 6.81 17.18L4.51 18.06A1 1 0 0 1 3.28 17.62L2.77 16.74A1 1 0 0 1 3.01 15.46L4.92 13.91A1 1 0 0 0 5.29 13.13V10.87A1 1 0 0 0 4.92 10.09L3.01 8.54A1 1 0 0 1 2.77 7.26L3.28 6.38A1 1 0 0 1 4.51 5.94L6.81 6.82A1 1 0 0 0 7.66 6.76ZM15.25 12a3.25 3.25 0 1 1-6.5 0 3.25 3.25 0 1 1 6.5 0z"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
 <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-shower-head" viewBox="0 0 24 24"><path d="m4 4 2.5 2.5"/><path d="M13.5 6.5a4.95 4.95 0 0 0-7 7"/><path d="M15 5 5 15"/><path d="M14 17v.01"/><path d="M10 16v.01"/><path d="M13 13v.01"/><path d="M16 10v.01"/><path d="M11 20v.01"/><path d="M17 14v.01"/><path d="M20 11v.01"/></symbol>
@@ -164,7 +171,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=40" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=41" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -179,7 +186,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=40" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=41" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -606,7 +613,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=40" alt="" class="side-logo" />
+      <img src="icon.svg?v=41" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -657,7 +664,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=40" alt="" class="auth-logo" />
+        <img src="icon.svg?v=41" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -862,7 +869,7 @@
 <div class="lock-screen hidden" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <button type="button" class="lock-cancel hidden" id="lockCancel" data-i18n="lock.cancel">取消</button>
   <div class="lock-body">
-    <img src="icon.svg?v=40" alt="" class="lock-logo" width="64" height="64" />
+    <img src="icon.svg?v=41" alt="" class="lock-logo" width="64" height="64" />
     <p class="wordmark lock-word">ZENFLOW</p>
     <h2 id="lockTitle" class="lock-title"></h2>
     <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -899,7 +906,7 @@
   </div>
 </div>
 
-<script src="config.js?v=40"></script>
+<script src="config.js?v=41"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -908,12 +915,12 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=40"></script>
-<script src="streak.js?v=40"></script>
-<script src="strings.js?v=40"></script>
-<script src="lock.js?v=40"></script>
-<script src="app.js?v=40"></script>
-<script src="cloud.js?v=40"></script>
-<script src="admin.js?v=40"></script>
+<script src="data.js?v=41"></script>
+<script src="streak.js?v=41"></script>
+<script src="strings.js?v=41"></script>
+<script src="lock.js?v=41"></script>
+<script src="app.js?v=41"></script>
+<script src="cloud.js?v=41"></script>
+<script src="admin.js?v=41"></script>
 </body>
 </html>
