@@ -41,15 +41,56 @@
     return fmtClock(ts);
   }
   function t(key, vars) { return (window.ZFStrings && window.ZFStrings.t) ? window.ZFStrings.t(key, vars) : key; }
-  function applyNewCopy() {
-    document.querySelectorAll('[data-i18n]').forEach(function (el) {
-      el.textContent = t(el.getAttribute('data-i18n'));
+  function i18nVarsOf(el) {
+    var raw = el.getAttribute('data-i18n-vars');
+    if (!raw) return undefined;
+    try { return JSON.parse(raw); } catch (e) { return undefined; }
+  }
+  function applyNewCopy(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'), i18nVarsOf(el));
     });
+    scope.querySelectorAll('[data-i18n-aria]').forEach(function (el) {
+      el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'), i18nVarsOf(el)));
+    });
+    scope.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      el.setAttribute('title', t(el.getAttribute('data-i18n-title'), i18nVarsOf(el)));
+    });
+    scope.querySelectorAll('[data-i18n-alt]').forEach(function (el) {
+      el.setAttribute('alt', t(el.getAttribute('data-i18n-alt'), i18nVarsOf(el)));
+    });
+  }
+  /* 从 JS 写的标签。静态节点用 data-i18n-aria，动态节点用 ariaAttr / setAria。 */
+  function setAria(el, key, vars) {
+    if (!el || !key) return;
+    el.setAttribute('data-i18n-aria', key);
+    if (vars) el.setAttribute('data-i18n-vars', JSON.stringify(vars));
+    else el.removeAttribute('data-i18n-vars');
+    el.setAttribute('aria-label', t(key, vars));
+  }
+  function ariaAttr(key, vars) {
+    return ' data-i18n-aria="' + esc(key) + '" aria-label="' + esc(t(key, vars)) + '"' +
+      (vars ? ' data-i18n-vars="' + esc(JSON.stringify(vars)) + '"' : '');
   }
   function lapseTypes() { return D.lapseTypes || []; }
   function typeById(id) {
     for (var i = 0; i < lapseTypes().length; i++) if (lapseTypes()[i].id === id) return lapseTypes()[i];
     return null;
+  }
+  function typeName(id) {
+    var key = 'type.' + id;
+    var name = t(key);
+    if (name && name !== key) return name;
+    var tp = typeById(id);
+    return tp ? tp.label : id;
+  }
+  function moodName(v) {
+    var key = 'mood.' + v;
+    var name = t(key);
+    if (name && name !== key) return name;
+    var m = moodByValue(v);
+    return m ? m.t : '';
   }
   function normalizeTypes(arr) {
     var out = [];
@@ -494,18 +535,29 @@
         else markType = pool[0] || 'masturbation';
       }
       var mark = '';
-      var title = k;
       if (markType) {
-        var tp = typeById(markType);
-        title += ' · ' + (tp ? tp.label : '破戒');
         mark = '<span class="cal-types"><span class="cal-mark dot" data-type="' + esc(markType) + '"></span></span>';
       } else if (urgeDays[k]) {
-        title += ' · ' + t('urge.resisted');
-        mark = '<span class="cal-types"><span class="cal-mark urge-ring" title="' + esc(t('urge.resisted')) + '"></span></span>';
+        mark = '<span class="cal-types"><span class="cal-mark urge-ring"></span></span>';
       }
+      var parts = [];
+      lapseTypes().forEach(function (tp) {
+        if (types.indexOf(tp.id) >= 0) parts.push(typeName(tp.id));
+      });
+      if (relapseDays[k] && !types.length) parts.push(t('cal.logged'));
+      var cin = state.checkins[k];
+      if (cin && cin.mood) parts.push(moodName(cin.mood));
+      if (urgeDays[k]) parts.push(t('urge.resisted'));
+      var detail = parts.length ? parts.join(t('cal.sep')) : t('cal.empty');
+      var cellVars = { m: mo + 1, d: d, month: new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(y, mo, 1)), detail: detail };
+      var cellLabel = t('cal.cell', cellVars);
       var future = k > todayK;
       var tag = future ? 'div' : 'button';
-      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
+      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') +
+        ' data-i18n-aria="cal.cell" data-i18n-title="cal.cell" data-i18n-vars="' + esc(JSON.stringify(cellVars)) + '"' +
+        ' aria-label="' + esc(cellLabel) + '" title="' + esc(cellLabel) + '"' +
+        (isToday ? ' aria-current="date"' : '') +
+        '><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
     }
     $('calGrid').innerHTML = html;
   }
@@ -753,12 +805,12 @@
         var m = D.moods.filter(function (x) { return x.v === ev.mood; })[0] || D.moods[2];
         body = '<b>心情 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
         actions = tlActions(
-          '<button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(k) + '" aria-label="删除">' + ic('x') + '</button>'
+          '<button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(k) + '"' + ariaAttr('a11y.mood.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(k) + '"' + ariaAttr('a11y.mood.delete') + '>' + ic('x') + '</button>'
         );
       } else if (ev.kind === 'urge') {
         body = '<b>' + esc(t('urge.resisted')) + '</b>';
-        actions = tlActions('<button class="h-del" type="button" data-del="urge" data-id="' + esc(ev.u.id) + '" aria-label="删除">' + ic('x') + '</button>');
+        actions = tlActions('<button class="h-del" type="button" data-del="urge" data-id="' + esc(ev.u.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button>');
       } else {
         var r = ev.r;
         body = '<b>' + (relapseResets(r.types) ? '破戒' : esc(t('relapse.kept'))) + '</b>' +
@@ -766,8 +818,8 @@
           ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (tg) { return tg === '其他' && r.other ? '其他：' + r.other : tg; }).join('、')) + '</div>' : '') +
           (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
         actions = tlActions(
-          '<button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button>'
+          '<button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button>'
         );
       }
       return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + kindCls + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + actions + '</div></li>';
@@ -968,8 +1020,8 @@
       (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
       (trigs ? '<div class="h-tags">' + trigs + '</div>' : '') +
       (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-      '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-      '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+      '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.edit') + '>' + ic('pen-line') + '</button>' +
+      '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button></div></div>';
   }
 
   function openRelapseEditor(id) {
@@ -1032,15 +1084,15 @@
       var r = it.r;
       if (it.type === 'urge') {
         return '<div class="h-item urge"><div class="h-ico">' + ic('circle') + '</div><div class="h-main"><b>' + esc(t('urge.resisted')) + '</b><div class="small muted">' + fmtWhen(r.ts) + '</div></div>' +
-          '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+          '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button></div></div>';
       }
       if (it.type === 'checkin') {
         var m = D.moods.filter(function (x) { return x.v === r.mood; })[0] || D.moods[2];
         return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>打卡 · ' + esc(m.t) + '</b>' +
           '<div class="small muted">' + esc(it.k) + '</div>' +
           (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-          '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(it.k) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+          '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '"' + ariaAttr('a11y.mood.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(it.k) + '"' + ariaAttr('a11y.mood.delete') + '>' + ic('x') + '</button></div></div>';
       }
       return relapseItem(r);
     }).join('');
@@ -1060,9 +1112,9 @@
     if (type === 'checkin') {
       var dk = b.dataset.date;
       openModal({
-        title: '删除这天的打卡？',
-        html: '<p>去掉 ' + esc(dk) + ' 的心情，不能撤销。</p>',
-        ok: '删除', danger: true,
+        title: t('confirm.moodTitle'),
+        html: '<p>' + esc(t('confirm.moodBody', { date: dk })) + '</p>',
+        ok: t('confirm.delete'), danger: true,
         onOk: function () {
           delete state.checkins[dk];
           state.removed.checkins[dk] = Date.now();
@@ -1279,12 +1331,13 @@
   }
   function renderResetToggles() {
     var box = $('resetTypeList'); if (!box) return;
-    box.innerHTML = lapseTypes().map(function (t) {
-      var on = !!state.resetTypes[t.id];
-      var locked = t.id === 'masturbation';
-      return '<div class="reset-row" data-type="' + t.id + '"><span class="type-ico">' + ic(t.icon) + '</span><div class="reset-copy"><b>' + esc(t.label) + '</b><p>' +
+    box.innerHTML = lapseTypes().map(function (tp) {
+      var on = !!state.resetTypes[tp.id];
+      var locked = tp.id === 'masturbation';
+      var name = typeName(tp.id);
+      return '<div class="reset-row" data-type="' + tp.id + '"><span class="type-ico">' + ic(tp.icon) + '</span><div class="reset-copy"><b>' + esc(name) + '</b><p>' +
         (locked ? '不能关闭' : (on ? '重置天数' : '不重置天数')) +
-        '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(t.label) + '：重置戒色天数" data-reset-type="' + t.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
+        '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '"' + ariaAttr('a11y.reset', { type: name }) + ' data-reset-type="' + tp.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
     }).join('');
   }
   function updateSettingsChrome() {
@@ -1320,7 +1373,7 @@
     renderResetToggles();
     renderThemeControl();
     $('reasonsEdit').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
+      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '"' + ariaAttr('a11y.reason.delete') + '>' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由</span></li>';
     updateSettingsChrome();
   }
@@ -1374,9 +1427,20 @@
   $('reasonInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addReason(); });
   $('reasonsEdit').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-i]'); if (!b) return;
-    var gone = state.reasons.splice(+b.dataset.i, 1)[0];
-    if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
-    save(); renderSettings();
+    var i = +b.dataset.i;
+    if (!(i >= 0 && i < state.reasons.length)) return;
+    openModal({
+      title: t('confirm.reasonTitle'),
+      html: '<p>' + esc(t('confirm.reasonBody')) + '</p>',
+      ok: t('confirm.delete'),
+      danger: true,
+      onOk: function () {
+        var gone = state.reasons.splice(i, 1)[0];
+        if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
+        save();
+        renderSettings();
+      }
+    });
   });
 
   $('btnImport').addEventListener('click', function () { $('importFile').click(); });
@@ -1749,7 +1813,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '42';
+  var APP_VERSION = '43';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

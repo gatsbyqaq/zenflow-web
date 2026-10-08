@@ -70,6 +70,34 @@ assert.strictEqual(Z.table.en['lock.forgotBody'].indexOf('Cloud data stays') > 0
 assert.strictEqual(Z.render(Z.table.en['lock.wait'], { n: 30 }, 'en'), 'Wait 30s');
 assert.strictEqual(Z.render(Z.table.en['time.today'], { time: '15:10' }, 'en'), 'Today 15:10');
 assert.strictEqual(Z.render(Z.table.en['time.date'], { month: 'Oct', d: 5, time: '15:10' }, 'en'), 'Oct 5 15:10');
+var ariaSrc = ['index.html', 'app.js', 'admin.js', 'cloud.js', 'lock.js'].map(function (f) {
+  return fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+}).join('\n');
+var ariaKeys = {};
+var reA = /data-i18n-aria="([A-Za-z0-9_.]+)"/g;
+var reB = /ariaAttr\(\s*'([A-Za-z0-9_.]+)'/g;
+var ariaMatch;
+while ((ariaMatch = reA.exec(ariaSrc))) ariaKeys[ariaMatch[1]] = true;
+while ((ariaMatch = reB.exec(ariaSrc))) ariaKeys[ariaMatch[1]] = true;
+var ariaList = Object.keys(ariaKeys).sort();
+assert.ok(ariaList.length >= 16, 'aria keys ' + ariaList.join(','));
+ariaList.forEach(function (k) {
+  assert.ok(Object.prototype.hasOwnProperty.call(Z.table.zh, k), 'missing zh ' + k);
+  assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
+  assert.notStrictEqual(String(Z.table.zh[k]).trim(), '');
+  assert.notStrictEqual(String(Z.table.en[k]).trim(), '');
+});
+assert.strictEqual(Z.t('confirm.moodTitle'), '删除这天的心情？');
+assert.strictEqual(Z.t('confirm.moodTitle').indexOf('打卡'), -1);
+assert.strictEqual(Z.table.en['confirm.moodTitle'], 'Delete this day\'s mood?');
+assert.strictEqual(Z.t('cal.cell', { m: 9, d: 8, detail: '看黄' }), '9月8日，看黄');
+assert.strictEqual(Z.render(Z.table.en['cal.cell'], { month: 'Sep', d: 8, detail: 'Porn' }, 'en'), 'Sep 8, Porn');
+assert.strictEqual(Z.t('cal.cell', { m: 9, d: 8, detail: Z.t('cal.empty') }), '9月8日，没有记录');
+assert.strictEqual(Z.t('a11y.reset', { type: '看黄' }), '看黄：重置天数');
+assert.strictEqual(Z.render(Z.table.en['a11y.reset'], { type: 'Porn' }, 'en'), 'Reset streak on Porn');
+['type.masturbation', 'type.porn', 'type.sex', 'type.fantasy', 'type.dream'].forEach(function (k) {
+  assert.ok(Z.table.zh[k] && Z.table.en[k], k);
+});
 Object.keys(Z.table.zh).forEach(function (k) {
   assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
 });
