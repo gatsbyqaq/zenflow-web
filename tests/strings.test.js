@@ -61,6 +61,13 @@ assert.strictEqual(Z.t('time.date', { m: 10, d: 5, time: '15:10' }), '10月5日 
 assert.strictEqual(Z.table.en['record.save'], 'Save');
 assert.strictEqual(Z.table.en['day.timeline'], 'Timeline');
 assert.strictEqual(Z.table.en['relapse.kept'], 'Logged · Streak kept');
+assert.strictEqual(Z.t('lock.title'), '应用锁');
+assert.strictEqual(Z.t('lock.wrong'), '密码不对');
+assert.strictEqual(Z.t('lock.wait', { n: 30 }), '请等 30 秒');
+assert.strictEqual(Z.table.en['lock.title'], 'App lock');
+assert.strictEqual(Z.table.en['lock.change'], 'Change passcode');
+assert.strictEqual(Z.table.en['lock.forgotBody'].indexOf('Cloud data stays') > 0, true);
+assert.strictEqual(Z.render(Z.table.en['lock.wait'], { n: 30 }, 'en'), 'Wait 30s');
 assert.strictEqual(Z.render(Z.table.en['time.today'], { time: '15:10' }, 'en'), 'Today 15:10');
 assert.strictEqual(Z.render(Z.table.en['time.date'], { month: 'Oct', d: 5, time: '15:10' }, 'en'), 'Oct 5 15:10');
 Object.keys(Z.table.zh).forEach(function (k) {

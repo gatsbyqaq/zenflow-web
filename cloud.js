@@ -198,7 +198,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=37'; s.async = true;
+      s.src = 'vendor/supabase.js?v=38'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -1802,6 +1802,7 @@
     renderChrome();
     updateGate();
     wipeLock = false;
+    if (window.ZFLockUI && window.ZFLockUI.afterWipe) window.ZFLockUI.afterWipe();
     Z.toast(opts.toast || (err ? '已退出本机' : '已退出'));
   }
 
@@ -2138,7 +2139,7 @@
     userId: function () { return user() && user().id; },
     status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
-    syncNow: syncNow, openAuth: openAuth, client: function () { return sb; },
+    syncNow: syncNow, openAuth: openAuth, logout: function (opts) { return doLogout(opts || {}); }, client: function () { return sb; },
     refreshChrome: renderChrome,
     cropOpen: cropOpen,
     closeCrop: closeCrop

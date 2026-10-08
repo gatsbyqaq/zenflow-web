@@ -23,6 +23,17 @@
       } catch (e) {}
     })();
   </script>
+  <script>
+    /* 应用锁开着时，首帧就盖住内容，避免闪出记录 */
+    (function () {
+      try {
+        var raw = localStorage.getItem('zenflow_lock');
+        if (!raw) return;
+        var o = JSON.parse(raw);
+        if (o && o.hash && o.salt) document.documentElement.classList.add('lock-pending');
+      } catch (e) {}
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -33,7 +44,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=37" />
+  <link rel="stylesheet" href="styles.css?v=38" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -62,6 +73,7 @@
 <symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></symbol>
 <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
 <symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-chart-column-fill" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="6.5" y="13.2" width="3" height="3.8" rx="1" fill="currentColor" stroke="none"/><rect x="11.5" y="5" width="3" height="12" rx="1" fill="currentColor" stroke="none"/><rect x="16.5" y="9" width="3" height="8" rx="1" fill="currentColor" stroke="none"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
@@ -92,6 +104,7 @@
 <symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></symbol>
 <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
 <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-house-fill" viewBox="0 0 24 24"><g style="isolation:isolate"><path fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path fill="#000" style="mix-blend-mode:destination-out" d="M9.6 21.9V13.3a.85.85 0 0 1 .85-.85h3.1a.85.85 0 0 1 .85.85V21.9z"/></g></symbol>
 <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
 <symbol id="i-laugh" viewBox="0 0 24 24"><path d="M15 10V9"/><path d="M7.084 14.302a5.12 5.12 0 009.833 0 .24.24 0 00-.235-.302H7.32a.24.24 0 00-.235.302"/><path d="M9 10V9"/><circle cx="12" cy="12" r="10"/></symbol>
 <symbol id="i-layout-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
@@ -111,6 +124,7 @@
 <symbol id="i-mountain-snow" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></symbol>
 <symbol id="i-notebook" viewBox="0 0 24 24"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M16 2v20"/></symbol>
 <symbol id="i-notebook-pen" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></symbol>
+<symbol id="i-notebook-pen-fill" viewBox="0 0 24 24"><g style="isolation:isolate"><path fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path fill="#000" style="mix-blend-mode:destination-out" d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/><path fill="#000" style="mix-blend-mode:destination-out" d="M1.2 5.25h5.3v1.5H1.2zM1.2 9.25h5.3v1.5H1.2zM1.2 13.25h5.3v1.5H1.2zM1.2 17.25h5.3v1.5H1.2z"/></g></symbol>
 <symbol id="i-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></symbol>
 <symbol id="i-pen-line" viewBox="0 0 24 24"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></symbol>
 <symbol id="i-percent" viewBox="0 0 24 24"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
@@ -119,6 +133,7 @@
 <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
 <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
 <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-settings-fill" viewBox="0 0 24 24"><g style="isolation:isolate"><path fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915z"/><circle cx="12" cy="12" r="3.15" fill="#000" style="mix-blend-mode:destination-out"/></g></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
 <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-shower-head" viewBox="0 0 24 24"><path d="m4 4 2.5 2.5"/><path d="M13.5 6.5a4.95 4.95 0 0 0-7 7"/><path d="M15 5 5 15"/><path d="M14 17v.01"/><path d="M10 16v.01"/><path d="M13 13v.01"/><path d="M16 10v.01"/><path d="M11 20v.01"/><path d="M17 14v.01"/><path d="M20 11v.01"/></symbol>
@@ -143,12 +158,13 @@
 <symbol id="i-wind" viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></symbol>
 <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-delete" viewBox="0 0 24 24"><path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/></symbol>
 <symbol id="i-zap" viewBox="0 0 24 24"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/></symbol>
 </svg>
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=37" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=38" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -163,7 +179,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=37" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=38" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -396,6 +412,23 @@
           </button>
         </div>
 
+        <p class="set-label" data-i18n="lock.section">隐私与安全</p>
+        <div class="set-group" id="appLockGroup">
+          <div class="set-row">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span>
+            <button type="button" class="set-row-hit" id="btnAppLockPage">
+              <b data-i18n="lock.title">应用锁</b>
+              <small id="appLockSub">关闭</small>
+            </button>
+            <button type="button" class="switch" id="appLockSwitch" role="switch" aria-checked="false" aria-label="应用锁"><span class="switch-knob"></span></button>
+          </div>
+          <button class="set-row hidden" type="button" id="btnChangePass">
+            <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg></span>
+            <span class="set-row-text"><b data-i18n="lock.change">修改密码</b></span>
+            <svg class="ic set-chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+        </div>
+
         <p class="set-label">其他</p>
         <div class="set-group">
           <button class="set-row" type="button" data-settings="data">
@@ -540,6 +573,18 @@
         </div>
       </div>
 
+      <div class="settings-page hidden" data-settings-page="lock">
+        <div class="card">
+          <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="lock.when">锁定时机</span></h2>
+          <p class="muted small" data-i18n="lock.whenHint">离开后再打开，超过这个时间要输入密码。</p>
+          <div class="seg" id="lockGraceSeg" role="radiogroup">
+            <button type="button" class="seg-btn" data-grace="now" data-i18n="lock.optNow">立即</button>
+            <button type="button" class="seg-btn" data-grace="1m" data-i18n="lock.opt1">1 分钟</button>
+            <button type="button" class="seg-btn" data-grace="5m" data-i18n="lock.opt5">5 分钟</button>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-page hidden" data-settings-page="about">
         <div class="set-group">
           <a class="set-row" href="privacy.html">
@@ -561,14 +606,14 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=37" alt="" class="side-logo" />
+      <img src="icon.svg?v=38" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
-    <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-house"/></svg></span><span data-i18n="nav.checkin">打卡</span></button>
-    <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-notebook-pen"/></svg></span><span data-i18n="nav.log">记录</span></button>
-    <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span data-i18n="nav.stats">统计</span></button>
-    <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic fillable" aria-hidden="true"><use href="#i-settings"/></svg></span><span data-i18n="nav.settings">设置</span></button>
+    <button class="tab active" data-tab="home" aria-current="page" title="打卡（快捷键 1）"><span class="ti"><svg class="ic ic-line" aria-hidden="true"><use href="#i-house"/></svg><svg class="ic ic-fill" aria-hidden="true"><use href="#i-house-fill"/></svg></span><span data-i18n="nav.checkin">打卡</span></button>
+    <button class="tab" data-tab="log" title="记录（快捷键 2）"><span class="ti"><svg class="ic ic-line" aria-hidden="true"><use href="#i-notebook-pen"/></svg><svg class="ic ic-fill" aria-hidden="true"><use href="#i-notebook-pen-fill"/></svg></span><span data-i18n="nav.log">记录</span></button>
+    <button class="tab" data-tab="stats" title="统计（快捷键 3）"><span class="ti"><svg class="ic ic-line" aria-hidden="true"><use href="#i-chart-column"/></svg><svg class="ic ic-fill" aria-hidden="true"><use href="#i-chart-column-fill"/></svg></span><span data-i18n="nav.stats">统计</span></button>
+    <button class="tab" data-tab="settings" title="设置（快捷键 4）"><span class="ti"><svg class="ic ic-line" aria-hidden="true"><use href="#i-settings"/></svg><svg class="ic ic-fill" aria-hidden="true"><use href="#i-settings-fill"/></svg></span><span data-i18n="nav.settings">设置</span></button>
     <div class="side-foot d-only">
       <p class="side-keys">快捷键 <kbd>1</kbd>–<kbd>4</kbd> 切换</p>
       <button class="side-user" id="sideUser" type="button" title="账号与设置">
@@ -612,7 +657,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=37" alt="" class="auth-logo" />
+        <img src="icon.svg?v=38" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -814,7 +859,47 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="config.js?v=37"></script>
+<div class="lock-screen hidden" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+  <button type="button" class="lock-cancel hidden" id="lockCancel" data-i18n="lock.cancel">取消</button>
+  <div class="lock-body">
+    <img src="icon.svg?v=38" alt="" class="lock-logo" width="64" height="64" />
+    <p class="wordmark lock-word">ZENFLOW</p>
+    <h2 id="lockTitle" class="lock-title"></h2>
+    <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p class="lock-msg" id="lockMsg" aria-live="polite"></p>
+    <div class="lock-pad" id="lockPad">
+      <button type="button" class="lock-key" data-key="1">1</button>
+      <button type="button" class="lock-key" data-key="2">2</button>
+      <button type="button" class="lock-key" data-key="3">3</button>
+      <button type="button" class="lock-key" data-key="4">4</button>
+      <button type="button" class="lock-key" data-key="5">5</button>
+      <button type="button" class="lock-key" data-key="6">6</button>
+      <button type="button" class="lock-key" data-key="7">7</button>
+      <button type="button" class="lock-key" data-key="8">8</button>
+      <button type="button" class="lock-key" data-key="9">9</button>
+      <span class="lock-key key-fn" aria-hidden="true"></span>
+      <button type="button" class="lock-key" data-key="0">0</button>
+      <button type="button" class="lock-key key-fn" data-key="del" aria-label="删除"><svg class="ic" aria-hidden="true"><use href="#i-delete"/></svg></button>
+    </div>
+    <button type="button" class="lock-forgot hidden" id="lockForgot" data-i18n="lock.forgot">忘记密码</button>
+  </div>
+</div>
+<div class="sheet-mask lock-forgot-mask hidden" id="lockForgotMask">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="lockForgotTitle">
+    <header class="sheet-head">
+      <span class="sheet-head-sp"></span>
+      <h2 id="lockForgotTitle" data-i18n="lock.forgotTitle">忘记密码</h2>
+      <span class="sheet-head-sp"></span>
+    </header>
+    <div class="sheet-body">
+      <p data-i18n="lock.forgotBody">会退出登录，并清除这台设备上的数据。云端数据保留。重新登录后应用锁关闭。</p>
+      <button class="btn btn-primary btn-block" type="button" id="lockForgotOk" data-i18n="lock.forgotOk">退出并清除</button>
+      <button class="btn btn-gray btn-block" type="button" id="lockForgotCancel" data-i18n="lock.cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js?v=38"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -823,11 +908,12 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=37"></script>
-<script src="streak.js?v=37"></script>
-<script src="strings.js?v=37"></script>
-<script src="app.js?v=37"></script>
-<script src="cloud.js?v=37"></script>
-<script src="admin.js?v=37"></script>
+<script src="data.js?v=38"></script>
+<script src="streak.js?v=38"></script>
+<script src="strings.js?v=38"></script>
+<script src="lock.js?v=38"></script>
+<script src="app.js?v=38"></script>
+<script src="cloud.js?v=38"></script>
+<script src="admin.js?v=38"></script>
 </body>
 </html>

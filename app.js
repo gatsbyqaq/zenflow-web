@@ -1227,6 +1227,7 @@
     theme: '外观',
     reasons: '理由',
     data: '数据',
+    lock: '应用锁',
     about: '关于'
   };
   var settingsView = 'root';
@@ -1256,6 +1257,7 @@
     applySettingsDom();
     if (view === 'resets') renderResetToggles();
     if (view === 'goal') renderGoalControl();
+    if (view === 'lock') paintLockGrace();
     updateSettingsChrome();
     if (!opts.silent) {
       var hash = view === 'root' ? '#settings' : ('#settings/' + view);
@@ -1310,6 +1312,7 @@
       $('settingsThemeSub').textContent = theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统';
     }
     if ($('settingsReasonSub')) $('settingsReasonSub').textContent = state.reasons.length + ' 条';
+    paintLockRow();
   }
   function renderSettings() {
     applySettingsDom();
@@ -1414,6 +1417,300 @@
     });
   });
 
+  /* ---------------- 应用锁 ---------------- */
+  var lockFlow = null;
+  var lockBusy = false;
+  var sessionUnlocked = !(window.ZFLock && window.ZFLock.enabled());
+  var lockHiddenAt = 0;
+  var lockProvisional = false;
+  var lockWaitTimer = null;
+
+  function paintLockRow() {
+    if (!$('appLockSwitch') || !window.ZFLock) return;
+    var on = window.ZFLock.enabled();
+    $('appLockSwitch').classList.toggle('on', on);
+    $('appLockSwitch').setAttribute('aria-checked', on ? 'true' : 'false');
+    if ($('btnChangePass')) $('btnChangePass').classList.toggle('hidden', !on);
+    if ($('appLockSub')) {
+      if (!on) $('appLockSub').textContent = t('lock.off');
+      else {
+        var g = window.ZFLock.grace();
+        $('appLockSub').textContent = g === 'now' ? t('lock.graceNow') : g === '5m' ? t('lock.grace5') : t('lock.grace1');
+      }
+    }
+    paintLockGrace();
+  }
+  function paintLockGrace() {
+    if (!$('lockGraceSeg') || !window.ZFLock) return;
+    var g = window.ZFLock.enabled() ? window.ZFLock.grace() : '';
+    $('lockGraceSeg').querySelectorAll('[data-grace]').forEach(function (b) {
+      var on = b.getAttribute('data-grace') === g;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  function showLockShell() {
+    document.documentElement.classList.add('lock-on');
+    $('lockScreen').classList.remove('hidden');
+    document.documentElement.classList.remove('lock-pending');
+  }
+  function hideLockShell() {
+    if ($('lockScreen')) $('lockScreen').classList.add('hidden');
+    if ($('lockForgotMask')) $('lockForgotMask').classList.add('hidden');
+    document.documentElement.classList.remove('lock-on');
+    document.documentElement.classList.remove('lock-pending');
+    lockFlow = null;
+  }
+  function lockTitle() {
+    if (!lockFlow) return '';
+    if (lockFlow.mode === 'unlock') return t('lock.enterTitle');
+    if (lockFlow.mode === 'disable') return t('lock.currentTitle');
+    if (lockFlow.mode === 'change' && lockFlow.step === 'current') return t('lock.currentTitle');
+    if (lockFlow.step === 'confirm') return t('lock.confirmTitle');
+    if (lockFlow.mode === 'change') return t('lock.newTitle');
+    return t('lock.setTitle');
+  }
+  function paintDots() {
+    var n = lockFlow ? lockFlow.buf.length : 0;
+    var dots = $('lockDots');
+    if (!dots) return;
+    for (var i = 0; i < dots.children.length; i++) dots.children[i].classList.toggle('on', i < n);
+  }
+  function paintLockWait() {
+    var left = window.ZFLock ? window.ZFLock.waitRemaining() : 0;
+    var waiting = left > 0;
+    document.querySelectorAll('#lockPad [data-key]').forEach(function (b) {
+      if (b.getAttribute('data-key') === 'del') return;
+      b.disabled = waiting || lockBusy;
+    });
+    if (waiting && $('lockMsg')) $('lockMsg').textContent = t('lock.wait', { n: Math.ceil(left / 1000) });
+    if (lockWaitTimer) { clearTimeout(lockWaitTimer); lockWaitTimer = null; }
+    if (waiting) lockWaitTimer = setTimeout(paintLockWait, 250);
+  }
+  function renderLockChrome() {
+    if (!$('lockTitle') || !lockFlow) return;
+    $('lockTitle').textContent = lockTitle();
+    var cancellable = lockFlow.mode !== 'unlock';
+    $('lockCancel').classList.toggle('hidden', !cancellable);
+    var showForgot = lockFlow.mode === 'unlock' || lockFlow.mode === 'disable' || (lockFlow.mode === 'change' && lockFlow.step === 'current');
+    $('lockForgot').classList.toggle('hidden', !showForgot);
+    paintDots();
+    paintLockWait();
+  }
+  function presentLock(mode) {
+    lockFlow = { mode: mode, step: (mode === 'set' || mode === 'change') ? (mode === 'change' ? 'current' : 'neu') : 'enter', first: '', buf: '' };
+    if (mode === 'set') lockFlow.step = 'neu';
+    if ($('lockMsg')) $('lockMsg').textContent = '';
+    var dots = $('lockDots');
+    if (dots) dots.classList.remove('shake');
+    showLockShell();
+    renderLockChrome();
+  }
+  function shakeLock(msg, after) {
+    var dots = $('lockDots');
+    if (dots) {
+      dots.classList.remove('shake');
+      void dots.offsetWidth;
+      dots.classList.add('shake');
+    }
+    if ($('lockMsg')) $('lockMsg').textContent = msg;
+    setTimeout(function () {
+      if (lockFlow) lockFlow.buf = '';
+      if (after) after();
+      paintDots();
+      renderLockChrome();
+    }, 900);
+  }
+  function finishLockOk(message) {
+    sessionUnlocked = true;
+    lockProvisional = false;
+    hideLockShell();
+    paintLockRow();
+    if (message) toast(message);
+  }
+  function onLockFour(code) {
+    if (!lockFlow || lockBusy) return;
+    if (window.ZFLock.waitRemaining() > 0) { paintLockWait(); return; }
+    if (lockFlow.step === 'neu') {
+      lockFlow.first = code;
+      lockFlow.step = 'confirm';
+      lockFlow.buf = '';
+      if ($('lockMsg')) $('lockMsg').textContent = '';
+      renderLockChrome();
+      return;
+    }
+    if (lockFlow.step === 'confirm') {
+      if (code !== lockFlow.first) {
+        var back = lockFlow.mode;
+        shakeLock(t('lock.mismatch'), function () {
+          if (!lockFlow) return;
+          lockFlow.step = 'neu';
+          lockFlow.first = '';
+          lockFlow.mode = back;
+        });
+        return;
+      }
+      lockBusy = true;
+      var mode = lockFlow.mode;
+      var keep = mode === 'change' ? window.ZFLock.grace() : '1m';
+      window.ZFLock.setPasscode(code, keep).then(function () {
+        lockBusy = false;
+        finishLockOk(mode === 'change' ? t('lock.changed') : t('lock.onToast'));
+      }, function () {
+        lockBusy = false;
+        shakeLock(t('lock.wrong'));
+      });
+      return;
+    }
+    lockBusy = true;
+    window.ZFLock.verify(code).then(function (ok) {
+      lockBusy = false;
+      if (!lockFlow) return;
+      if (!ok) {
+        var r = window.ZFLock.noteFail();
+        shakeLock(r.locked ? t('lock.wait', { n: Math.ceil(r.wait / 1000) }) : t('lock.wrong'));
+        return;
+      }
+      window.ZFLock.clearFails();
+      if (lockFlow.mode === 'unlock') { finishLockOk(''); return; }
+      if (lockFlow.mode === 'disable') {
+        window.ZFLock.clear();
+        finishLockOk(t('lock.offToast'));
+        return;
+      }
+      if (lockFlow.mode === 'change') {
+        lockFlow.step = 'neu';
+        lockFlow.first = '';
+        lockFlow.buf = '';
+        if ($('lockMsg')) $('lockMsg').textContent = '';
+        renderLockChrome();
+      }
+    }, function () {
+      lockBusy = false;
+      shakeLock(t('lock.wrong'));
+    });
+  }
+  function pushLockDigit(d) {
+    if (!lockFlow || lockBusy) return;
+    if (window.ZFLock.waitRemaining() > 0) return;
+    if (lockFlow.buf.length >= 4) return;
+    lockFlow.buf += d;
+    if ($('lockMsg') && window.ZFLock.waitRemaining() <= 0) $('lockMsg').textContent = '';
+    paintDots();
+    if (lockFlow.buf.length === 4) {
+      var code = lockFlow.buf;
+      setTimeout(function () { onLockFour(code); }, 60);
+    }
+  }
+  function popLockDigit() {
+    if (!lockFlow || lockBusy || !lockFlow.buf) return;
+    lockFlow.buf = lockFlow.buf.slice(0, -1);
+    paintDots();
+  }
+  function lockAfterWipe() {
+    sessionUnlocked = true;
+    lockProvisional = false;
+    hideLockShell();
+    paintLockRow();
+  }
+  function markLockHidden() {
+    if (!window.ZFLock || !window.ZFLock.enabled() || !sessionUnlocked) return;
+    lockHiddenAt = Date.now();
+    if ($('lockScreen').classList.contains('hidden')) {
+      lockProvisional = true;
+      presentLock('unlock');
+    }
+  }
+  function markLockShown() {
+    if (!lockHiddenAt) return;
+    var elapsed = Date.now() - lockHiddenAt;
+    lockHiddenAt = 0;
+    if (!window.ZFLock || !window.ZFLock.enabled()) return;
+    if (elapsed >= window.ZFLock.graceMs()) {
+      if (sessionUnlocked || lockProvisional) {
+        lockProvisional = false;
+        sessionUnlocked = false;
+        presentLock('unlock');
+      }
+    } else if (lockProvisional) {
+      lockProvisional = false;
+      hideLockShell();
+    }
+  }
+  if ($('appLockSwitch')) $('appLockSwitch').addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (!window.ZFLock) return;
+    if (window.ZFLock.enabled()) presentLock('disable');
+    else presentLock('set');
+  });
+  if ($('btnAppLockPage')) $('btnAppLockPage').addEventListener('click', function () {
+    if (window.ZFLock && window.ZFLock.enabled()) showSettings('lock');
+  });
+  if ($('btnChangePass')) $('btnChangePass').addEventListener('click', function () { presentLock('change'); });
+  if ($('lockGraceSeg')) $('lockGraceSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-grace]');
+    if (!b || !window.ZFLock || !window.ZFLock.enabled()) return;
+    window.ZFLock.setGrace(b.getAttribute('data-grace'));
+    paintLockRow();
+  });
+  if ($('lockPad')) $('lockPad').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-key]');
+    if (!b) return;
+    var key = b.getAttribute('data-key');
+    if (key === 'del') popLockDigit();
+    else pushLockDigit(key);
+  });
+  if ($('lockCancel')) $('lockCancel').addEventListener('click', function () {
+    if (!lockFlow || lockFlow.mode === 'unlock') return;
+    sessionUnlocked = true;
+    hideLockShell();
+    paintLockRow();
+  });
+  if ($('lockForgot')) $('lockForgot').addEventListener('click', function () {
+    if ($('lockForgotMask')) $('lockForgotMask').classList.remove('hidden');
+  });
+  if ($('lockForgotCancel')) $('lockForgotCancel').addEventListener('click', function () {
+    $('lockForgotMask').classList.add('hidden');
+  });
+  if ($('lockForgotMask')) $('lockForgotMask').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  });
+  if ($('lockForgotOk')) $('lockForgotOk').addEventListener('click', function () {
+    var btn = $('lockForgotOk');
+    btn.disabled = true;
+    var done = function () { btn.disabled = false; };
+    if (window.ZFCloud && window.ZFCloud.logout) {
+      Promise.resolve(window.ZFCloud.logout({ toast: '已退出' })).then(done, function () {
+        if (window.ZFLock) window.ZFLock.clear();
+        lockAfterWipe();
+        done();
+      });
+    } else {
+      if (window.ZFLock) window.ZFLock.clear();
+      if (window.ZenFlowCore && window.ZenFlowCore.wipeLocal) window.ZenFlowCore.wipeLocal();
+      lockAfterWipe();
+      done();
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!$('lockScreen') || $('lockScreen').classList.contains('hidden')) return;
+    if ($('lockForgotMask') && !$('lockForgotMask').classList.contains('hidden')) return;
+    if (e.key >= '0' && e.key <= '9') { pushLockDigit(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { popLockDigit(); e.preventDefault(); }
+    else if (e.key === 'Escape' && lockFlow && lockFlow.mode !== 'unlock') {
+      sessionUnlocked = true;
+      hideLockShell();
+      paintLockRow();
+    }
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') markLockHidden();
+    else markLockShown();
+  });
+  window.addEventListener('pagehide', markLockHidden);
+  window.addEventListener('pageshow', markLockShown);
+  window.ZFLockUI = { afterWipe: lockAfterWipe, present: presentLock };
+
   /* ---------------- 启动 ---------------- */
   load();
   applyTheme(getTheme(), false);
@@ -1427,6 +1724,9 @@
   }, 1000);
   applyNewCopy();
   renderHome();
+  paintLockRow();
+  if (window.ZFLock && window.ZFLock.enabled()) presentLock('unlock');
+  else document.documentElement.classList.remove('lock-pending');
   var bootSettings = settingsViewFromHash();
   if (bootSettings) {
     settingsView = bootSettings;
@@ -1449,7 +1749,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '37';
+  var APP_VERSION = '38';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
