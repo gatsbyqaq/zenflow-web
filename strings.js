@@ -165,7 +165,7 @@
       'record.moodRow': 'Mood · {name}',
       'confirm.entryTitle': 'Delete this entry?',
       'confirm.entryBody': 'This can\'t be undone.',
-      'confirm.entryStreak': 'The streak is recalculated from what remains.',
+      'confirm.entryStreak': 'Your streak will be recalculated from the remaining entries.',
       'mood.5': 'Great',
       'mood.4': 'Good',
       'mood.3': 'Okay',
