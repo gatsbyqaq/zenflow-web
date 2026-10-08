@@ -80,26 +80,19 @@
       'a11y.reset': '{type}：重置天数',
       'a11y.admin.back': '返回应用',
       'a11y.admin.refresh': '刷新数据',
-      'cal.cell': '{m}月{d}日，{detail}',
       'cal.empty': '没有记录',
-      'cal.sep': '、',
-      'cal.logged': '已记录',
+      'cal.sep': '，',
+      'cal.urges': '抵御冲动 {n} 次',
       'confirm.moodTitle': '删除这天的心情？',
       'confirm.moodBody': '去掉 {date} 的心情，不能撤销。',
       'confirm.reasonTitle': '删除这条理由？',
       'confirm.reasonBody': '删除后不能恢复。',
       'confirm.delete': '删除',
-      /* TODO(en): 类型名和心情名是暂定英文，等英文队友定最终用词。键名不要改。 */
       'type.masturbation': '自慰',
       'type.porn': '看黄',
       'type.sex': '性行为',
       'type.fantasy': '意淫',
-      'type.dream': '梦淫',
-      'mood.5': '很好',
-      'mood.4': '不错',
-      'mood.3': '一般',
-      'mood.2': '低落',
-      'mood.1': '挣扎'
+      'type.dream': '梦淫'
     },
     en: {
       'urge.button': "I'm having an urge",
@@ -122,7 +115,7 @@
       'nav.stats': 'Stats',
       'nav.settings': 'Settings',
       'home.urges': 'Urges resisted',
-      'home.checkins': 'Check-in days',
+      'home.checkins': 'Total days',
       'ring.unit': '{n, plural, one {day} other {days}}',
       'stats.longest': 'Longest streak',
       'stats.totalDays': 'Total days',
@@ -173,29 +166,22 @@
       'a11y.mood.edit': 'Edit this day\'s mood',
       'a11y.mood.delete': 'Delete this day\'s mood',
       'a11y.reason.delete': 'Delete this reason',
-      'a11y.reset': 'Reset streak on {type}',
+      'a11y.reset': '{type} resets streak',
       'a11y.admin.back': 'Back to app',
       'a11y.admin.refresh': 'Refresh data',
-      'cal.cell': '{month} {d}, {detail}',
-      'cal.empty': 'Nothing recorded',
+      'cal.empty': 'No entries',
       'cal.sep': ', ',
-      'cal.logged': 'Logged',
+      'cal.urges': '{n, plural, one {{n} urge resisted} other {{n} urges resisted}}',
       'confirm.moodTitle': 'Delete this day\'s mood?',
       'confirm.moodBody': 'Removes the mood for {date}. This can\'t be undone.',
       'confirm.reasonTitle': 'Delete this reason?',
       'confirm.reasonBody': 'This can\'t be undone.',
       'confirm.delete': 'Delete',
-      /* TODO(en): temporary names. The English teammate will replace these. Keep the keys. */
       'type.masturbation': 'Masturbation',
       'type.porn': 'Porn',
       'type.sex': 'Sex',
-      'type.fantasy': 'Fantasy',
-      'type.dream': 'Dream',
-      'mood.5': 'Great',
-      'mood.4': 'Good',
-      'mood.3': 'Okay',
-      'mood.2': 'Low',
-      'mood.1': 'Struggling'
+      'type.fantasy': 'Sexual fantasy',
+      'type.dream': 'Wet dream'
     }
   };
 
@@ -258,6 +244,50 @@
 
   function intlLocale(locale) { return locale === 'en' ? 'en' : 'zh-CN'; }
 
+  /* 日期只走 Intl。中文 month:short 的样式是「9月8日」（numeric 在 CLDR 里是「9/8」）。
+     英文 month:long。不在这里拼接「月」「日」或英文月份。 */
+  function calendarDate(date, locale) {
+    var ui = locale === 'en' ? 'en' : 'zh';
+    var when = date instanceof Date ? date : new Date(date);
+    return new Intl.DateTimeFormat(intlLocale(ui), {
+      month: ui === 'en' ? 'long' : 'short',
+      day: 'numeric'
+    }).format(when);
+  }
+
+  /* events: { kind:'relapse', ts, types:[] } | { kind:'urge', ts }，按发生时间排列。
+     连续的抵御冲动合成一句「抵御冲动 N 次」。心情不进格子标签。 */
+  function calendarCellLabel(date, events, locale) {
+    var ui = locale === 'en' ? 'en' : 'zh';
+    var pack = STRINGS[ui] || STRINGS.zh;
+    var sep = pack['cal.sep'];
+    var parts = [];
+    var urgeN = 0;
+    function flushUrges() {
+      if (!urgeN) return;
+      parts.push(render(pack['cal.urges'], { n: urgeN }, ui));
+      urgeN = 0;
+    }
+    (events || []).slice().sort(function (a, b) {
+      return (a.ts || 0) - (b.ts || 0);
+    }).forEach(function (ev) {
+      if (!ev || ev.kind === 'urge') {
+        if (ev && ev.kind === 'urge') urgeN += 1;
+        return;
+      }
+      flushUrges();
+      if (ev.kind !== 'relapse') return;
+      var types = ev.types || (ev.type ? [ev.type] : []);
+      types.forEach(function (id) {
+        var name = pack['type.' + id];
+        if (name) parts.push(name);
+      });
+    });
+    flushUrges();
+    var detail = parts.length ? parts.join(sep) : pack['cal.empty'];
+    return calendarDate(date, ui) + sep + detail;
+  }
+
   /* 12/24 小时跟设备。hourCycle 缺失时用 h23，不拿浏览器语言去猜。 */
   function deviceHourCycle() {
     try {
@@ -293,6 +323,7 @@
 
   root.ZFStrings = {
     t: t, locale: LOCALE, table: STRINGS, render: render,
-    deviceHourCycle: deviceHourCycle, formatClock: formatClock, formatWhen: formatWhen
+    deviceHourCycle: deviceHourCycle, formatClock: formatClock, formatWhen: formatWhen,
+    calendarCellLabel: calendarCellLabel
   };
 })(typeof window !== 'undefined' ? window : globalThis);

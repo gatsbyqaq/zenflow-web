@@ -85,13 +85,6 @@
     var tp = typeById(id);
     return tp ? tp.label : id;
   }
-  function moodName(v) {
-    var key = 'mood.' + v;
-    var name = t(key);
-    if (name && name !== key) return name;
-    var m = moodByValue(v);
-    return m ? m.t : '';
-  }
   function normalizeTypes(arr) {
     var out = [];
     if (!Array.isArray(arr)) return out;
@@ -507,16 +500,27 @@
     var typesByDay = {};
     var relapseDays = {};
     var urgeDays = {};
+    var eventsByDay = {};
+    function pushDayEvent(dk, ev) {
+      if (!eventsByDay[dk]) eventsByDay[dk] = [];
+      eventsByDay[dk].push(ev);
+    }
     state.relapses.forEach(function (r) {
       var dk = dateKey(r.ts);
       relapseDays[dk] = true;
-      normalizeTypes(r.types).forEach(function (id) {
+      var types = normalizeTypes(r.types);
+      types.forEach(function (id) {
         if (!typesByDay[dk]) typesByDay[dk] = [];
         if (typesByDay[dk].indexOf(id) < 0) typesByDay[dk].push(id);
       });
+      pushDayEvent(dk, { kind: 'relapse', ts: r.ts, types: types });
     });
     state.urges.forEach(function (u) {
-      if (u && typeof u.ts === 'number') urgeDays[dateKey(u.ts)] = true;
+      if (u && typeof u.ts === 'number') {
+        var dk = dateKey(u.ts);
+        urgeDays[dk] = true;
+        pushDayEvent(dk, { kind: 'urge', ts: u.ts });
+      }
     });
     var html = '';
     for (var i = 0; i < first; i++) html += '<div class="cal-cell empty"></div>';
@@ -540,21 +544,10 @@
       } else if (urgeDays[k]) {
         mark = '<span class="cal-types"><span class="cal-mark urge-ring"></span></span>';
       }
-      var parts = [];
-      lapseTypes().forEach(function (tp) {
-        if (types.indexOf(tp.id) >= 0) parts.push(typeName(tp.id));
-      });
-      if (relapseDays[k] && !types.length) parts.push(t('cal.logged'));
-      var cin = state.checkins[k];
-      if (cin && cin.mood) parts.push(moodName(cin.mood));
-      if (urgeDays[k]) parts.push(t('urge.resisted'));
-      var detail = parts.length ? parts.join(t('cal.sep')) : t('cal.empty');
-      var cellVars = { m: mo + 1, d: d, month: new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(y, mo, 1)), detail: detail };
-      var cellLabel = t('cal.cell', cellVars);
+      var cellLabel = window.ZFStrings.calendarCellLabel(new Date(y, mo, d), eventsByDay[k] || [], window.ZFStrings.locale);
       var future = k > todayK;
       var tag = future ? 'div' : 'button';
       html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') +
-        ' data-i18n-aria="cal.cell" data-i18n-title="cal.cell" data-i18n-vars="' + esc(JSON.stringify(cellVars)) + '"' +
         ' aria-label="' + esc(cellLabel) + '" title="' + esc(cellLabel) + '"' +
         (isToday ? ' aria-current="date"' : '') +
         '><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
@@ -1088,7 +1081,7 @@
       }
       if (it.type === 'checkin') {
         var m = D.moods.filter(function (x) { return x.v === r.mood; })[0] || D.moods[2];
-        return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>打卡 · ' + esc(m.t) + '</b>' +
+        return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>心情 · ' + esc(m.t) + '</b>' +
           '<div class="small muted">' + esc(it.k) + '</div>' +
           (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
           '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '"' + ariaAttr('a11y.mood.edit') + '>' + ic('pen-line') + '</button>' +
@@ -1200,7 +1193,7 @@
     var mc = {};
     Object.keys(state.checkins).forEach(function (k) { var m = state.checkins[k].mood; mc[m] = (mc[m] || 0) + 1; });
     var mrows = D.moods.map(function (m) { return ['<span class="mood-tint" data-mood="' + m.v + '">' + ic(m.icon) + '</span>' + m.t, mc[m.v] || 0]; });
-    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '还没有打卡');
+    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '还没有心情');
 
     // 建议
     var ins = [];
@@ -1209,7 +1202,7 @@
       ins.push(['clock', '高风险时段：<b>' + BUCKETS[peak][0] + ' ' + BUCKETS[peak][1] + '–' + (BUCKETS[peak][1] + 4) + ' 点</b>']);
     }
     if (trows.length) ins.push(['target', '最常见触发：<b>' + esc(trows[0][0]) + '</b>']);
-    if (u) ins.push(['shield-check', '已抵御 <b>' + u + '</b> 次']);
+    if (u) ins.push(['shield-check', '抵御冲动 <b>' + u + '</b> 次']);
     var w = milestoneWindow(curMs() / DAY);
     ins.push(['sprout', '已戒 <b>' + fmtDays(curMs()) + '</b> 天，下一档 <b>' + w.next + '</b> 天']);
     $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + ic(x[0]) + '</span><div>' + x[1] + '</div></div>'; }).join('');
@@ -1458,7 +1451,7 @@
       } catch (e) { toast('导入失败：' + (e.message || '文件无法解析')); return; }
       openModal({
         title: '导入数据？',
-        html: '<p>' + Object.keys(parsed.checkins).length + ' 次打卡，' + parsed.urges.length + ' 次抵御，' + parsed.relapses.length + ' 条破戒。会覆盖当前记录。</p>',
+        html: '<p>' + Object.keys(parsed.checkins).length + ' 条心情，' + parsed.urges.length + ' 次抵御冲动，' + parsed.relapses.length + ' 条破戒。会覆盖当前记录。</p>',
         ok: '覆盖导入',
         onOk: function () { state = parsed; state.streakStartSetAt = Date.now(); save({ replaceAll: true }); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
@@ -1468,7 +1461,7 @@
   $('btnReset').addEventListener('click', function () {
     openModal({
       title: '重置本机数据？',
-      html: '<p>会清空打卡、记录和理由。登录时会覆盖云端。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
+      html: '<p>会清空心情、记录和理由。登录时会覆盖云端。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
       ok: '确认重置', danger: true,
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」'); return false; }
@@ -1813,7 +1806,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '44';
+  var APP_VERSION = '43';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
