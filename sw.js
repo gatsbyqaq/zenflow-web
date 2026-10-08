@@ -1,6 +1,6 @@
 /* ZenFlow service worker：缓存静态资源，支持离线使用（仅 http/https 下注册） */
-var CACHE = 'zenflow-v32';
-var ASSETS = ['./', './index.html', './privacy.html', './styles.css?v=32', './data.js?v=32', './streak.js?v=32', './strings.js?v=32', './app.js?v=32', './cloud.js?v=32', './admin.js?v=32', './config.js?v=32', './vendor/supabase.js?v=32', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './favicon.svg', './favicon.ico', './favicon-32.png', './manifest.json'];
+var CACHE = 'zenflow-v33';
+var ASSETS = ['./', './index.html', './privacy.html', './styles.css?v=33', './data.js?v=33', './streak.js?v=33', './strings.js?v=33', './app.js?v=33', './cloud.js?v=33', './admin.js?v=33', './config.js?v=33', './vendor/supabase.js?v=33', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './favicon.svg', './favicon.ico', './favicon-32.png', './manifest.json'];
 self.addEventListener('install', function (e) {
   // 安装时绕过浏览器 HTTP 缓存，确保缓存的是最新文件
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(ASSETS.map(function (u) { return new Request(u, { cache: 'reload' }); })); }).then(function () { return self.skipWaiting(); }));
