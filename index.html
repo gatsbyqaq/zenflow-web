@@ -44,7 +44,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=43" />
+  <link rel="stylesheet" href="styles.css?v=44" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -136,8 +136,8 @@
 <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/></symbol>
 <symbol id="i-refresh-cw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
 <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
-<symbol id="i-settings" viewBox="0 0 24 24"><path d="M8.13 5.13 A0.44 0.44 0 0 1 9.12 3.72 L9.19 3.35 A0.94 0.94 0 0 0 10.51 2.24 L13.49 2.24 A0.94 0.94 0 0 0 14.81 3.35 L14.88 3.72 A0.44 0.44 0 0 1 15.87 5.13 L16.01 5.22 A0.44 0.44 0 0 1 17.74 5.37 L18.08 5.24 A0.94 0.94 0 0 0 19.70 5.83 L21.19 8.41 A0.94 0.94 0 0 0 20.89 10.11 L20.61 10.35 A0.44 0.44 0 0 1 19.88 11.92 L19.88 12.08 A0.44 0.44 0 0 1 20.61 13.65 L20.89 13.89 A0.94 0.94 0 0 0 21.19 15.59 L19.70 18.17 A0.94 0.94 0 0 0 18.08 18.76 L17.74 18.63 A0.44 0.44 0 0 1 16.01 18.78 L15.87 18.87 A0.44 0.44 0 0 1 14.88 20.28 L14.81 20.65 A0.94 0.94 0 0 0 13.49 21.76 L10.51 21.76 A0.94 0.94 0 0 0 9.19 20.65 L9.12 20.28 A0.44 0.44 0 0 1 8.13 18.87 L7.99 18.78 A0.44 0.44 0 0 1 6.26 18.63 L5.92 18.76 A0.94 0.94 0 0 0 4.30 18.17 L2.81 15.59 A0.94 0.94 0 0 0 3.11 13.89 L3.39 13.65 A0.44 0.44 0 0 1 4.12 12.08 L4.12 11.92 A0.44 0.44 0 0 1 3.39 10.35 L3.11 10.11 A0.94 0.94 0 0 0 2.81 8.41 L4.30 5.83 A0.94 0.94 0 0 0 5.92 5.24 L6.26 5.37 A0.44 0.44 0 0 1 7.99 5.22 Z"/><circle cx="12" cy="12" r="3.25"/></symbol>
-<symbol id="i-settings-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" clip-rule="evenodd" style="fill:currentColor;stroke:none" d="M8.13 5.13 A0.44 0.44 0 0 1 9.12 3.72 L9.19 3.35 A0.94 0.94 0 0 0 10.51 2.24 L13.49 2.24 A0.94 0.94 0 0 0 14.81 3.35 L14.88 3.72 A0.44 0.44 0 0 1 15.87 5.13 L16.01 5.22 A0.44 0.44 0 0 1 17.74 5.37 L18.08 5.24 A0.94 0.94 0 0 0 19.70 5.83 L21.19 8.41 A0.94 0.94 0 0 0 20.89 10.11 L20.61 10.35 A0.44 0.44 0 0 1 19.88 11.92 L19.88 12.08 A0.44 0.44 0 0 1 20.61 13.65 L20.89 13.89 A0.94 0.94 0 0 0 21.19 15.59 L19.70 18.17 A0.94 0.94 0 0 0 18.08 18.76 L17.74 18.63 A0.44 0.44 0 0 1 16.01 18.78 L15.87 18.87 A0.44 0.44 0 0 1 14.88 20.28 L14.81 20.65 A0.94 0.94 0 0 0 13.49 21.76 L10.51 21.76 A0.94 0.94 0 0 0 9.19 20.65 L9.12 20.28 A0.44 0.44 0 0 1 8.13 18.87 L7.99 18.78 A0.44 0.44 0 0 1 6.26 18.63 L5.92 18.76 A0.94 0.94 0 0 0 4.30 18.17 L2.81 15.59 A0.94 0.94 0 0 0 3.11 13.89 L3.39 13.65 A0.44 0.44 0 0 1 4.12 12.08 L4.12 11.92 A0.44 0.44 0 0 1 3.39 10.35 L3.11 10.11 A0.94 0.94 0 0 0 2.81 8.41 L4.30 5.83 A0.94 0.94 0 0 0 5.92 5.24 L6.26 5.37 A0.44 0.44 0 0 1 7.99 5.22 ZM15.25 12a3.25 3.25 0 1 1-6.5 0 3.25 3.25 0 1 1 6.5 0z"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M8.37 5.51 A0.67 0.67 0 0 1 9.46 3.70 L9.48 3.09 A1.00 1.00 0 0 0 10.56 2.05 L13.44 2.05 A1.00 1.00 0 0 0 14.52 3.09 L14.54 3.70 A0.67 0.67 0 0 1 15.63 5.51 L15.81 5.61 A0.67 0.67 0 0 1 17.92 5.65 L18.46 5.37 A1.00 1.00 0 0 0 19.89 5.78 L21.33 8.28 A1.00 1.00 0 0 0 20.97 9.72 L20.46 10.05 A0.67 0.67 0 0 1 19.44 11.90 L19.44 12.10 A0.67 0.67 0 0 1 20.46 13.95 L20.97 14.28 A1.00 1.00 0 0 0 21.33 15.72 L19.89 18.22 A1.00 1.00 0 0 0 18.46 18.63 L17.92 18.35 A0.67 0.67 0 0 1 15.81 18.39 L15.63 18.49 A0.67 0.67 0 0 1 14.54 20.30 L14.52 20.91 A1.00 1.00 0 0 0 13.44 21.95 L10.56 21.95 A1.00 1.00 0 0 0 9.48 20.91 L9.46 20.30 A0.67 0.67 0 0 1 8.37 18.49 L8.19 18.39 A0.67 0.67 0 0 1 6.08 18.35 L5.54 18.63 A1.00 1.00 0 0 0 4.11 18.22 L2.67 15.72 A1.00 1.00 0 0 0 3.03 14.28 L3.54 13.95 A0.67 0.67 0 0 1 4.56 12.10 L4.56 11.90 A0.67 0.67 0 0 1 3.54 10.05 L3.03 9.72 A1.00 1.00 0 0 0 2.67 8.28 L4.11 5.78 A1.00 1.00 0 0 0 5.54 5.37 L6.08 5.65 A0.67 0.67 0 0 1 8.19 5.61 Z"/><circle cx="12" cy="12" r="3.25"/></symbol>
+<symbol id="i-settings-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" clip-rule="evenodd" style="fill:currentColor;stroke:none" d="M8.37 5.51 A0.67 0.67 0 0 1 9.46 3.70 L9.48 3.09 A1.00 1.00 0 0 0 10.56 2.05 L13.44 2.05 A1.00 1.00 0 0 0 14.52 3.09 L14.54 3.70 A0.67 0.67 0 0 1 15.63 5.51 L15.81 5.61 A0.67 0.67 0 0 1 17.92 5.65 L18.46 5.37 A1.00 1.00 0 0 0 19.89 5.78 L21.33 8.28 A1.00 1.00 0 0 0 20.97 9.72 L20.46 10.05 A0.67 0.67 0 0 1 19.44 11.90 L19.44 12.10 A0.67 0.67 0 0 1 20.46 13.95 L20.97 14.28 A1.00 1.00 0 0 0 21.33 15.72 L19.89 18.22 A1.00 1.00 0 0 0 18.46 18.63 L17.92 18.35 A0.67 0.67 0 0 1 15.81 18.39 L15.63 18.49 A0.67 0.67 0 0 1 14.54 20.30 L14.52 20.91 A1.00 1.00 0 0 0 13.44 21.95 L10.56 21.95 A1.00 1.00 0 0 0 9.48 20.91 L9.46 20.30 A0.67 0.67 0 0 1 8.37 18.49 L8.19 18.39 A0.67 0.67 0 0 1 6.08 18.35 L5.54 18.63 A1.00 1.00 0 0 0 4.11 18.22 L2.67 15.72 A1.00 1.00 0 0 0 3.03 14.28 L3.54 13.95 A0.67 0.67 0 0 1 4.56 12.10 L4.56 11.90 A0.67 0.67 0 0 1 3.54 10.05 L3.03 9.72 A1.00 1.00 0 0 0 2.67 8.28 L4.11 5.78 A1.00 1.00 0 0 0 5.54 5.37 L6.08 5.65 A0.67 0.67 0 0 1 8.19 5.61 ZM15.25 12a3.25 3.25 0 1 1-6.5 0 3.25 3.25 0 1 1 6.5 0z"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
 <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
 <symbol id="i-shower-head" viewBox="0 0 24 24"><path d="m4 4 2.5 2.5"/><path d="M13.5 6.5a4.95 4.95 0 0 0-7 7"/><path d="M15 5 5 15"/><path d="M14 17v.01"/><path d="M10 16v.01"/><path d="M13 13v.01"/><path d="M16 10v.01"/><path d="M11 20v.01"/><path d="M17 14v.01"/><path d="M20 11v.01"/></symbol>
@@ -168,7 +168,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=43" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=44" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -183,7 +183,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=43" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=44" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -610,7 +610,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=43" alt="" class="side-logo" />
+      <img src="icon.svg?v=44" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -661,7 +661,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" data-i18n-aria="a11y.close" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=43" alt="" class="auth-logo" />
+        <img src="icon.svg?v=44" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -866,7 +866,7 @@
 <div class="lock-screen hidden" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <button type="button" class="lock-cancel hidden" id="lockCancel" data-i18n="lock.cancel">取消</button>
   <div class="lock-body">
-    <img src="icon.svg?v=43" alt="" class="lock-logo" width="64" height="64" />
+    <img src="icon.svg?v=44" alt="" class="lock-logo" width="64" height="64" />
     <p class="wordmark lock-word">ZENFLOW</p>
     <h2 id="lockTitle" class="lock-title"></h2>
     <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -903,7 +903,7 @@
   </div>
 </div>
 
-<script src="config.js?v=43"></script>
+<script src="config.js?v=44"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -912,12 +912,12 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=43"></script>
-<script src="streak.js?v=43"></script>
-<script src="strings.js?v=43"></script>
-<script src="lock.js?v=43"></script>
-<script src="app.js?v=43"></script>
-<script src="cloud.js?v=43"></script>
-<script src="admin.js?v=43"></script>
+<script src="data.js?v=44"></script>
+<script src="streak.js?v=44"></script>
+<script src="strings.js?v=44"></script>
+<script src="lock.js?v=44"></script>
+<script src="app.js?v=44"></script>
+<script src="cloud.js?v=44"></script>
+<script src="admin.js?v=44"></script>
 </body>
 </html>
