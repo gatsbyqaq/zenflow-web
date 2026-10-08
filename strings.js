@@ -17,12 +17,26 @@
       'urge.round': '第 {n} / {total} 轮',
       'urge.streakNow': '当前连续 {n} 天',
       'urge.reasonsTitle': '理由',
-      'urge.reasonsEmpty': '还没有理由',
+      'urge.reasonsEmpty': '还没有理由。',
+      'urge.addReason': '去添加',
       'urge.logged': '已记下',
       'urge.count': '已撑过',
+      'nav.checkin': '打卡',
+      'nav.log': '记录',
+      'nav.stats': '统计',
+      'nav.settings': '设置',
+      'home.urges': '抵御冲动',
+      'home.checkins': '打卡天数',
+      'ring.unit': '天',
       'stats.longest': '最长连续',
       'stats.totalDays': '累计坚持天数',
-      'stats.dayUnit': '天'
+      'stats.dayUnit': '天',
+      'time.today': '今天 {time}',
+      'time.yesterday': '昨天 {time}',
+      'time.date': '{m}月{d}日 {time}',
+      'record.save': '保存',
+      'day.timeline': '时间线',
+      'relapse.kept': '已记录 · 天数不变'
     },
     en: {
       'urge.button': "I'm having an urge",
@@ -36,12 +50,26 @@
       'urge.round': 'Round {n} of {total}',
       'urge.streakNow': 'Current streak: {n} {n, plural, one {day} other {days}}',
       'urge.reasonsTitle': 'Your reasons',
-      'urge.reasonsEmpty': 'No reasons yet. Add one in Settings.',
+      'urge.reasonsEmpty': 'No reasons yet.',
+      'urge.addReason': 'Add a reason',
       'urge.logged': 'Saved',
       'urge.count': 'Urges resisted',
+      'nav.checkin': 'Check-in',
+      'nav.log': 'Log',
+      'nav.stats': 'Stats',
+      'nav.settings': 'Settings',
+      'home.urges': 'Urges resisted',
+      'home.checkins': 'Check-in days',
+      'ring.unit': '{n, plural, one {day} other {days}}',
       'stats.longest': 'Longest streak',
       'stats.totalDays': 'Total days',
-      'stats.dayUnit': ''
+      'stats.dayUnit': '',
+      'time.today': 'Today {time}',
+      'time.yesterday': 'Yesterday {time}',
+      'time.date': '{month} {d} {time}',
+      'record.save': 'Save',
+      'day.timeline': 'Timeline',
+      'relapse.kept': 'Logged · Streak kept'
     }
   };
 
@@ -102,5 +130,43 @@
     return render(s, vars, LOCALE);
   }
 
-  root.ZFStrings = { t: t, locale: LOCALE, table: STRINGS, render: render };
+  function intlLocale(locale) { return locale === 'en' ? 'en' : 'zh-CN'; }
+
+  /* 12/24 小时跟设备。hourCycle 缺失时用 h23，不拿浏览器语言去猜。 */
+  function deviceHourCycle() {
+    try {
+      var hc = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hourCycle;
+      if (hc === 'h11' || hc === 'h12' || hc === 'h23' || hc === 'h24') return hc;
+    } catch (e) {}
+    return 'h23';
+  }
+
+  function formatClock(ts, locale, hourCycle) {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
+      hour: 'numeric',
+      minute: '2-digit',
+      hourCycle: hourCycle || 'h23'
+    }).format(new Date(ts));
+  }
+
+  function formatWhen(ts, locale, hourCycle, nowTs) {
+    var d = new Date(ts);
+    var now = new Date(nowTs == null ? Date.now() : nowTs);
+    var ui = locale === 'en' ? 'en' : 'zh';
+    var time = formatClock(ts, ui, hourCycle || 'h23');
+    var start = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(); };
+    var diff = Math.round((start(d) - start(now)) / 86400000);
+    if (diff === 0) return render(STRINGS[ui]['time.today'], { time: time }, ui);
+    if (diff === -1) return render(STRINGS[ui]['time.yesterday'], { time: time }, ui);
+    if (ui === 'en') {
+      var month = new Intl.DateTimeFormat('en', { month: 'short' }).format(d);
+      return render(STRINGS.en['time.date'], { month: month, d: d.getDate(), time: time }, 'en');
+    }
+    return render(STRINGS.zh['time.date'], { m: d.getMonth() + 1, d: d.getDate(), time: time }, 'zh');
+  }
+
+  root.ZFStrings = {
+    t: t, locale: LOCALE, table: STRINGS, render: render,
+    deviceHourCycle: deviceHourCycle, formatClock: formatClock, formatWhen: formatWhen
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
