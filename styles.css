@@ -869,7 +869,8 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
     --motion-day:150ms;--motion-list:150ms;--motion-height:150ms;
     --motion-ring:150ms;--motion-badge:150ms;--motion-reduced:150ms;
   }
-  html.motion-ready button:active{transform:none;opacity:.72}
+  html.motion-ready button:active,
+  html.motion-ready .urge-entry:active{transform:none;opacity:.72}
   .tab .ic-line,.tab .ic-fill,.tab.active .ic-line,.tab.active .ic-fill,
   #actMask .sheet,.grid,.grid-leave,.days-num,.badge .b-ico{transform:none!important}
   .lock-dots.shake{animation:none}
