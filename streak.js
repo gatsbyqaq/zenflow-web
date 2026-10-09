@@ -6,6 +6,13 @@
   'use strict';
   var TYPE_IDS = ['masturbation', 'porn', 'sex', 'fantasy', 'dream'];
   var LOCKED = { masturbation: true };
+  var DAY = 86400000;
+
+  /* 和首页圆环同一个取整：只显示已经过完的整天。 */
+  function wholeDays(ms) {
+    if (typeof ms !== 'number' || !isFinite(ms) || ms <= 0) return 0;
+    return Math.floor(ms / DAY);
+  }
 
   function defaultResetTypes() {
     var o = {};
@@ -145,6 +152,7 @@
     segmentStartBefore: segmentStartBefore,
     endedStreakMs: endedStreakMs,
     historicalBest: historicalBest,
-    totalCleanMs: totalCleanMs
+    totalCleanMs: totalCleanMs,
+    wholeDays: wholeDays
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
