@@ -671,22 +671,28 @@
     leave.style.transform = grid.style.transform || 'none';
     leave.style.opacity = '1';
     clip.appendChild(leave);
-    renderRecords();
-    var ms = motionReduced() ? motionMs('--motion-reduced', 150) : motionMs('--motion-month', 250);
-    var outMs = Math.round(ms * 0.6);
-    var inMs = Math.max(40, ms - outMs);
     var reduced = motionReduced();
+    var outMs = motionMs('--motion-month-out', 100);
+    var inMs = motionMs('--motion-month-in', 170);
+    var delay = motionMs('--motion-month-delay', 80);
+    if (reduced) {
+      outMs = motionMs('--motion-month-out', 60);
+      inMs = motionMs('--motion-month-in', 102);
+      delay = motionMs('--motion-month-delay', 48);
+    }
+    var shift = 12;
     var dragged = parseFloat(String(leave.style.transform).replace(/[^-0-9.]/g, ''));
     if (!isFinite(dragged)) dragged = 0;
-    var exitTo = (dragged + (-dir * 24)) + 'px';
-    var enterFrom = (dir * 24) + 'px';
+    var exitTo = (dragged + (-dir * shift)) + 'px';
+    var enterFrom = (dir * shift) + 'px';
     grid.style.transition = 'none';
     grid.style.opacity = '0';
     grid.style.transform = reduced ? 'none' : ('translateX(' + enterFrom + ')');
+    renderRecords();
     leave.offsetHeight;
     leave.style.transition = reduced
       ? ('opacity ' + outMs + 'ms var(--ease-exit)')
-      : ('transform ' + outMs + 'ms var(--ease), opacity ' + outMs + 'ms var(--ease-exit)');
+      : ('transform ' + outMs + 'ms var(--ease-exit), opacity ' + outMs + 'ms var(--ease-exit)');
     leave.style.opacity = '0';
     if (!reduced) leave.style.transform = 'translateX(' + exitTo + ')';
     setTimeout(function () {
@@ -696,14 +702,14 @@
         : ('transform ' + inMs + 'ms var(--ease), opacity ' + inMs + 'ms var(--ease)');
       grid.style.opacity = '1';
       grid.style.transform = 'none';
-    }, outMs);
+    }, delay);
     setTimeout(function () {
       if (gen !== monthGen) return;
       if (leave.parentNode) leave.remove();
       grid.style.transition = '';
       grid.style.transform = '';
       grid.style.opacity = '';
-    }, ms + 50);
+    }, delay + inMs + 40);
   }
   function renderRecords() {
     if (!$('calGrid') || !window.ZFRecords) return;
