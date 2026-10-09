@@ -532,7 +532,7 @@
     var goal = state.goalDays || 30;
     var p = ringProgress(dFloat);
     var prev = readRingDays();
-    var sheetOpen = $('actMask') && !$('actMask').classList.contains('hidden') && $('actMask').classList.contains('is-open');
+    var sheetOpen = $('actMask') && !$('actMask').classList.contains('hidden');
     if (sheetOpen && prev !== null && prev !== days && motionReady()) {
       ringDeferred = true;
     } else {
@@ -551,7 +551,7 @@
         }
         writeRingDays(days);
       } else if (prev !== null && days < prev) {
-        ringAnimUntil = 0;
+        ringAnimUntil = Date.now() + motionMs(motionReduced() ? '--motion-reduced' : '--motion-state', 200);
         crossfadeRing(p, days);
         writeRingDays(days);
       } else if (Date.now() < ringAnimUntil) {
@@ -628,6 +628,8 @@
     var job = pendingDelete;
     pendingDelete = null;
     exitRow._g++;
+    var btn = $('btnOpenActLog');
+    if (btn) { btn.style.transition = 'none'; btn.style.transform = ''; }
     performDelete(job.kind, job.id);
   }
   function shiftMonth(delta) {
@@ -840,6 +842,11 @@
     }).join('') + '</div>';
     enterRowId = null;
   }
+  function translateY(el) {
+    var tr = getComputedStyle(el).transform;
+    if (!tr || tr === 'none') return 0;
+    try { return new DOMMatrix(tr).m42 || 0; } catch (e) { return 0; }
+  }
   function renderDayPanel() {
     if (!dayAnimateNext || !motionReady()) {
       dayAnimateNext = false;
@@ -850,8 +857,11 @@
     var slot = $('daySlot');
     if (!slot) { renderDayPanelNow(); return; }
     document.querySelectorAll('.day-ghost').forEach(function (g) { g.remove(); });
+    var btn = $('btnOpenActLog');
     slot.style.transition = 'none';
+    if (btn) btn.style.transition = 'none';
     var h0 = slot.getBoundingClientRect().height;
+    var ty = btn ? translateY(btn) : 0;
     var ghost = slot.cloneNode(true);
     ghost.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
     ghost.classList.add('day-ghost');
@@ -863,16 +873,19 @@
     var hms = reduced ? motionMs('--motion-reduced', 150) : motionMs('--motion-height', 250);
     var oms = reduced ? motionMs('--motion-reduced', 150) : motionMs('--motion-list', 200);
     slot.style.overflow = 'hidden';
-    slot.style.height = h0 + 'px';
+    slot.style.height = h1 + 'px';
     slot.style.opacity = '0';
     var gen = ++dayFlipGen;
+    if (btn && !reduced) btn.style.transform = 'translateY(' + (ty - (h1 - h0)) + 'px)';
     slot.offsetHeight;
     ghost.style.transition = 'opacity ' + oms + 'ms var(--ease)';
-    slot.style.transition = (reduced ? '' : ('height ' + hms + 'ms var(--ease), ')) + 'opacity ' + oms + 'ms var(--ease)';
+    slot.style.transition = 'opacity ' + oms + 'ms var(--ease)';
     ghost.style.opacity = '0';
     slot.style.opacity = '1';
-    if (!reduced) slot.style.height = h1 + 'px';
-    else slot.style.height = h1 + 'px';
+    if (btn && !reduced) {
+      btn.style.transition = 'transform ' + hms + 'ms var(--ease)';
+      btn.style.transform = 'translateY(0)';
+    }
     setTimeout(function () {
       if (ghost.parentNode) ghost.remove();
       if (gen !== dayFlipGen) return;
@@ -880,6 +893,7 @@
       slot.style.height = '';
       slot.style.overflow = '';
       slot.style.opacity = '';
+      if (btn) { btn.style.transition = 'none'; btn.style.transform = ''; }
     }, Math.max(hms, oms) + 70);
   }
   if ($('calPrev')) $('calPrev').addEventListener('click', function () { shiftMonth(-1); });
@@ -1453,13 +1467,30 @@
     setTimeout(function () {
       if (gen !== exitRow._g) return;
       if (!hms) { done(); return; }
-      var h = row.getBoundingClientRect().height;
-      row.style.overflow = 'hidden';
-      row.style.height = h + 'px';
+      var list = row.closest('.list') || row;
+      var h = list.getBoundingClientRect().height;
+      var btn = $('btnOpenActLog');
+      var nodes = [];
+      if (list !== row) nodes.push(list);
+      if (btn) nodes.push(btn);
+      nodes.forEach(function (el) {
+        el.style.transition = 'none';
+        el.style.transform = 'none';
+      });
+      if (list !== row) list.style.transformOrigin = 'top';
       row.offsetHeight;
-      row.style.transition = 'height ' + hms + 'ms var(--ease)';
-      row.style.height = '0px';
-      setTimeout(function () { if (gen === exitRow._g) done(); }, hms + 40);
+      nodes.forEach(function (el) {
+        el.style.transition = 'transform ' + hms + 'ms var(--ease)';
+        el.style.transform = el === list ? 'scaleY(0)' : ('translateY(' + (-h) + 'px)');
+      });
+      setTimeout(function () {
+        if (gen !== exitRow._g) return;
+        nodes.forEach(function (el) {
+          el.style.transition = 'none';
+          el.style.transform = '';
+        });
+        done();
+      }, hms + 40);
     }, oms + 30);
   }
   exitRow._g = 0;
@@ -1488,14 +1519,31 @@
       danger: true,
       onOk: function () {
         var row = document.querySelector('#dayList .row[data-kind="' + kind + '"][data-id="' + id + '"]');
-        if (actEdit && actEdit.kind === kind && actEdit.id === id) closeAct();
+        var closing = !!(actEdit && actEdit.kind === kind && actEdit.id === id);
+        if (closing) closeAct();
         pendingDelete = { kind: kind, id: id };
-        exitRow(row, function () {
+        function run() {
           if (!pendingDelete || pendingDelete.id !== id || pendingDelete.kind !== kind) return;
-          pendingDelete = null;
-          performDelete(kind, id);
-          refreshAfterAct();
-        });
+          var live = document.querySelector('#dayList .row[data-kind="' + kind + '"][data-id="' + id + '"]') || row;
+          exitRow(live, function () {
+            if (!pendingDelete || pendingDelete.id !== id || pendingDelete.kind !== kind) return;
+            pendingDelete = null;
+            performDelete(kind, id);
+            refreshAfterAct();
+          });
+        }
+        if (!(closing && motionReady())) { run(); return; }
+        var sheet = $('actMask') && $('actMask').querySelector('.sheet');
+        var started = false;
+        function go(e) {
+          if (e && e.target && sheet && e.target !== sheet) return;
+          if (started) return;
+          started = true;
+          if (sheet) sheet.removeEventListener('transitionend', go);
+          run();
+        }
+        if (sheet) sheet.addEventListener('transitionend', go);
+        setTimeout(go, motionMs(motionReduced() ? '--motion-reduced' : '--motion-sheet-out', 250) + 90);
       }
     });
   }
