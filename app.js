@@ -33,7 +33,7 @@
     return isFinite(n) ? n : fallback;
   }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
-  function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
+  function fmtDays(ms) { return String(window.ZFStreak.wholeDays(ms)); }
   function dayText(ms) {
     var n = fmtDays(ms);
     var unit = t('stats.dayUnit');
@@ -528,7 +528,7 @@
   function updateTimer() {
     if (ceremonyHeld && motionReady()) return;
     var msTime = curMs();
-    var days = Math.floor(msTime / DAY);
+    var days = window.ZFStreak.wholeDays(msTime);
     var dFloat = msTime / DAY;
     var goal = state.goalDays || 30;
     var p = ringProgress(dFloat);
