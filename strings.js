@@ -36,7 +36,63 @@
       'time.date': '{m}月{d}日 {time}',
       'record.save': '保存',
       'day.timeline': '时间线',
-      'relapse.kept': '已记录 · 天数不变'
+      'relapse.kept': '已记录 · 天数不变',
+      'lock.section': '隐私与安全',
+      'lock.title': '应用锁',
+      'lock.off': '关闭',
+      'lock.graceNow': '立即锁定',
+      'lock.grace1': '离开 1 分钟后锁定',
+      'lock.grace5': '离开 5 分钟后锁定',
+      'lock.change': '修改密码',
+      'lock.when': '锁定时机',
+      'lock.whenHint': '离开后再打开，超过这个时间要输入密码。',
+      'lock.optNow': '立即',
+      'lock.opt1': '1 分钟',
+      'lock.opt5': '5 分钟',
+      'lock.setTitle': '设置密码',
+      'lock.confirmTitle': '再输入一次',
+      'lock.enterTitle': '输入密码',
+      'lock.currentTitle': '输入当前密码',
+      'lock.newTitle': '设置新密码',
+      'lock.wrong': '密码不对',
+      'lock.mismatch': '两次不一致',
+      'lock.wait': '请等 {n} 秒',
+      'lock.forgot': '忘记密码',
+      'lock.forgotTitle': '忘记密码',
+      'lock.forgotBody': '会退出登录，并清除这台设备上的数据。云端数据保留。重新登录后应用锁关闭。',
+      'lock.forgotOk': '退出并清除',
+      'lock.cancel': '取消',
+      'lock.delete': '删除',
+      'lock.onToast': '已打开',
+      'lock.offToast': '已关闭',
+      'lock.changed': '已修改',
+      'lock.deleteDigit': '删除一位',
+      'a11y.month.prev': '上个月',
+      'a11y.month.next': '下个月',
+      'a11y.back.checkin': '返回打卡',
+      'a11y.close': '关闭',
+      'a11y.settings.back': '返回设置',
+      'a11y.entry.edit': '编辑这条记录',
+      'a11y.entry.delete': '删除这条记录',
+      'a11y.mood.edit': '编辑这天的心情',
+      'a11y.mood.delete': '删除这天的心情',
+      'a11y.reason.delete': '删除这条理由',
+      'a11y.reset': '{type}：重置天数',
+      'a11y.admin.back': '返回应用',
+      'a11y.admin.refresh': '刷新数据',
+      'cal.empty': '没有记录',
+      'cal.sep': '，',
+      'cal.urges': '抵御冲动 {n} 次',
+      'confirm.moodTitle': '删除这天的心情？',
+      'confirm.moodBody': '去掉 {date} 的心情，不能撤销。',
+      'confirm.reasonTitle': '删除这条理由？',
+      'confirm.reasonBody': '删除后不能恢复。',
+      'confirm.delete': '删除',
+      'type.masturbation': '自慰',
+      'type.porn': '看黄',
+      'type.sex': '性行为',
+      'type.fantasy': '意淫',
+      'type.dream': '梦淫'
     },
     en: {
       'urge.button': "I'm having an urge",
@@ -59,7 +115,7 @@
       'nav.stats': 'Stats',
       'nav.settings': 'Settings',
       'home.urges': 'Urges resisted',
-      'home.checkins': 'Check-in days',
+      'home.checkins': 'Total days',
       'ring.unit': '{n, plural, one {day} other {days}}',
       'stats.longest': 'Longest streak',
       'stats.totalDays': 'Total days',
@@ -69,7 +125,63 @@
       'time.date': '{month} {d} {time}',
       'record.save': 'Save',
       'day.timeline': 'Timeline',
-      'relapse.kept': 'Logged · Streak kept'
+      'relapse.kept': 'Logged · Streak kept',
+      'lock.section': 'Privacy and security',
+      'lock.title': 'App lock',
+      'lock.off': 'Off',
+      'lock.graceNow': 'Lock immediately',
+      'lock.grace1': 'Lock after 1 minute away',
+      'lock.grace5': 'Lock after 5 minutes away',
+      'lock.change': 'Change passcode',
+      'lock.when': 'Lock after',
+      'lock.whenHint': 'When you come back after this long, enter the passcode.',
+      'lock.optNow': 'Now',
+      'lock.opt1': '1 min',
+      'lock.opt5': '5 min',
+      'lock.setTitle': 'Set a passcode',
+      'lock.confirmTitle': 'Enter it again',
+      'lock.enterTitle': 'Enter passcode',
+      'lock.currentTitle': 'Enter current passcode',
+      'lock.newTitle': 'Set a new passcode',
+      'lock.wrong': 'Wrong passcode',
+      'lock.mismatch': 'Those don\'t match',
+      'lock.wait': 'Wait {n}s',
+      'lock.forgot': 'Forgot passcode',
+      'lock.forgotTitle': 'Forgot passcode',
+      'lock.forgotBody': 'This logs you out and clears data on this device. Cloud data stays. After you log in, the lock is off.',
+      'lock.forgotOk': 'Log out and clear',
+      'lock.cancel': 'Cancel',
+      'lock.delete': 'Delete',
+      'lock.onToast': 'On',
+      'lock.offToast': 'Off',
+      'lock.changed': 'Updated',
+      'lock.deleteDigit': 'Delete last digit',
+      'a11y.month.prev': 'Previous month',
+      'a11y.month.next': 'Next month',
+      'a11y.back.checkin': 'Back to Check-in',
+      'a11y.close': 'Close',
+      'a11y.settings.back': 'Back to Settings',
+      'a11y.entry.edit': 'Edit this entry',
+      'a11y.entry.delete': 'Delete this entry',
+      'a11y.mood.edit': 'Edit this day\'s mood',
+      'a11y.mood.delete': 'Delete this day\'s mood',
+      'a11y.reason.delete': 'Delete this reason',
+      'a11y.reset': '{type} resets streak',
+      'a11y.admin.back': 'Back to app',
+      'a11y.admin.refresh': 'Refresh data',
+      'cal.empty': 'No entries',
+      'cal.sep': ', ',
+      'cal.urges': '{n, plural, one {{n} urge resisted} other {{n} urges resisted}}',
+      'confirm.moodTitle': 'Delete this day\'s mood?',
+      'confirm.moodBody': 'Removes the mood for {date}. This can\'t be undone.',
+      'confirm.reasonTitle': 'Delete this reason?',
+      'confirm.reasonBody': 'This can\'t be undone.',
+      'confirm.delete': 'Delete',
+      'type.masturbation': 'Masturbation',
+      'type.porn': 'Porn',
+      'type.sex': 'Sex',
+      'type.fantasy': 'Sexual fantasy',
+      'type.dream': 'Wet dream'
     }
   };
 
@@ -132,6 +244,50 @@
 
   function intlLocale(locale) { return locale === 'en' ? 'en' : 'zh-CN'; }
 
+  /* 日期只走 Intl。中文 month:short 的样式是「9月8日」（numeric 在 CLDR 里是「9/8」）。
+     英文 month:long。不在这里拼接「月」「日」或英文月份。 */
+  function calendarDate(date, locale) {
+    var ui = locale === 'en' ? 'en' : 'zh';
+    var when = date instanceof Date ? date : new Date(date);
+    return new Intl.DateTimeFormat(intlLocale(ui), {
+      month: ui === 'en' ? 'long' : 'short',
+      day: 'numeric'
+    }).format(when);
+  }
+
+  /* events: { kind:'relapse', ts, types:[] } | { kind:'urge', ts }，按发生时间排列。
+     连续的抵御冲动合成一句「抵御冲动 N 次」。心情不进格子标签。 */
+  function calendarCellLabel(date, events, locale) {
+    var ui = locale === 'en' ? 'en' : 'zh';
+    var pack = STRINGS[ui] || STRINGS.zh;
+    var sep = pack['cal.sep'];
+    var parts = [];
+    var urgeN = 0;
+    function flushUrges() {
+      if (!urgeN) return;
+      parts.push(render(pack['cal.urges'], { n: urgeN }, ui));
+      urgeN = 0;
+    }
+    (events || []).slice().sort(function (a, b) {
+      return (a.ts || 0) - (b.ts || 0);
+    }).forEach(function (ev) {
+      if (!ev || ev.kind === 'urge') {
+        if (ev && ev.kind === 'urge') urgeN += 1;
+        return;
+      }
+      flushUrges();
+      if (ev.kind !== 'relapse') return;
+      var types = ev.types || (ev.type ? [ev.type] : []);
+      types.forEach(function (id) {
+        var name = pack['type.' + id];
+        if (name) parts.push(name);
+      });
+    });
+    flushUrges();
+    var detail = parts.length ? parts.join(sep) : pack['cal.empty'];
+    return calendarDate(date, ui) + sep + detail;
+  }
+
   /* 12/24 小时跟设备。hourCycle 缺失时用 h23，不拿浏览器语言去猜。 */
   function deviceHourCycle() {
     try {
@@ -167,6 +323,7 @@
 
   root.ZFStrings = {
     t: t, locale: LOCALE, table: STRINGS, render: render,
-    deviceHourCycle: deviceHourCycle, formatClock: formatClock, formatWhen: formatWhen
+    deviceHourCycle: deviceHourCycle, formatClock: formatClock, formatWhen: formatWhen,
+    calendarCellLabel: calendarCellLabel
   };
 })(typeof window !== 'undefined' ? window : globalThis);

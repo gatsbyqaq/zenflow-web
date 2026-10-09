@@ -33,7 +33,7 @@ assert.strictEqual(Z.table.en['nav.log'], 'Log');
 assert.strictEqual(Z.table.en['nav.stats'], 'Stats');
 assert.strictEqual(Z.table.en['nav.settings'], 'Settings');
 assert.strictEqual(Z.table.en['home.urges'], 'Urges resisted');
-assert.strictEqual(Z.table.en['home.checkins'], 'Check-in days');
+assert.strictEqual(Z.table.en['home.checkins'], 'Total days');
 assert.strictEqual(Z.t('home.checkins'), '打卡天数');
 assert.strictEqual(Z.render(Z.table.en['ring.unit'], { n: 1 }, 'en'), 'day');
 assert.strictEqual(Z.render(Z.table.en['ring.unit'], { n: 0 }, 'en'), 'days');
@@ -61,8 +61,77 @@ assert.strictEqual(Z.t('time.date', { m: 10, d: 5, time: '15:10' }), '10月5日 
 assert.strictEqual(Z.table.en['record.save'], 'Save');
 assert.strictEqual(Z.table.en['day.timeline'], 'Timeline');
 assert.strictEqual(Z.table.en['relapse.kept'], 'Logged · Streak kept');
+assert.strictEqual(Z.t('lock.title'), '应用锁');
+assert.strictEqual(Z.t('lock.wrong'), '密码不对');
+assert.strictEqual(Z.t('lock.wait', { n: 30 }), '请等 30 秒');
+assert.strictEqual(Z.table.en['lock.title'], 'App lock');
+assert.strictEqual(Z.table.en['lock.change'], 'Change passcode');
+assert.strictEqual(Z.table.en['lock.forgotBody'].indexOf('Cloud data stays') > 0, true);
+assert.strictEqual(Z.render(Z.table.en['lock.wait'], { n: 30 }, 'en'), 'Wait 30s');
 assert.strictEqual(Z.render(Z.table.en['time.today'], { time: '15:10' }, 'en'), 'Today 15:10');
 assert.strictEqual(Z.render(Z.table.en['time.date'], { month: 'Oct', d: 5, time: '15:10' }, 'en'), 'Oct 5 15:10');
+var ariaSrc = ['index.html', 'app.js', 'admin.js', 'cloud.js', 'lock.js'].map(function (f) {
+  return fs.readFileSync(require('path').join(__dirname, '..', f), 'utf8');
+}).join('\n');
+var ariaKeys = {};
+var reA = /data-i18n-aria="([A-Za-z0-9_.]+)"/g;
+var reB = /ariaAttr\(\s*'([A-Za-z0-9_.]+)'/g;
+var ariaMatch;
+while ((ariaMatch = reA.exec(ariaSrc))) ariaKeys[ariaMatch[1]] = true;
+while ((ariaMatch = reB.exec(ariaSrc))) ariaKeys[ariaMatch[1]] = true;
+var ariaList = Object.keys(ariaKeys).sort();
+assert.ok(ariaList.length >= 15, 'aria keys ' + ariaList.join(','));
+ariaList.forEach(function (k) {
+  assert.ok(Object.prototype.hasOwnProperty.call(Z.table.zh, k), 'missing zh ' + k);
+  assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
+  assert.notStrictEqual(String(Z.table.zh[k]).trim(), '');
+  assert.notStrictEqual(String(Z.table.en[k]).trim(), '');
+});
+assert.strictEqual(Z.t('confirm.moodTitle'), '删除这天的心情？');
+assert.strictEqual(Z.t('confirm.moodTitle').indexOf('打卡'), -1);
+assert.strictEqual(Z.table.en['confirm.moodTitle'], 'Delete this day\'s mood?');
+assert.strictEqual(Z.t('a11y.reset', { type: '看黄' }), '看黄：重置天数');
+assert.strictEqual(Z.render(Z.table.en['a11y.reset'], { type: 'Porn' }, 'en'), 'Porn resets streak');
+assert.strictEqual(Z.table.en['type.masturbation'], 'Masturbation');
+assert.strictEqual(Z.table.en['type.porn'], 'Porn');
+assert.strictEqual(Z.table.en['type.sex'], 'Sex');
+assert.strictEqual(Z.table.en['type.fantasy'], 'Sexual fantasy');
+assert.strictEqual(Z.table.en['type.dream'], 'Wet dream');
+assert.strictEqual(Z.t('type.fantasy'), '意淫');
+assert.strictEqual(Z.t('type.dream'), '梦淫');
+var sep8 = new Date(2026, 8, 8);
+assert.strictEqual(Z.calendarCellLabel(sep8, [], 'zh'), '9月8日，没有记录');
+assert.strictEqual(Z.calendarCellLabel(sep8, [], 'en'), 'September 8, No entries');
+assert.strictEqual(Z.calendarCellLabel(sep8, [{ kind: 'urge', ts: 1 }], 'zh'), '9月8日，抵御冲动 1 次');
+assert.strictEqual(Z.calendarCellLabel(sep8, [{ kind: 'urge', ts: 1 }], 'en'), 'September 8, 1 urge resisted');
+assert.strictEqual(Z.calendarCellLabel(sep8, [{ kind: 'urge', ts: 1 }, { kind: 'urge', ts: 2 }], 'zh'), '9月8日，抵御冲动 2 次');
+assert.strictEqual(Z.calendarCellLabel(sep8, [{ kind: 'urge', ts: 2 }, { kind: 'urge', ts: 3 }], 'en'), 'September 8, 2 urges resisted');
+assert.strictEqual(Z.calendarCellLabel(sep8, [
+  { kind: 'relapse', ts: 1, types: ['porn'] },
+  { kind: 'urge', ts: 2 },
+  { kind: 'urge', ts: 3 }
+], 'zh'), '9月8日，看黄，抵御冲动 2 次');
+assert.strictEqual(Z.calendarCellLabel(sep8, [
+  { kind: 'urge', ts: 3 },
+  { kind: 'relapse', ts: 1, types: ['porn'] },
+  { kind: 'urge', ts: 2 }
+], 'en'), 'September 8, Porn, 2 urges resisted');
+assert.strictEqual(Z.calendarCellLabel(sep8, [
+  { kind: 'relapse', ts: 3, types: ['porn', 'fantasy'] },
+  { kind: 'urge', ts: 2 },
+  { kind: 'relapse', ts: 1, types: ['masturbation'] }
+], 'zh'), '9月8日，自慰，抵御冲动 1 次，看黄，意淫');
+assert.strictEqual(Z.calendarCellLabel(sep8, [
+  { kind: 'relapse', ts: 1, types: ['masturbation'] },
+  { kind: 'urge', ts: 2 },
+  { kind: 'relapse', ts: 3, types: ['porn', 'fantasy'] }
+], 'en'), 'September 8, Masturbation, 1 urge resisted, Porn, Sexual fantasy');
+assert.strictEqual(Z.calendarCellLabel(sep8, [
+  { kind: 'checkin', ts: 1, mood: 5 }
+], 'zh'), '9月8日，没有记录');
+var stringsSrc = fs.readFileSync(require('path').join(__dirname, '..', 'strings.js'), 'utf8');
+assert.strictEqual(stringsSrc.indexOf('TODO'), -1);
+assert.strictEqual(stringsSrc.indexOf('cal.cell'), -1);
 Object.keys(Z.table.zh).forEach(function (k) {
   assert.ok(Object.prototype.hasOwnProperty.call(Z.table.en, k), 'missing en ' + k);
 });

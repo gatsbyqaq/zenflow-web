@@ -41,15 +41,49 @@
     return fmtClock(ts);
   }
   function t(key, vars) { return (window.ZFStrings && window.ZFStrings.t) ? window.ZFStrings.t(key, vars) : key; }
-  function applyNewCopy() {
-    document.querySelectorAll('[data-i18n]').forEach(function (el) {
-      el.textContent = t(el.getAttribute('data-i18n'));
+  function i18nVarsOf(el) {
+    var raw = el.getAttribute('data-i18n-vars');
+    if (!raw) return undefined;
+    try { return JSON.parse(raw); } catch (e) { return undefined; }
+  }
+  function applyNewCopy(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'), i18nVarsOf(el));
     });
+    scope.querySelectorAll('[data-i18n-aria]').forEach(function (el) {
+      el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'), i18nVarsOf(el)));
+    });
+    scope.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+      el.setAttribute('title', t(el.getAttribute('data-i18n-title'), i18nVarsOf(el)));
+    });
+    scope.querySelectorAll('[data-i18n-alt]').forEach(function (el) {
+      el.setAttribute('alt', t(el.getAttribute('data-i18n-alt'), i18nVarsOf(el)));
+    });
+  }
+  /* 从 JS 写的标签。静态节点用 data-i18n-aria，动态节点用 ariaAttr / setAria。 */
+  function setAria(el, key, vars) {
+    if (!el || !key) return;
+    el.setAttribute('data-i18n-aria', key);
+    if (vars) el.setAttribute('data-i18n-vars', JSON.stringify(vars));
+    else el.removeAttribute('data-i18n-vars');
+    el.setAttribute('aria-label', t(key, vars));
+  }
+  function ariaAttr(key, vars) {
+    return ' data-i18n-aria="' + esc(key) + '" aria-label="' + esc(t(key, vars)) + '"' +
+      (vars ? ' data-i18n-vars="' + esc(JSON.stringify(vars)) + '"' : '');
   }
   function lapseTypes() { return D.lapseTypes || []; }
   function typeById(id) {
     for (var i = 0; i < lapseTypes().length; i++) if (lapseTypes()[i].id === id) return lapseTypes()[i];
     return null;
+  }
+  function typeName(id) {
+    var key = 'type.' + id;
+    var name = t(key);
+    if (name && name !== key) return name;
+    var tp = typeById(id);
+    return tp ? tp.label : id;
   }
   function normalizeTypes(arr) {
     var out = [];
@@ -466,16 +500,27 @@
     var typesByDay = {};
     var relapseDays = {};
     var urgeDays = {};
+    var eventsByDay = {};
+    function pushDayEvent(dk, ev) {
+      if (!eventsByDay[dk]) eventsByDay[dk] = [];
+      eventsByDay[dk].push(ev);
+    }
     state.relapses.forEach(function (r) {
       var dk = dateKey(r.ts);
       relapseDays[dk] = true;
-      normalizeTypes(r.types).forEach(function (id) {
+      var types = normalizeTypes(r.types);
+      types.forEach(function (id) {
         if (!typesByDay[dk]) typesByDay[dk] = [];
         if (typesByDay[dk].indexOf(id) < 0) typesByDay[dk].push(id);
       });
+      pushDayEvent(dk, { kind: 'relapse', ts: r.ts, types: types });
     });
     state.urges.forEach(function (u) {
-      if (u && typeof u.ts === 'number') urgeDays[dateKey(u.ts)] = true;
+      if (u && typeof u.ts === 'number') {
+        var dk = dateKey(u.ts);
+        urgeDays[dk] = true;
+        pushDayEvent(dk, { kind: 'urge', ts: u.ts });
+      }
     });
     var html = '';
     for (var i = 0; i < first; i++) html += '<div class="cal-cell empty"></div>';
@@ -494,18 +539,18 @@
         else markType = pool[0] || 'masturbation';
       }
       var mark = '';
-      var title = k;
       if (markType) {
-        var tp = typeById(markType);
-        title += ' · ' + (tp ? tp.label : '破戒');
         mark = '<span class="cal-types"><span class="cal-mark dot" data-type="' + esc(markType) + '"></span></span>';
       } else if (urgeDays[k]) {
-        title += ' · ' + t('urge.resisted');
-        mark = '<span class="cal-types"><span class="cal-mark urge-ring" title="' + esc(t('urge.resisted')) + '"></span></span>';
+        mark = '<span class="cal-types"><span class="cal-mark urge-ring"></span></span>';
       }
+      var cellLabel = window.ZFStrings.calendarCellLabel(new Date(y, mo, d), eventsByDay[k] || [], window.ZFStrings.locale);
       var future = k > todayK;
       var tag = future ? 'div' : 'button';
-      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') + ' title="' + esc(title) + '"><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
+      html += '<' + tag + ' class="' + cls + '" ' + (future ? '' : 'type="button" data-date="' + k + '"') +
+        ' aria-label="' + esc(cellLabel) + '" title="' + esc(cellLabel) + '"' +
+        (isToday ? ' aria-current="date"' : '') +
+        '><span class="cal-n">' + d + '</span>' + mark + '</' + tag + '>';
     }
     $('calGrid').innerHTML = html;
   }
@@ -753,12 +798,12 @@
         var m = D.moods.filter(function (x) { return x.v === ev.mood; })[0] || D.moods[2];
         body = '<b>心情 · ' + esc(m.t) + '</b>' + (ev.note ? '<div class="small">' + esc(ev.note) + '</div>' : '');
         actions = tlActions(
-          '<button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(k) + '" aria-label="删除">' + ic('x') + '</button>'
+          '<button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(k) + '"' + ariaAttr('a11y.mood.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(k) + '"' + ariaAttr('a11y.mood.delete') + '>' + ic('x') + '</button>'
         );
       } else if (ev.kind === 'urge') {
         body = '<b>' + esc(t('urge.resisted')) + '</b>';
-        actions = tlActions('<button class="h-del" type="button" data-del="urge" data-id="' + esc(ev.u.id) + '" aria-label="删除">' + ic('x') + '</button>');
+        actions = tlActions('<button class="h-del" type="button" data-del="urge" data-id="' + esc(ev.u.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button>');
       } else {
         var r = ev.r;
         body = '<b>' + (relapseResets(r.types) ? '破戒' : esc(t('relapse.kept'))) + '</b>' +
@@ -766,8 +811,8 @@
           ((r.triggers && r.triggers.length) ? '<div class="small muted">' + esc(r.triggers.map(function (tg) { return tg === '其他' && r.other ? '其他：' + r.other : tg; }).join('、')) + '</div>' : '') +
           (r.note ? '<div class="small">' + esc(r.note) + '</div>' : '');
         actions = tlActions(
-          '<button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button>'
+          '<button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button>'
         );
       }
       return '<li class="day-tl-item"><span class="day-tl-time">' + hm(ev.ts) + '</span><span class="day-tl-node' + kindCls + '" data-type="' + esc(primary) + '"></span><div class="day-tl-card">' + body + actions + '</div></li>';
@@ -968,8 +1013,8 @@
       (tags ? '<div class="h-tags">' + tags + '</div>' : '') +
       (trigs ? '<div class="h-tags">' + trigs + '</div>' : '') +
       (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-      '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-      '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+      '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.edit') + '>' + ic('pen-line') + '</button>' +
+      '<button class="h-del" type="button" data-del="relapse" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button></div></div>';
   }
 
   function openRelapseEditor(id) {
@@ -1032,15 +1077,15 @@
       var r = it.r;
       if (it.type === 'urge') {
         return '<div class="h-item urge"><div class="h-ico">' + ic('circle') + '</div><div class="h-main"><b>' + esc(t('urge.resisted')) + '</b><div class="small muted">' + fmtWhen(r.ts) + '</div></div>' +
-          '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+          '<div class="h-actions"><button class="h-del" type="button" data-del="urge" data-id="' + esc(r.id) + '"' + ariaAttr('a11y.entry.delete') + '>' + ic('x') + '</button></div></div>';
       }
       if (it.type === 'checkin') {
         var m = D.moods.filter(function (x) { return x.v === r.mood; })[0] || D.moods[2];
-        return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>打卡 · ' + esc(m.t) + '</b>' +
+        return '<div class="h-item checkin"><div class="h-ico">' + ic(m.icon) + '</div><div class="h-main"><b>心情 · ' + esc(m.t) + '</b>' +
           '<div class="small muted">' + esc(it.k) + '</div>' +
           (r.note ? '<div class="small" style="margin-top:4px">' + esc(r.note) + '</div>' : '') +
-          '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '" aria-label="编辑">' + ic('pen-line') + '</button>' +
-          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(it.k) + '" aria-label="删除">' + ic('x') + '</button></div></div>';
+          '</div><div class="h-actions"><button class="h-edit" type="button" data-edit="checkin" data-date="' + esc(it.k) + '"' + ariaAttr('a11y.mood.edit') + '>' + ic('pen-line') + '</button>' +
+          '<button class="h-del" type="button" data-del="checkin" data-date="' + esc(it.k) + '"' + ariaAttr('a11y.mood.delete') + '>' + ic('x') + '</button></div></div>';
       }
       return relapseItem(r);
     }).join('');
@@ -1060,9 +1105,9 @@
     if (type === 'checkin') {
       var dk = b.dataset.date;
       openModal({
-        title: '删除这天的打卡？',
-        html: '<p>去掉 ' + esc(dk) + ' 的心情，不能撤销。</p>',
-        ok: '删除', danger: true,
+        title: t('confirm.moodTitle'),
+        html: '<p>' + esc(t('confirm.moodBody', { date: dk })) + '</p>',
+        ok: t('confirm.delete'), danger: true,
         onOk: function () {
           delete state.checkins[dk];
           state.removed.checkins[dk] = Date.now();
@@ -1148,7 +1193,7 @@
     var mc = {};
     Object.keys(state.checkins).forEach(function (k) { var m = state.checkins[k].mood; mc[m] = (mc[m] || 0) + 1; });
     var mrows = D.moods.map(function (m) { return ['<span class="mood-tint" data-mood="' + m.v + '">' + ic(m.icon) + '</span>' + m.t, mc[m.v] || 0]; });
-    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '还没有打卡');
+    $('moodChart').innerHTML = Object.keys(mc).length ? hbars(mrows, 'mint', true) : emptyState('smile', '还没有心情');
 
     // 建议
     var ins = [];
@@ -1157,7 +1202,7 @@
       ins.push(['clock', '高风险时段：<b>' + BUCKETS[peak][0] + ' ' + BUCKETS[peak][1] + '–' + (BUCKETS[peak][1] + 4) + ' 点</b>']);
     }
     if (trows.length) ins.push(['target', '最常见触发：<b>' + esc(trows[0][0]) + '</b>']);
-    if (u) ins.push(['shield-check', '已抵御 <b>' + u + '</b> 次']);
+    if (u) ins.push(['shield-check', '抵御冲动 <b>' + u + '</b> 次']);
     var w = milestoneWindow(curMs() / DAY);
     ins.push(['sprout', '已戒 <b>' + fmtDays(curMs()) + '</b> 天，下一档 <b>' + w.next + '</b> 天']);
     $('insights').innerHTML = ins.map(function (x) { return '<div class="insight"><span class="e">' + ic(x[0]) + '</span><div>' + x[1] + '</div></div>'; }).join('');
@@ -1227,6 +1272,7 @@
     theme: '外观',
     reasons: '理由',
     data: '数据',
+    lock: '应用锁',
     about: '关于'
   };
   var settingsView = 'root';
@@ -1256,6 +1302,7 @@
     applySettingsDom();
     if (view === 'resets') renderResetToggles();
     if (view === 'goal') renderGoalControl();
+    if (view === 'lock') paintLockGrace();
     updateSettingsChrome();
     if (!opts.silent) {
       var hash = view === 'root' ? '#settings' : ('#settings/' + view);
@@ -1277,12 +1324,13 @@
   }
   function renderResetToggles() {
     var box = $('resetTypeList'); if (!box) return;
-    box.innerHTML = lapseTypes().map(function (t) {
-      var on = !!state.resetTypes[t.id];
-      var locked = t.id === 'masturbation';
-      return '<div class="reset-row" data-type="' + t.id + '"><span class="type-ico">' + ic(t.icon) + '</span><div class="reset-copy"><b>' + esc(t.label) + '</b><p>' +
+    box.innerHTML = lapseTypes().map(function (tp) {
+      var on = !!state.resetTypes[tp.id];
+      var locked = tp.id === 'masturbation';
+      var name = typeName(tp.id);
+      return '<div class="reset-row" data-type="' + tp.id + '"><span class="type-ico">' + ic(tp.icon) + '</span><div class="reset-copy"><b>' + esc(name) + '</b><p>' +
         (locked ? '不能关闭' : (on ? '重置天数' : '不重置天数')) +
-        '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(t.label) + '：重置戒色天数" data-reset-type="' + t.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
+        '</p></div><button type="button" class="switch' + (on ? ' on' : '') + (locked ? ' locked' : '') + '" role="switch" aria-checked="' + (on ? 'true' : 'false') + '"' + ariaAttr('a11y.reset', { type: name }) + ' data-reset-type="' + tp.id + '"' + (locked ? ' disabled' : '') + '><span class="switch-knob"></span></button></div>';
     }).join('');
   }
   function updateSettingsChrome() {
@@ -1310,6 +1358,7 @@
       $('settingsThemeSub').textContent = theme === 'light' ? '浅色' : theme === 'dark' ? '深色' : '跟随系统';
     }
     if ($('settingsReasonSub')) $('settingsReasonSub').textContent = state.reasons.length + ' 条';
+    paintLockRow();
   }
   function renderSettings() {
     applySettingsDom();
@@ -1317,7 +1366,7 @@
     renderResetToggles();
     renderThemeControl();
     $('reasonsEdit').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '" aria-label="删除">' + ic('x') + '</button></li>'; }).join('')
+      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '"' + ariaAttr('a11y.reason.delete') + '>' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由</span></li>';
     updateSettingsChrome();
   }
@@ -1371,9 +1420,20 @@
   $('reasonInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addReason(); });
   $('reasonsEdit').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-i]'); if (!b) return;
-    var gone = state.reasons.splice(+b.dataset.i, 1)[0];
-    if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
-    save(); renderSettings();
+    var i = +b.dataset.i;
+    if (!(i >= 0 && i < state.reasons.length)) return;
+    openModal({
+      title: t('confirm.reasonTitle'),
+      html: '<p>' + esc(t('confirm.reasonBody')) + '</p>',
+      ok: t('confirm.delete'),
+      danger: true,
+      onOk: function () {
+        var gone = state.reasons.splice(i, 1)[0];
+        if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
+        save();
+        renderSettings();
+      }
+    });
   });
 
   $('btnImport').addEventListener('click', function () { $('importFile').click(); });
@@ -1391,7 +1451,7 @@
       } catch (e) { toast('导入失败：' + (e.message || '文件无法解析')); return; }
       openModal({
         title: '导入数据？',
-        html: '<p>' + Object.keys(parsed.checkins).length + ' 次打卡，' + parsed.urges.length + ' 次抵御，' + parsed.relapses.length + ' 条破戒。会覆盖当前记录。</p>',
+        html: '<p>' + Object.keys(parsed.checkins).length + ' 条心情，' + parsed.urges.length + ' 次抵御冲动，' + parsed.relapses.length + ' 条破戒。会覆盖当前记录。</p>',
         ok: '覆盖导入',
         onOk: function () { state = parsed; state.streakStartSetAt = Date.now(); save({ replaceAll: true }); if (importedTheme) setTheme(importedTheme, true); renderSettings(); toast('导入成功'); }
       });
@@ -1401,7 +1461,7 @@
   $('btnReset').addEventListener('click', function () {
     openModal({
       title: '重置本机数据？',
-      html: '<p>会清空打卡、记录和理由。登录时会覆盖云端。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
+      html: '<p>会清空心情、记录和理由。登录时会覆盖云端。输入「重置」确认。</p><input type="text" id="resetConfirm" placeholder="重置" />',
       ok: '确认重置', danger: true,
       onOk: function () {
         if ($('resetConfirm').value.trim() !== '重置') { toast('请输入「重置」'); return false; }
@@ -1413,6 +1473,300 @@
       }
     });
   });
+
+  /* ---------------- 应用锁 ---------------- */
+  var lockFlow = null;
+  var lockBusy = false;
+  var sessionUnlocked = !(window.ZFLock && window.ZFLock.enabled());
+  var lockHiddenAt = 0;
+  var lockProvisional = false;
+  var lockWaitTimer = null;
+
+  function paintLockRow() {
+    if (!$('appLockSwitch') || !window.ZFLock) return;
+    var on = window.ZFLock.enabled();
+    $('appLockSwitch').classList.toggle('on', on);
+    $('appLockSwitch').setAttribute('aria-checked', on ? 'true' : 'false');
+    if ($('btnChangePass')) $('btnChangePass').classList.toggle('hidden', !on);
+    if ($('appLockSub')) {
+      if (!on) $('appLockSub').textContent = t('lock.off');
+      else {
+        var g = window.ZFLock.grace();
+        $('appLockSub').textContent = g === 'now' ? t('lock.graceNow') : g === '5m' ? t('lock.grace5') : t('lock.grace1');
+      }
+    }
+    paintLockGrace();
+  }
+  function paintLockGrace() {
+    if (!$('lockGraceSeg') || !window.ZFLock) return;
+    var g = window.ZFLock.enabled() ? window.ZFLock.grace() : '';
+    $('lockGraceSeg').querySelectorAll('[data-grace]').forEach(function (b) {
+      var on = b.getAttribute('data-grace') === g;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  function showLockShell() {
+    document.documentElement.classList.add('lock-on');
+    $('lockScreen').classList.remove('hidden');
+    document.documentElement.classList.remove('lock-pending');
+  }
+  function hideLockShell() {
+    if ($('lockScreen')) $('lockScreen').classList.add('hidden');
+    if ($('lockForgotMask')) $('lockForgotMask').classList.add('hidden');
+    document.documentElement.classList.remove('lock-on');
+    document.documentElement.classList.remove('lock-pending');
+    lockFlow = null;
+  }
+  function lockTitle() {
+    if (!lockFlow) return '';
+    if (lockFlow.mode === 'unlock') return t('lock.enterTitle');
+    if (lockFlow.mode === 'disable') return t('lock.currentTitle');
+    if (lockFlow.mode === 'change' && lockFlow.step === 'current') return t('lock.currentTitle');
+    if (lockFlow.step === 'confirm') return t('lock.confirmTitle');
+    if (lockFlow.mode === 'change') return t('lock.newTitle');
+    return t('lock.setTitle');
+  }
+  function paintDots() {
+    var n = lockFlow ? lockFlow.buf.length : 0;
+    var dots = $('lockDots');
+    if (!dots) return;
+    for (var i = 0; i < dots.children.length; i++) dots.children[i].classList.toggle('on', i < n);
+  }
+  function paintLockWait() {
+    var left = window.ZFLock ? window.ZFLock.waitRemaining() : 0;
+    var waiting = left > 0;
+    document.querySelectorAll('#lockPad [data-key]').forEach(function (b) {
+      if (b.getAttribute('data-key') === 'del') return;
+      b.disabled = waiting || lockBusy;
+    });
+    if (waiting && $('lockMsg')) $('lockMsg').textContent = t('lock.wait', { n: Math.ceil(left / 1000) });
+    if (lockWaitTimer) { clearTimeout(lockWaitTimer); lockWaitTimer = null; }
+    if (waiting) lockWaitTimer = setTimeout(paintLockWait, 250);
+  }
+  function renderLockChrome() {
+    if (!$('lockTitle') || !lockFlow) return;
+    $('lockTitle').textContent = lockTitle();
+    var cancellable = lockFlow.mode !== 'unlock';
+    $('lockCancel').classList.toggle('hidden', !cancellable);
+    var showForgot = lockFlow.mode === 'unlock' || lockFlow.mode === 'disable' || (lockFlow.mode === 'change' && lockFlow.step === 'current');
+    $('lockForgot').classList.toggle('hidden', !showForgot);
+    paintDots();
+    paintLockWait();
+  }
+  function presentLock(mode) {
+    lockFlow = { mode: mode, step: (mode === 'set' || mode === 'change') ? (mode === 'change' ? 'current' : 'neu') : 'enter', first: '', buf: '' };
+    if (mode === 'set') lockFlow.step = 'neu';
+    if ($('lockMsg')) $('lockMsg').textContent = '';
+    var dots = $('lockDots');
+    if (dots) dots.classList.remove('shake');
+    showLockShell();
+    renderLockChrome();
+  }
+  function shakeLock(msg, after) {
+    var dots = $('lockDots');
+    if (dots) {
+      dots.classList.remove('shake');
+      void dots.offsetWidth;
+      dots.classList.add('shake');
+    }
+    if ($('lockMsg')) $('lockMsg').textContent = msg;
+    setTimeout(function () {
+      if (lockFlow) lockFlow.buf = '';
+      if (after) after();
+      paintDots();
+      renderLockChrome();
+    }, 900);
+  }
+  function finishLockOk(message) {
+    sessionUnlocked = true;
+    lockProvisional = false;
+    hideLockShell();
+    paintLockRow();
+    if (message) toast(message);
+  }
+  function onLockFour(code) {
+    if (!lockFlow || lockBusy) return;
+    if (window.ZFLock.waitRemaining() > 0) { paintLockWait(); return; }
+    if (lockFlow.step === 'neu') {
+      lockFlow.first = code;
+      lockFlow.step = 'confirm';
+      lockFlow.buf = '';
+      if ($('lockMsg')) $('lockMsg').textContent = '';
+      renderLockChrome();
+      return;
+    }
+    if (lockFlow.step === 'confirm') {
+      if (code !== lockFlow.first) {
+        var back = lockFlow.mode;
+        shakeLock(t('lock.mismatch'), function () {
+          if (!lockFlow) return;
+          lockFlow.step = 'neu';
+          lockFlow.first = '';
+          lockFlow.mode = back;
+        });
+        return;
+      }
+      lockBusy = true;
+      var mode = lockFlow.mode;
+      var keep = mode === 'change' ? window.ZFLock.grace() : '1m';
+      window.ZFLock.setPasscode(code, keep).then(function () {
+        lockBusy = false;
+        finishLockOk(mode === 'change' ? t('lock.changed') : t('lock.onToast'));
+      }, function () {
+        lockBusy = false;
+        shakeLock(t('lock.wrong'));
+      });
+      return;
+    }
+    lockBusy = true;
+    window.ZFLock.verify(code).then(function (ok) {
+      lockBusy = false;
+      if (!lockFlow) return;
+      if (!ok) {
+        var r = window.ZFLock.noteFail();
+        shakeLock(r.locked ? t('lock.wait', { n: Math.ceil(r.wait / 1000) }) : t('lock.wrong'));
+        return;
+      }
+      window.ZFLock.clearFails();
+      if (lockFlow.mode === 'unlock') { finishLockOk(''); return; }
+      if (lockFlow.mode === 'disable') {
+        window.ZFLock.clear();
+        finishLockOk(t('lock.offToast'));
+        return;
+      }
+      if (lockFlow.mode === 'change') {
+        lockFlow.step = 'neu';
+        lockFlow.first = '';
+        lockFlow.buf = '';
+        if ($('lockMsg')) $('lockMsg').textContent = '';
+        renderLockChrome();
+      }
+    }, function () {
+      lockBusy = false;
+      shakeLock(t('lock.wrong'));
+    });
+  }
+  function pushLockDigit(d) {
+    if (!lockFlow || lockBusy) return;
+    if (window.ZFLock.waitRemaining() > 0) return;
+    if (lockFlow.buf.length >= 4) return;
+    lockFlow.buf += d;
+    if ($('lockMsg') && window.ZFLock.waitRemaining() <= 0) $('lockMsg').textContent = '';
+    paintDots();
+    if (lockFlow.buf.length === 4) {
+      var code = lockFlow.buf;
+      setTimeout(function () { onLockFour(code); }, 60);
+    }
+  }
+  function popLockDigit() {
+    if (!lockFlow || lockBusy || !lockFlow.buf) return;
+    lockFlow.buf = lockFlow.buf.slice(0, -1);
+    paintDots();
+  }
+  function lockAfterWipe() {
+    sessionUnlocked = true;
+    lockProvisional = false;
+    hideLockShell();
+    paintLockRow();
+  }
+  function markLockHidden() {
+    if (!window.ZFLock || !window.ZFLock.enabled() || !sessionUnlocked) return;
+    lockHiddenAt = Date.now();
+    if ($('lockScreen').classList.contains('hidden')) {
+      lockProvisional = true;
+      presentLock('unlock');
+    }
+  }
+  function markLockShown() {
+    if (!lockHiddenAt) return;
+    var elapsed = Date.now() - lockHiddenAt;
+    lockHiddenAt = 0;
+    if (!window.ZFLock || !window.ZFLock.enabled()) return;
+    if (elapsed >= window.ZFLock.graceMs()) {
+      if (sessionUnlocked || lockProvisional) {
+        lockProvisional = false;
+        sessionUnlocked = false;
+        presentLock('unlock');
+      }
+    } else if (lockProvisional) {
+      lockProvisional = false;
+      hideLockShell();
+    }
+  }
+  if ($('appLockSwitch')) $('appLockSwitch').addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (!window.ZFLock) return;
+    if (window.ZFLock.enabled()) presentLock('disable');
+    else presentLock('set');
+  });
+  if ($('btnAppLockPage')) $('btnAppLockPage').addEventListener('click', function () {
+    if (window.ZFLock && window.ZFLock.enabled()) showSettings('lock');
+  });
+  if ($('btnChangePass')) $('btnChangePass').addEventListener('click', function () { presentLock('change'); });
+  if ($('lockGraceSeg')) $('lockGraceSeg').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-grace]');
+    if (!b || !window.ZFLock || !window.ZFLock.enabled()) return;
+    window.ZFLock.setGrace(b.getAttribute('data-grace'));
+    paintLockRow();
+  });
+  if ($('lockPad')) $('lockPad').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-key]');
+    if (!b) return;
+    var key = b.getAttribute('data-key');
+    if (key === 'del') popLockDigit();
+    else pushLockDigit(key);
+  });
+  if ($('lockCancel')) $('lockCancel').addEventListener('click', function () {
+    if (!lockFlow || lockFlow.mode === 'unlock') return;
+    sessionUnlocked = true;
+    hideLockShell();
+    paintLockRow();
+  });
+  if ($('lockForgot')) $('lockForgot').addEventListener('click', function () {
+    if ($('lockForgotMask')) $('lockForgotMask').classList.remove('hidden');
+  });
+  if ($('lockForgotCancel')) $('lockForgotCancel').addEventListener('click', function () {
+    $('lockForgotMask').classList.add('hidden');
+  });
+  if ($('lockForgotMask')) $('lockForgotMask').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  });
+  if ($('lockForgotOk')) $('lockForgotOk').addEventListener('click', function () {
+    var btn = $('lockForgotOk');
+    btn.disabled = true;
+    var done = function () { btn.disabled = false; };
+    if (window.ZFCloud && window.ZFCloud.logout) {
+      Promise.resolve(window.ZFCloud.logout({ toast: '已退出' })).then(done, function () {
+        if (window.ZFLock) window.ZFLock.clear();
+        lockAfterWipe();
+        done();
+      });
+    } else {
+      if (window.ZFLock) window.ZFLock.clear();
+      if (window.ZenFlowCore && window.ZenFlowCore.wipeLocal) window.ZenFlowCore.wipeLocal();
+      lockAfterWipe();
+      done();
+    }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!$('lockScreen') || $('lockScreen').classList.contains('hidden')) return;
+    if ($('lockForgotMask') && !$('lockForgotMask').classList.contains('hidden')) return;
+    if (e.key >= '0' && e.key <= '9') { pushLockDigit(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { popLockDigit(); e.preventDefault(); }
+    else if (e.key === 'Escape' && lockFlow && lockFlow.mode !== 'unlock') {
+      sessionUnlocked = true;
+      hideLockShell();
+      paintLockRow();
+    }
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') markLockHidden();
+    else markLockShown();
+  });
+  window.addEventListener('pagehide', markLockHidden);
+  window.addEventListener('pageshow', markLockShown);
+  window.ZFLockUI = { afterWipe: lockAfterWipe, present: presentLock };
 
   /* ---------------- 启动 ---------------- */
   load();
@@ -1427,6 +1781,9 @@
   }, 1000);
   applyNewCopy();
   renderHome();
+  paintLockRow();
+  if (window.ZFLock && window.ZFLock.enabled()) presentLock('unlock');
+  else document.documentElement.classList.remove('lock-pending');
   var bootSettings = settingsViewFromHash();
   if (bootSettings) {
     settingsView = bootSettings;
@@ -1449,7 +1806,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '37';
+  var APP_VERSION = '43';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;

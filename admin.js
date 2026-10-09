@@ -96,7 +96,12 @@
 
   function switchPanel(name) {
     panel = name;
-    document.querySelectorAll('#adminNav .admin-tab').forEach(function (b) { b.classList.toggle('active', b.dataset.admin === name); });
+    document.querySelectorAll('#adminNav .admin-tab').forEach(function (b) {
+      var on = b.dataset.admin === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.admin-panel').forEach(function (p) { p.classList.toggle('active', p.dataset.adminPanel === name); });
     renderPanel(name);
   }
