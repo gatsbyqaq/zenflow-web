@@ -468,13 +468,21 @@
     var goal = state.goalDays || 30;
     return goal > 0 ? Math.min(1, Math.max(0, dayFloat / goal)) : 0;
   }
-  function setRingOffset(p, animate) {
+  function setRingOffset(p, animate, shownDays) {
     var ring = $('ringFg');
     if (!ring) return;
+    var empty = shownDays <= 0 || !(p > 0);
+    ring.style.strokeDasharray = String(RING_LEN);
+    if (empty) {
+      ring.classList.add('is-empty');
+      ring.style.strokeDashoffset = String(RING_LEN);
+      return;
+    }
+    ring.classList.remove('is-empty');
     var ms = animate && motionReady() && !motionReduced() ? motionMs('--motion-ring', 600) : 0;
     ring.style.transition = ms ? ('stroke-dashoffset ' + ms + 'ms var(--ease)') : 'none';
-    ring.style.strokeDasharray = String(RING_LEN);
     ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
+    if (ring.style.opacity === '0') ring.style.opacity = '1';
   }
   function paintDays(days, mode) {
     var el = $('daysNum');
@@ -512,15 +520,25 @@
   }
   function crossfadeRing(p, days) {
     var ring = $('ringFg');
-    var ms = motionMs('--motion-state', 200);
-    if (!ring) { paintDays(days, 'cross'); setRingOffset(p, false); return; }
+    var ms = motionMs(motionReduced() ? '--motion-reduced' : '--motion-state', 200);
+    if (!ring) { paintDays(days, 'cross'); setRingOffset(p, false, days); return; }
     ring.style.transition = 'opacity ' + ms + 'ms var(--ease)';
     ring.style.opacity = '0';
     paintDays(days, 'cross');
     var gen = ringFadeGen;
     setTimeout(function () {
       if (gen !== ringFadeGen) return;
-      setRingOffset(p, false);
+      if (days <= 0 || !(p > 0)) {
+        ring.classList.add('is-empty');
+        ring.style.transition = 'none';
+        ring.style.opacity = '0';
+        ring.style.strokeDashoffset = String(RING_LEN);
+        return;
+      }
+      setRingOffset(p, false, days);
+      ring.style.transition = 'none';
+      ring.style.opacity = '0';
+      ring.offsetHeight;
       ring.style.transition = 'opacity ' + ms + 'ms var(--ease)';
       ring.style.opacity = '1';
     }, ms);
@@ -538,8 +556,9 @@
       ringDeferred = true;
     } else {
       if (!motionReady()) {
-        paintDays(prev === null || prev === days ? days : prev, 'snap');
-        setRingOffset(prev === null || prev === days ? p : ringProgress(prev), false);
+        var holdDays = prev === null || prev === days ? days : prev;
+        paintDays(holdDays, 'snap');
+        setRingOffset(prev === null || prev === days ? p : ringProgress(prev), false, holdDays);
         if (prev === null) writeRingDays(days);
       } else if (prev !== null && days > prev) {
         if (motionReduced()) {
@@ -547,7 +566,7 @@
           crossfadeRing(p, days);
         } else {
           ringAnimUntil = Date.now() + motionMs('--motion-ring', 600);
-          setRingOffset(p, true);
+          setRingOffset(p, true, days);
           paintDays(days, 'enter');
         }
         writeRingDays(days);
@@ -559,7 +578,11 @@
         writeRingDays(days);
       } else {
         paintDays(days, 'snap');
-        setRingOffset(p, false);
+        setRingOffset(p, false, days);
+        if (days <= 0) {
+          var ringNow = $('ringFg');
+          if (ringNow) ringNow.style.opacity = '0';
+        }
         writeRingDays(days);
       }
       ringDeferred = false;
@@ -637,10 +660,117 @@
     performDelete(job.kind, job.id);
   }
   function shiftMonth(delta) {
+    if (delta > 0 && calOffset >= 0) return;
     flushDelete();
     calOffset += delta;
     if (motionReady()) playMonth(delta);
     else renderRecords();
+  }
+  function monthFadeTiming() {
+    return {
+      outMs: motionMs('--motion-month-out', 100),
+      inMs: motionMs('--motion-month-in', 170),
+      delay: motionMs('--motion-month-delay', 80)
+    };
+  }
+  function settleMonthChrome() {
+    document.querySelectorAll('.title-leave').forEach(function (n) { n.remove(); });
+    var title = $('calTitle');
+    if (title) { title.style.transition = 'none'; title.style.opacity = '1'; }
+    var pill = $('calToday');
+    if (!pill) return;
+    pill.style.transition = 'none';
+    if (calOffset === 0) {
+      pill.classList.add('hidden');
+      pill.style.opacity = '';
+    } else {
+      pill.classList.remove('hidden');
+      pill.style.opacity = '1';
+    }
+  }
+  function fadeMonthTitle(gen, timing) {
+    var title = $('calTitle');
+    var slot = title && title.parentNode;
+    if (!title || !slot) return;
+    slot.querySelectorAll('.title-leave').forEach(function (n) { n.remove(); });
+    var leave = title.cloneNode(true);
+    leave.removeAttribute('id');
+    leave.classList.add('title-leave');
+    leave.setAttribute('aria-hidden', 'true');
+    leave.style.transition = 'none';
+    leave.style.opacity = '1';
+    slot.appendChild(leave);
+    title.style.transition = 'none';
+    title.style.opacity = '0';
+    leave.offsetHeight;
+    leave.style.transition = 'opacity ' + timing.outMs + 'ms var(--ease-exit)';
+    leave.style.opacity = '0';
+    setTimeout(function () {
+      if (gen !== monthGen || !title.isConnected) return;
+      title.style.transition = 'opacity ' + timing.inMs + 'ms var(--ease)';
+      title.style.opacity = '1';
+    }, timing.delay);
+    setTimeout(function () {
+      if (leave.parentNode) leave.remove();
+      if (gen !== monthGen || !title.isConnected) return;
+      title.style.transition = '';
+      title.style.opacity = '';
+    }, timing.delay + timing.inMs + 40);
+  }
+  function fadeTodayPill(gen, timing) {
+    var pill = $('calToday');
+    if (!pill) return;
+    var shown = !pill.classList.contains('hidden') && pill.style.opacity !== '0';
+    var want = calOffset !== 0;
+    if (shown === want) {
+      if (want) { pill.classList.remove('hidden'); pill.style.opacity = '1'; }
+      return;
+    }
+    if (want) {
+      pill.classList.remove('hidden');
+      pill.style.transition = 'none';
+      pill.style.opacity = '0';
+      pill.offsetHeight;
+      setTimeout(function () {
+        if (gen !== monthGen) return;
+        pill.style.transition = 'opacity ' + timing.inMs + 'ms var(--ease)';
+        pill.style.opacity = '1';
+      }, timing.delay);
+      setTimeout(function () {
+        if (gen !== monthGen) return;
+        pill.style.transition = '';
+        pill.style.opacity = '';
+      }, timing.delay + timing.inMs + 40);
+      return;
+    }
+    pill.style.transition = 'opacity ' + timing.outMs + 'ms var(--ease-exit)';
+    pill.style.opacity = '0';
+    setTimeout(function () {
+      if (gen !== monthGen) return;
+      pill.classList.add('hidden');
+      pill.style.transition = '';
+      pill.style.opacity = '';
+    }, timing.outMs + 40);
+  }
+  function slideMonthBelow(residual, delta, gen) {
+    var below = $('recDay');
+    if (!below) return;
+    if (motionReduced() || (!delta && !residual)) {
+      below.style.transition = 'none';
+      below.style.transform = '';
+      return;
+    }
+    var ms = motionMs('--motion-height', 250);
+    below.style.transition = 'none';
+    below.style.transform = 'translateY(' + (residual - delta) + 'px)';
+    below.offsetHeight;
+    below.style.transition = 'transform ' + ms + 'ms var(--ease)';
+    below.style.transform = 'translateY(0)';
+    setTimeout(function () {
+      if (gen !== monthGen) return;
+      below.style.transition = 'none';
+      below.style.transform = '';
+    }, ms + 40);
   }
   function selectDay(k) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) return;
@@ -672,14 +802,14 @@
     leave.style.opacity = '1';
     clip.appendChild(leave);
     var reduced = motionReduced();
-    var outMs = motionMs('--motion-month-out', 100);
-    var inMs = motionMs('--motion-month-in', 170);
-    var delay = motionMs('--motion-month-delay', 80);
-    if (reduced) {
-      outMs = motionMs('--motion-month-out', 60);
-      inMs = motionMs('--motion-month-in', 102);
-      delay = motionMs('--motion-month-delay', 48);
-    }
+    var timing = monthFadeTiming();
+    var outMs = timing.outMs;
+    var inMs = timing.inMs;
+    var delay = timing.delay;
+    var h0 = grid.offsetHeight;
+    var below = $('recDay');
+    var residual = below ? translateY(below) : 0;
+    fadeMonthTitle(gen, timing);
     var shift = 12;
     var dragged = parseFloat(String(leave.style.transform).replace(/[^-0-9.]/g, ''));
     if (!isFinite(dragged)) dragged = 0;
@@ -688,7 +818,9 @@
     grid.style.transition = 'none';
     grid.style.opacity = '0';
     grid.style.transform = reduced ? 'none' : ('translateX(' + enterFrom + ')');
-    renderRecords();
+    renderRecords({ holdChrome: true });
+    fadeTodayPill(gen, timing);
+    slideMonthBelow(residual, grid.offsetHeight - h0, gen);
     leave.offsetHeight;
     leave.style.transition = reduced
       ? ('opacity ' + outMs + 'ms var(--ease-exit)')
@@ -719,8 +851,14 @@
     var y = base.getFullYear(), mo = base.getMonth();
     var ui = (window.ZFStrings && window.ZFStrings.locale) || 'zh';
     if ($('calTitle')) $('calTitle').textContent = window.ZFRecords.monthTitle(base, ui);
-    if ($('calToday')) $('calToday').classList.toggle('hidden', calOffset === 0);
-    if ($('calNext')) { $('calNext').disabled = false; $('calNext').style.opacity = 1; }
+    var holdChrome = arguments[0] && arguments[0].holdChrome;
+    if ($('calToday') && !holdChrome) $('calToday').classList.toggle('hidden', calOffset === 0);
+    if ($('calNext')) {
+      var blocked = calOffset >= 0;
+      $('calNext').disabled = blocked;
+      if (blocked) $('calNext').setAttribute('aria-disabled', 'true');
+      else $('calNext').removeAttribute('aria-disabled');
+    }
     if ($('calWeek')) {
       var loc = ui === 'en' ? 'en' : 'zh-CN';
       var wk = new Intl.DateTimeFormat(loc, { weekday: 'narrow' });
@@ -911,7 +1049,10 @@
     }, Math.max(hms, oms) + 70);
   }
   if ($('calPrev')) $('calPrev').addEventListener('click', function () { shiftMonth(-1); });
-  if ($('calNext')) $('calNext').addEventListener('click', function () { shiftMonth(1); });
+  if ($('calNext')) $('calNext').addEventListener('click', function () {
+    if (calOffset >= 0) return;
+    shiftMonth(1);
+  });
   if ($('calToday')) $('calToday').addEventListener('click', function () {
     var dir = calOffset > 0 ? -1 : (calOffset < 0 ? 1 : 0);
     calOffset = 0;
@@ -934,6 +1075,7 @@
       monthGen++;
       var clip = gridEl() && gridEl().parentNode;
       if (clip) clip.querySelectorAll('.grid-leave').forEach(function (n) { n.remove(); });
+      settleMonthChrome();
       var grid = gridEl();
       if (grid) {
         grid.style.transition = 'none';
@@ -953,16 +1095,20 @@
       }
       var grid = gridEl();
       if (!grid) return;
+      var x = dx;
+      if (!motionReduced() && calOffset >= 0 && dx < 0) x = Math.max(dx / 3, -24);
+      if (motionReduced()) x = 0;
       grid.style.transition = 'none';
-      grid.style.transform = motionReduced() ? 'none' : ('translateX(' + dx + 'px)');
+      grid.style.transform = x ? ('translateX(' + x + 'px)') : 'none';
       swipe.dx = dx;
     }, { passive: true });
     function endSwipe(dx) {
       var grid = gridEl();
-      var commit = Math.abs(dx) >= 48;
+      var towardFuture = calOffset >= 0 && dx < 0;
+      var commit = !towardFuture && Math.abs(dx) >= 48;
       if (!commit) {
-        if (grid) {
-          var ms = motionMs('--motion-month', 250);
+        if (grid && !motionReduced()) {
+          var ms = towardFuture ? motionMs('--motion-state', 200) : motionMs('--motion-month', 250);
           grid.style.transition = 'transform ' + ms + 'ms var(--ease)';
           grid.style.transform = 'none';
         }

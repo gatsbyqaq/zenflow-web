@@ -201,7 +201,7 @@
               </linearGradient>
             </defs>
             <circle class="ring-bg" cx="100" cy="100" r="86" />
-            <path id="ringFg" class="ring-fg" fill="none" stroke="url(#insRing)" d="M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
+            <path id="ringFg" class="ring-fg is-empty" fill="none" stroke="url(#insRing)" d="M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
           </svg>
           <div class="gauge-copy">
             <p class="gauge-days"><span class="days-num" id="daysNum">0</span></p>
@@ -277,7 +277,7 @@
       <div class="rec-layout">
         <div class="rec-cal" id="recCal">
           <div class="mhead">
-            <h1 class="mtitle" id="calTitle"></h1>
+            <div class="mtitle-slot"><h1 class="mtitle" id="calTitle"></h1></div>
             <button type="button" class="today-pill hidden" id="calToday" data-i18n="record.today">今天</button>
             <div class="mnav">
               <button type="button" id="calPrev" data-i18n-aria="a11y.month.prev" aria-label="上个月"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>

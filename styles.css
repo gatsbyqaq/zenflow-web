@@ -293,6 +293,7 @@ html.motion-ready button:disabled:active{transform:none}
 .ring-bg,.ring-fg{fill:none;stroke-width:10}
 .ring-bg{stroke:color-mix(in srgb,var(--text) 8%,transparent)}
 .ring-fg{stroke-linecap:round;transition:none}
+.ring-fg.is-empty{stroke:transparent}
 .gauge-copy{
   position:absolute;inset:18%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none;
 }
@@ -869,8 +870,14 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
     --motion-day:150ms;--motion-list:150ms;--motion-height:150ms;
     --motion-ring:150ms;--motion-badge:150ms;--motion-reduced:150ms;
   }
+  html.motion-ready button{
+    transition:transform var(--motion-state) var(--ease),color var(--motion-select) var(--ease),opacity 200ms var(--ease);
+  }
   html.motion-ready button:active,
-  html.motion-ready .urge-entry:active{transform:none;opacity:.72}
+  html.motion-ready .urge-entry:active{
+    transform:none;opacity:.72;
+    transition-duration:100ms,var(--motion-select),100ms;
+  }
   .tab .ic-line,.tab .ic-fill,.tab.active .ic-line,.tab.active .ic-fill,
   #actMask .sheet,.grid,.grid-leave,.days-num,.badge .b-ico{transform:none!important}
   .lock-dots.shake{animation:none}
@@ -1292,7 +1299,12 @@ a.set-row{color:inherit;text-decoration:none}
 #screen-log{padding-top:16px}
 .rec-cal{touch-action:pan-y}
 .mhead{display:flex;align-items:center;height:44px}
+.mtitle-slot{position:relative;display:flex;align-items:center;min-height:34px}
 .mtitle{margin:0;font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.01em}
+h1.title-leave{
+  position:absolute;left:0;top:0;margin:0;pointer-events:none;white-space:nowrap;
+}
+.mnav button:disabled{color:var(--muted)}
 .today-pill{
   margin-left:12px;height:28px;padding:0 12px;border:none;border-radius:999px;
   background:var(--ghost);color:var(--text);font-size:13px;font-weight:600;line-height:28px;
