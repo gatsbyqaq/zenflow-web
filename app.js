@@ -758,10 +758,14 @@
     if (motionReduced() || (!delta && !residual)) {
       below.style.transition = 'none';
       below.style.transform = '';
+      below.style.background = '';
+      below.style.zIndex = '';
       return;
     }
     var ms = motionMs('--motion-height', 250);
     below.style.transition = 'none';
+    below.style.background = 'var(--bg)';
+    below.style.zIndex = '1';
     below.style.transform = 'translateY(' + (residual - delta) + 'px)';
     below.offsetHeight;
     below.style.transition = 'transform ' + ms + 'ms var(--ease)';
@@ -770,6 +774,8 @@
       if (gen !== monthGen) return;
       below.style.transition = 'none';
       below.style.transform = '';
+      below.style.background = '';
+      below.style.zIndex = '';
     }, ms + 40);
   }
   function selectDay(k) {
