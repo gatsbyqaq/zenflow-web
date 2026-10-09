@@ -4,7 +4,8 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"43";
+  --zf-css:"44";
+  --mood-low:#5A7896;
   --type-masturbation:#ff2d2d;
   --type-porn:#405de6;
   --type-sex:#d62976;
@@ -75,6 +76,7 @@
   --track:#2c2c2e;
   --raised:#3a3a3c;
   --warm:#ff453a;
+  --mood-low:#8DA6C2;
   --amber:#f5c451;
   --mint:#3dd68c;
   --type-masturbation:#ff453a;
@@ -102,6 +104,7 @@
     --track:#2c2c2e;
     --raised:#3a3a3c;
     --warm:#ff453a;
+  --mood-low:#8DA6C2;
     --amber:#f5c451;
     --mint:#3dd68c;
     --type-masturbation:#ff453a;
@@ -653,7 +656,7 @@ h1 .ic-title{display:inline-block;width:20px;height:20px;margin-right:6px;vertic
 [data-mood="5"]{--mc:var(--amber)}
 [data-mood="4"]{--mc:var(--mint)}
 [data-mood="3"]{--mc:var(--muted)}
-[data-mood="2"]{--mc:var(--primary)}
+[data-mood="2"]{--mc:var(--mood-low)}
 [data-mood="1"]{--mc:var(--warm)}
 .mood .e,.checkin-done .e,.mood-tint{color:var(--mc)}
 .mood-tint{display:inline-flex;margin-right:4px}
@@ -754,9 +757,15 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   .cal-cell{aspect-ratio:auto;height:48px;font-size:13px}
   .badges{display:grid}
 
-  #screen-log.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;align-items:start}
-  #screen-log .page-head{grid-column:1/-1}
-  .log-main,.log-side{min-width:0}
+  #screen-log.active{display:block}
+  #screen-log{padding-top:0}
+  .rec-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;column-gap:40px;align-items:start}
+  .rec-layout .cell{height:56px}
+  .rec-layout .num{width:40px;height:40px}
+  .rec-layout .marks{margin-top:4px}
+  .rec-day .dhead{margin-top:0;height:44px;display:flex;align-items:flex-end;padding-bottom:12px}
+  .rec-day .list,.rec-day .rec-empty{margin-top:46px}
+  .rec-day #btnOpenActLog{margin-top:16px}
 
   .stat-grid{grid-template-columns:repeat(auto-fit,minmax(108px,1fr))}
   .stat-v{font-size:22px}
@@ -1208,4 +1217,110 @@ a.set-row{color:inherit;text-decoration:none}
 }
 @media (hover:hover) and (pointer:fine){
   .set-row:hover{background:var(--field)}
+}
+
+/* ---------- 记录页 ---------- */
+#screen-log{padding-top:16px}
+.rec-cal{touch-action:pan-y}
+.mhead{display:flex;align-items:center;height:44px}
+.mtitle{margin:0;font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.01em}
+.today-pill{
+  margin-left:12px;height:28px;padding:0 12px;border:none;border-radius:999px;
+  background:var(--ghost);color:var(--text);font-size:13px;font-weight:600;line-height:28px;
+}
+.mnav{margin-left:auto;display:flex;margin-right:-10px}
+.mnav button{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  background:none;border:none;padding:0;color:var(--text);
+}
+.mnav .ic{width:24px;height:24px;stroke-width:2}
+.msum{display:flex;align-items:center;gap:12px;min-height:18px;margin-top:4px;font-size:13px;line-height:18px;color:var(--muted);font-weight:500}
+.msum span{display:inline-flex;align-items:center;gap:4px}
+.wk,.grid{display:grid;grid-template-columns:repeat(7,minmax(40px,1fr))}
+.wk{margin-top:24px;height:18px;font-size:13px;line-height:18px;color:var(--muted);text-align:center;font-weight:500}
+.grid{row-gap:4px;margin-top:8px}
+.cell{height:52px;min-width:0;display:flex;flex-direction:column;align-items:center;background:none;border:none;padding:0;color:inherit;font:inherit}
+button.cell{cursor:pointer;width:100%}
+.num{
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:17px;line-height:1;font-weight:400;color:var(--text);padding-top:1px;
+}
+.cell.nomood .num{color:var(--muted)}
+.cell.sel .num{background:var(--ghost);font-weight:600}
+.cell.today .num{background:var(--text);color:var(--bg);font-weight:600}
+.cell.future .num{color:color-mix(in srgb,var(--text) 25%,transparent)}
+.marks{display:flex;justify-content:center;gap:3px;height:5px;margin-top:5px}
+.marks .dot,.msum .dot{width:5px;height:5px;border-radius:50%;display:block;flex:none;background:var(--c,var(--text))}
+.marks .dot[data-type="masturbation"],.msum .dot[data-type="masturbation"]{background:var(--type-masturbation)}
+.marks .dot[data-type="porn"],.msum .dot[data-type="porn"]{background:var(--type-porn)}
+.marks .dot[data-type="sex"],.msum .dot[data-type="sex"]{background:var(--type-sex)}
+.marks .dot[data-type="fantasy"],.msum .dot[data-type="fantasy"]{background:var(--type-fantasy)}
+.marks .dot[data-type="dream"],.msum .dot[data-type="dream"]{background:var(--type-dream)}
+.marks .ring,.msum .ring{
+  width:5px;height:5px;border-radius:50%;box-sizing:border-box;flex:none;
+  border:1.5px solid var(--text);background:transparent;display:block;
+}
+.dhead{margin:24px 0 0;font-size:17px;line-height:22px;font-weight:600}
+.list{margin-top:8px;background:var(--card);border-radius:16px;overflow:hidden}
+.row{
+  display:flex;align-items:center;width:100%;height:52px;padding:0 16px;position:relative;
+  background:none;border:none;text-align:left;font:inherit;color:inherit;
+}
+.row + .row::before{content:"";position:absolute;top:0;left:72px;right:0;height:1px;background:var(--line)}
+.row .t{width:56px;flex:none;color:var(--muted);font-size:15px}
+.row .rowic{display:flex;flex:none;color:var(--c,var(--text))}
+.row .rowic[data-mood]{color:var(--mc)}
+.row .rowic .ic{width:24px;height:24px}
+.row .name{margin-left:12px;font-size:17px;font-weight:400;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meta{margin-left:auto;color:var(--muted);font-size:15px;flex:none;padding-left:8px}
+.row .chev{width:16px;height:16px;stroke-width:2;color:var(--muted);opacity:.6;margin-left:8px;flex:none}
+.row .name + .chev{margin-left:auto}
+.rec-empty{margin:8px 0 0;font-size:13px;line-height:18px;color:var(--muted)}
+#btnOpenActLog{width:100%;margin-top:16px}
+.btn-text-red{background:transparent;border:none;color:#FF3B30;font-weight:500;min-height:44px;height:44px}
+:root[data-theme="dark"] .btn-text-red{color:#FF453A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn-text-red{color:#FF453A}}
+
+.act-mask{background:rgba(0,0,0,.32)}
+:root[data-theme="dark"] .act-mask{background:rgba(0,0,0,.6)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .act-mask{background:rgba(0,0,0,.6)}}
+#actMask .sheet{border:none;background:var(--bg)}
+:root[data-theme="dark"] #actMask .sheet{box-shadow:0 -1px 0 var(--line)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #actMask .sheet{box-shadow:0 -1px 0 var(--line)}}
+#actMask .shead{display:flex;align-items:center;justify-content:center;height:44px;position:relative;margin-top:8px}
+#actMask .shead h2{margin:0;font-size:17px;font-weight:600;text-align:center}
+#actMask .shead .x{position:absolute;left:2px;top:0;width:44px;height:44px}
+#actMask .sheet-body{padding:4px 20px 20px}
+#actMask .group{background:var(--card);border-radius:16px;margin-top:8px}
+#actMask .frow{display:flex;align-items:center;height:52px;padding:0 16px;position:relative;font-size:17px}
+#actMask .frow + .frow::before{content:"";position:absolute;top:0;left:16px;right:0;height:1px;background:var(--line)}
+#actMask .frow .v{margin-left:auto;color:var(--muted)}
+#actMask .frow .chev{width:16px;height:16px;margin-left:6px;stroke-width:2;color:var(--muted);opacity:.6}
+#actMask .frow-native{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;border:0;cursor:pointer}
+#actMask .flabel{display:block;margin:24px 0 8px;font-size:13px;line-height:18px;font-weight:600;color:var(--muted)}
+#actTypes .type-tag{
+  height:32px;padding:0 14px 0 12px;border:none;background:var(--card);color:var(--text);
+  font-size:15px;font-weight:500;
+}
+#actTypes .type-tag .ic{width:16px;height:16px;stroke-width:1.75;color:var(--c)}
+#actTypes .type-tag[data-type="masturbation"] .ic{width:18px;height:18px}
+#actTypes .type-tag.sel{background:color-mix(in srgb,var(--c) 12%,var(--card));color:var(--c);font-weight:600;border-color:transparent}
+#actTriggers .tag{height:32px;padding:0 14px;border:none;background:var(--card);font-size:15px;font-weight:500}
+#actTriggers .tag.sel{background:var(--text);color:var(--bg);border-color:transparent;font-weight:600}
+#actMoods{margin-top:0}
+#actMoods .mood{background:var(--card);color:var(--text);font-size:13px;font-weight:500;border:none}
+#actMoods .mood .e{color:var(--mc)}
+#actMoods .mood.sel{background:color-mix(in srgb,var(--mc) 12%,var(--card));color:var(--mc);font-weight:600}
+#actMoods .mood.sel .e{color:var(--mc)}
+#actMoods .mood[data-mood="3"].sel{background:color-mix(in srgb,var(--text) 12%,var(--card));color:var(--text)}
+#actMoods .mood[data-mood="3"].sel .e{color:var(--text)}
+#actNote{
+  display:block;width:100%;height:72px;min-height:72px;margin-top:16px;resize:none;
+  border:none;border-radius:12px;background:var(--card);padding:12px 16px;font-size:17px;line-height:22px;color:var(--text);
+}
+#actOther{width:100%;margin-top:8px;border:none;border-radius:12px;background:var(--card);padding:12px 16px;font-size:17px}
+#btnSaveAct{margin-top:24px}
+#btnDeleteAct{margin-top:8px}
+@media (min-width:1024px){
+  #screen-log{padding-top:0}
 }
