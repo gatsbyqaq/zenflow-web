@@ -526,6 +526,7 @@
     }, ms);
   }
   function updateTimer() {
+    if (ceremonyHeld && motionReady()) return;
     var msTime = curMs();
     var days = Math.floor(msTime / DAY);
     var dFloat = msTime / DAY;
@@ -619,9 +620,12 @@
     var now = new Date();
     return (date.getFullYear() - now.getFullYear()) * 12 + (date.getMonth() - now.getMonth());
   }
+  var ceremonyHeld = false;
+  try { ceremonyHeld = sessionStorage.getItem('zf-hold-ceremony') === '1'; } catch (e) {}
   var dayAnimateNext = false;
   var enterRowId = null;
   var dayFlipGen = 0;
+  var monthGen = 0;
   var pendingDelete = null;
   function flushDelete() {
     if (!pendingDelete) return;
@@ -658,44 +662,48 @@
     var grid = $('calGrid');
     var clip = grid && grid.parentNode;
     if (!grid || !clip) { renderRecords(); return; }
+    var gen = ++monthGen;
     clip.querySelectorAll('.grid-leave').forEach(function (n) { n.remove(); });
     var leave = grid.cloneNode(true);
     leave.removeAttribute('id');
     leave.classList.add('grid-leave');
     leave.style.transition = 'none';
     leave.style.transform = grid.style.transform || 'none';
-    leave.style.opacity = grid.style.opacity || '1';
+    leave.style.opacity = '1';
     clip.appendChild(leave);
     renderRecords();
     var ms = motionReduced() ? motionMs('--motion-reduced', 150) : motionMs('--motion-month', 250);
-    var enterFrom = (dir * 24) + 'px';
-    var exitN = -dir * 24;
+    var outMs = Math.round(ms * 0.6);
+    var inMs = Math.max(40, ms - outMs);
+    var reduced = motionReduced();
     var dragged = parseFloat(String(leave.style.transform).replace(/[^-0-9.]/g, ''));
-    if (isFinite(dragged)) {
-      if (dir > 0 && dragged < exitN) exitN = dragged;
-      if (dir < 0 && dragged > exitN) exitN = dragged;
-    }
-    var exitTo = exitN + 'px';
+    if (!isFinite(dragged)) dragged = 0;
+    var exitTo = (dragged + (-dir * 24)) + 'px';
+    var enterFrom = (dir * 24) + 'px';
     grid.style.transition = 'none';
-    grid.style.transform = motionReduced() ? 'none' : ('translateX(' + enterFrom + ')');
     grid.style.opacity = '0';
-    requestAnimationFrame(function () {
-      var spec = motionReduced()
-        ? ('opacity ' + ms + 'ms var(--ease)')
-        : ('transform ' + ms + 'ms var(--ease), opacity ' + ms + 'ms var(--ease)');
-      leave.style.transition = spec;
-      grid.style.transition = spec;
-      leave.style.opacity = '0';
-      if (!motionReduced()) leave.style.transform = 'translateX(' + exitTo + ')';
+    grid.style.transform = reduced ? 'none' : ('translateX(' + enterFrom + ')');
+    leave.offsetHeight;
+    leave.style.transition = reduced
+      ? ('opacity ' + outMs + 'ms var(--ease-exit)')
+      : ('transform ' + outMs + 'ms var(--ease), opacity ' + outMs + 'ms var(--ease-exit)');
+    leave.style.opacity = '0';
+    if (!reduced) leave.style.transform = 'translateX(' + exitTo + ')';
+    setTimeout(function () {
+      if (gen !== monthGen || !grid.isConnected) return;
+      grid.style.transition = reduced
+        ? ('opacity ' + inMs + 'ms var(--ease)')
+        : ('transform ' + inMs + 'ms var(--ease), opacity ' + inMs + 'ms var(--ease)');
       grid.style.opacity = '1';
       grid.style.transform = 'none';
-    });
+    }, outMs);
     setTimeout(function () {
+      if (gen !== monthGen) return;
       if (leave.parentNode) leave.remove();
       grid.style.transition = '';
       grid.style.transform = '';
       grid.style.opacity = '';
-    }, ms + 60);
+    }, ms + 50);
   }
   function renderRecords() {
     if (!$('calGrid') || !window.ZFRecords) return;
@@ -917,6 +925,15 @@
     function gridEl() { return $('calGrid'); }
     el.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) return;
+      monthGen++;
+      var clip = gridEl() && gridEl().parentNode;
+      if (clip) clip.querySelectorAll('.grid-leave').forEach(function (n) { n.remove(); });
+      var grid = gridEl();
+      if (grid) {
+        grid.style.transition = 'none';
+        grid.style.opacity = '1';
+        grid.style.transform = 'none';
+      }
       swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, drag: false };
     }, { passive: true });
     el.addEventListener('touchmove', function (e) {
@@ -974,7 +991,7 @@
     try { localStorage.setItem(BADGE_SEEN_KEY, JSON.stringify(days)); } catch (e) {}
   }
   function badgeHtml(m, cls, sub) {
-    return '<div class="' + cls + '"><div class="b-ico">' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
+    return '<div class="' + cls + '"><div class="b-ico"><span class="b-fill" aria-hidden="true"></span>' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
   }
   function renderBadges() {
     var cd = curMs() / DAY, bd = bestMs() / DAY;
@@ -985,35 +1002,40 @@
     var unlocked = items.filter(function (x) { return x.on; });
     var next = null;
     for (var i = 0; i < items.length; i++) if (!items[i].on) { next = items[i]; break; }
-    var shown = items;
-    if (!badgesExpanded) {
-      shown = next ? unlocked.slice(-3).concat([next]) : unlocked.slice(-4);
-      if (!shown.length) shown = items.slice(0, 1);
-    }
     var seen = readSeenBadges();
     var seenSet = {};
     (seen || []).forEach(function (d) { seenSet[d] = true; });
     var fresh = {};
-    if (seen === null || !motionReady()) {
-      if (seen === null) writeSeenBadges(unlocked.map(function (x) { return x.m.days; }));
-    } else {
+    var present = motionReady() && !ceremonyHeld;
+    if (seen === null) {
+      writeSeenBadges(unlocked.map(function (x) { return x.m.days; }));
+      unlocked.forEach(function (item) { seenSet[item.m.days] = true; });
+    } else if (present) {
       var newly = [];
       unlocked.forEach(function (item) { if (!seenSet[item.m.days]) newly.push(item.m.days); });
       if (newly.length) {
-        newly.forEach(function (d) { fresh[d] = true; });
+        newly.forEach(function (d) { fresh[d] = true; seenSet[d] = true; });
         writeSeenBadges((seen || []).concat(newly));
       }
+    }
+    var shownSource = items.filter(function (item) { return seenSet[item.m.days] || fresh[item.m.days]; });
+    var shown = items;
+    if (!badgesExpanded) {
+      var visNext = next;
+      shown = visNext ? shownSource.slice(-3).concat([visNext]) : shownSource.slice(-4);
+      if (!shown.length) shown = items.slice(0, 1);
     }
     $('badges').classList.toggle('expanded', badgesExpanded);
     $('badges').innerHTML = shown.map(function (item) {
       var m = item.m, cls = 'badge', sub = m.name;
-      if (item.on) cls += ' on';
+      if (seenSet[m.days] || fresh[m.days]) cls += ' on';
       if (fresh[m.days]) cls += ' pop';
-      else if (!item.on && next && next.m === m) { cls += ' next'; sub = '下一个'; }
+      else if (!(seenSet[m.days]) && next && next.m === m) { cls += ' next'; sub = '下一个'; }
       else if (!item.on && bd >= m.days) sub = '曾达成';
       return badgeHtml(m, cls, sub);
     }).join('');
-    $('badgeCount').textContent = '已解锁 ' + unlocked.length + '/' + D.milestones.length;
+    var presented = unlocked.filter(function (item) { return seenSet[item.m.days]; }).length;
+    $('badgeCount').textContent = '已解锁 ' + presented + '/' + D.milestones.length;
     var card = $('badgeCard');
     if (card) card.setAttribute('aria-expanded', badgesExpanded ? 'true' : 'false');
   }
@@ -1277,6 +1299,18 @@
     }
     paintActLabels();
   }
+  function paintActChoices() {
+    document.querySelectorAll('#actMoods [data-act-mood]').forEach(function (b) {
+      b.classList.toggle('sel', actDraft.mood === +b.dataset.actMood);
+    });
+    document.querySelectorAll('#actTypes [data-act-type]').forEach(function (b) {
+      b.classList.toggle('sel', !!actDraft.types[b.dataset.actType]);
+    });
+    document.querySelectorAll('#actTriggers [data-act-trigger]').forEach(function (b) {
+      b.classList.toggle('sel', !!actDraft.triggers[b.getAttribute('data-act-trigger')]);
+    });
+    if ($('actOther')) $('actOther').classList.toggle('hidden', !actDraft.triggers['其他']);
+  }
   function openAct(k, edit) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能记录未来的日期'); return; }
     actEdit = edit || null;
@@ -1323,15 +1357,17 @@
     });
   }
   var actGen = 0;
-  function closeAct() {
+  function closeAct(snapScrim) {
     var mask = $('actMask');
     if (!mask || mask.classList.contains('hidden')) return;
     var gen = ++actGen;
+    if (snapScrim) mask.classList.add('scrim-snap');
     mask.classList.remove('is-open');
     actDay = null;
     actEdit = null;
     function finish() {
       if (gen !== actGen) return;
+      mask.classList.remove('scrim-snap');
       mask.classList.add('hidden');
       unlockScroll();
       if (ringDeferred) { ringDeferred = false; updateTimer(); }
@@ -1440,7 +1476,7 @@
       focusSavedDay(k);
       if (!editing) enterRowId = (made && made.id) || (urged && urged.id) || (added && added.id) || (mood ? k : null);
       dayAnimateNext = true;
-      closeAct();
+      closeAct(!!changed);
       refreshAfterAct();
     }
     if (createsRelapse && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
@@ -1571,16 +1607,16 @@
     if (moodBtn) {
       var v = +moodBtn.dataset.actMood;
       actDraft.mood = actDraft.mood === v ? null : v;
-      renderActForm();
+      paintActChoices();
       return;
     }
     var tp = e.target.closest('[data-act-type]');
-    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; renderActForm(); return; }
+    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; paintActChoices(); return; }
     var tr = e.target.closest('[data-act-trigger]');
     if (tr) {
       var name = tr.getAttribute('data-act-trigger');
       actDraft.triggers[name] = !actDraft.triggers[name];
-      renderActForm();
+      paintActChoices();
     }
   });
   if ($('actDate')) $('actDate').addEventListener('change', function () {
@@ -2275,8 +2311,7 @@
   requestAnimationFrame(function () {
     requestAnimationFrame(function () {
       document.documentElement.classList.add('motion-ready');
-      updateTimer();
-      renderBadges();
+      if (!ceremonyHeld) { updateTimer(); renderBadges(); }
     });
   });
   var lastDay = dateKey(Date.now());
@@ -2331,6 +2366,12 @@
     setMotionScale: function (n) {
       if (n && n !== 1) document.documentElement.setAttribute('data-motion-scale', String(n));
       else document.documentElement.removeAttribute('data-motion-scale');
+    },
+    playCeremony: function () {
+      ceremonyHeld = false;
+      try { sessionStorage.removeItem('zf-hold-ceremony'); } catch (e) {}
+      updateTimer();
+      renderBadges();
     }
   };
 

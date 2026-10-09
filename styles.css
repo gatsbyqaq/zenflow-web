@@ -258,11 +258,11 @@ html.motion-ready .screen.enter{animation:fade var(--motion-panel) var(--ease)}
   font-size:17px;font-weight:600;letter-spacing:0;background:var(--ghost);color:var(--text);
 }
 html.motion-ready button{
-  transition:transform var(--motion-state) var(--ease),background-color var(--motion-select) var(--ease),color var(--motion-select) var(--ease),opacity var(--motion-select) var(--ease);
+  transition:transform var(--motion-state) var(--ease),color var(--motion-select) var(--ease),opacity var(--motion-select) var(--ease);
 }
 html.motion-ready button:active{
   transform:scale(0.97);
-  transition-duration:var(--motion-press),var(--motion-select),var(--motion-select),var(--motion-select);
+  transition-duration:var(--motion-press),var(--motion-select),var(--motion-select);
 }
 html.motion-ready button:disabled:active{transform:none}
 .btn:disabled,.btn-link:disabled{opacity:.3;cursor:not-allowed}
@@ -403,15 +403,17 @@ button.cal-cell:hover{background:color-mix(in srgb,var(--text) 6%,transparent)}
 .badge:not(.on){opacity:.3}
 .badge .b-ico{
   width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:var(--field);color:var(--muted);border:none;
+  background:var(--field);color:var(--muted);border:none;position:relative;overflow:hidden;
 }
-.badge.on .b-ico{
-  color:#fff;
-  background:var(--ins);
-  border:none;
+.badge .b-ico .b-fill{
+  position:absolute;inset:0;border-radius:inherit;background:var(--ins);opacity:0;pointer-events:none;
 }
+.badge .b-ico .ic{position:relative;z-index:1}
+.badge.on .b-ico{color:#fff;background:var(--field);border:none}
+.badge.on .b-ico .b-fill{opacity:1}
 @keyframes badge-pop{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
 html.motion-ready .badge.pop .b-ico{animation:badge-pop var(--motion-badge) var(--ease) both}
+html.motion-ready .badge.pop .b-ico .b-fill{transition:opacity var(--motion-badge) var(--ease)}
 @media (prefers-reduced-motion:reduce){
   @keyframes badge-pop{from{opacity:0}to{opacity:1}}
 }
@@ -671,7 +673,7 @@ body.sos-open #screen-sos.active{
 .ri-blue,.ri-teal,.ri-warm,.ri-pink,.ri-amber{background:var(--ghost);color:var(--text)}
 
 .modal-mask{position:fixed;inset:0;background:transparent;display:flex;align-items:flex-end;justify-content:center;padding:0;z-index:96}
-.modal-mask::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55);animation:fade .2s ease}
+.modal-mask::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:1}
 .modal{
   position:relative;z-index:1;
   border-radius:16px 16px 0 0;padding:20px 16px calc(16px + var(--safe-b));
@@ -1365,6 +1367,7 @@ html.motion-ready .row.is-in{animation:row-in var(--motion-list) var(--ease)}
 }
 #actMask.is-open::before{opacity:1;transition-duration:var(--motion-sheet-in);transition-timing-function:var(--ease-sheet)}
 #actMask.is-open .sheet{transform:translateY(0);transition-duration:var(--motion-sheet-in);transition-timing-function:var(--ease-sheet)}
+#actMask.scrim-snap::before{opacity:0;transition:none}
 html:not(.motion-ready) #actMask::before,html:not(.motion-ready) #actMask .sheet{transition:none}
 @media (prefers-reduced-motion:reduce){
   #actMask .sheet{opacity:0;transition:opacity var(--motion-reduced) var(--ease)}
@@ -1390,15 +1393,34 @@ html:not(.motion-ready) #actMask::before,html:not(.motion-ready) #actMask .sheet
 }
 #actTypes .type-tag .ic{width:16px;height:16px;stroke-width:1.75;color:var(--c)}
 #actTypes .type-tag[data-type="masturbation"] .ic{width:18px;height:18px}
-#actTypes .type-tag.sel{background:color-mix(in srgb,var(--c) 12%,var(--card));color:var(--c);font-weight:600;border-color:transparent}
-#actTriggers .tag{height:32px;padding:0 14px;border:none;background:var(--card);font-size:15px;font-weight:500}
-#actTriggers .tag.sel{background:var(--text);color:var(--bg);border-color:transparent;font-weight:600}
+#actTypes .type-tag,
+#actTriggers .tag,
+#actMoods .mood{position:relative;z-index:0;overflow:hidden;background:var(--card)}
+#actTypes .type-tag::before,
+#actTriggers .tag::before,
+#actMoods .mood::before{
+  content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;opacity:0;pointer-events:none;
+  transition:opacity var(--motion-select) var(--ease);
+}
+html:not(.motion-ready) #actTypes .type-tag::before,
+html:not(.motion-ready) #actTriggers .tag::before,
+html:not(.motion-ready) #actMoods .mood::before{transition:none}
+#actTypes .type-tag::before{background:var(--c)}
+#actTypes .type-tag.sel{background:var(--card);color:var(--c);font-weight:600;border-color:transparent}
+#actTypes .type-tag.sel::before{opacity:.12}
+#actTriggers .tag{height:32px;padding:0 14px;border:none;font-size:15px;font-weight:500}
+#actTriggers .tag::before{background:var(--text)}
+#actTriggers .tag.sel{background:var(--card);color:var(--bg);border-color:transparent;font-weight:600}
+#actTriggers .tag.sel::before{opacity:1}
 #actMoods{margin-top:0}
-#actMoods .mood{background:var(--card);color:var(--text);font-size:13px;font-weight:500;border:none}
+#actMoods .mood{color:var(--text);font-size:13px;font-weight:500;border:none}
+#actMoods .mood::before{background:var(--mc)}
 #actMoods .mood .e{color:var(--mc)}
-#actMoods .mood.sel{background:color-mix(in srgb,var(--mc) 12%,var(--card));color:var(--mc);font-weight:600}
+#actMoods .mood.sel{background:var(--card);color:var(--mc);font-weight:600}
+#actMoods .mood.sel::before{opacity:.12}
 #actMoods .mood.sel .e{color:var(--mc)}
-#actMoods .mood[data-mood="3"].sel{background:color-mix(in srgb,var(--text) 12%,var(--card));color:var(--text)}
+#actMoods .mood[data-mood="3"]::before{background:var(--text)}
+#actMoods .mood[data-mood="3"].sel{color:var(--text)}
 #actMoods .mood[data-mood="3"].sel .e{color:var(--text)}
 #actNote{
   display:block;width:100%;height:72px;min-height:72px;margin-top:16px;resize:none;
