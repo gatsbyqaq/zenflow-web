@@ -19,8 +19,21 @@
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function motionReduced() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function motionReady() { return document.documentElement.classList.contains('motion-ready'); }
+  function motionScale() {
+    var n = parseFloat(document.documentElement.getAttribute('data-motion-scale') || '1');
+    return isFinite(n) && n > 0 ? n : 1;
+  }
+  function motionMs(name, fallback) {
+    var raw = getComputedStyle(document.documentElement).getPropertyValue(name);
+    var n = parseFloat(raw);
+    return isFinite(n) ? n : fallback;
+  }
   function ic(name, cls) { return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>'; }
-  function fmtDays(ms) { var d = ms / DAY; return d >= 10 ? Math.floor(d) + '' : (Math.floor(d * 10) / 10) + ''; }
+  function fmtDays(ms) { return String(window.ZFStreak.wholeDays(ms)); }
   function dayText(ms) {
     var n = fmtDays(ms);
     var unit = t('stats.dayUnit');
@@ -287,7 +300,7 @@
     state.relapses.push(row);
     var changed = applyStreak(true);
     save();
-    return { changed: changed, resets: relapseResets(opts.types) };
+    return { changed: changed, resets: relapseResets(opts.types), id: row.id };
   }
 
   /* ---------------- 通用 UI ---------------- */
@@ -359,27 +372,108 @@
 
   /* ---------------- 导航 ---------------- */
   var current = 'home';
+  var screenMotionGen = 0;
+  var screenMotionTimer = 0;
+  function clearScreenMotion(el) {
+    if (!el) return;
+    el.classList.remove('screen-leave', 'enter');
+    el.style.opacity = '';
+    el.style.transition = '';
+    el.style.pointerEvents = '';
+  }
+  function shownScreenOpacity(el) {
+    if (!el || (!el.classList.contains('active') && !el.classList.contains('screen-leave'))) return 0;
+    var o = parseFloat(window.getComputedStyle(el).opacity);
+    return isFinite(o) ? o : 0;
+  }
+  function playScreenCrossfade(toEl) {
+    var gen = ++screenMotionGen;
+    clearTimeout(screenMotionTimer);
+    var outMs = motionMs('--motion-tab-out', 120);
+    var inMs = motionMs('--motion-tab-in', 160);
+    var delay = motionMs('--motion-tab-delay', 40);
+    var ease = 'var(--ease)';
+    var leaves = [];
+    var toOp = shownScreenOpacity(toEl);
+    document.querySelectorAll('.screen').forEach(function (s) {
+      if (s === toEl) return;
+      var op = shownScreenOpacity(s);
+      if (op > 0.015) leaves.push({ el: s, op: op });
+      else {
+        s.classList.remove('active');
+        clearScreenMotion(s);
+      }
+    });
+    leaves.forEach(function (L) {
+      L.el.style.transition = 'none';
+      L.el.style.opacity = String(L.op);
+      L.el.classList.remove('active');
+      L.el.classList.add('screen-leave');
+      L.el.style.pointerEvents = 'none';
+    });
+    toEl.style.transition = 'none';
+    toEl.style.opacity = String(toOp);
+    toEl.classList.remove('screen-leave');
+    toEl.classList.add('active');
+    toEl.style.pointerEvents = '';
+    void toEl.offsetWidth;
+    leaves.forEach(function (L) {
+      L.el.style.transition = 'opacity ' + outMs + 'ms ' + ease;
+      L.el.style.opacity = '0';
+    });
+    toEl.style.transition = 'opacity ' + inMs + 'ms ' + ease + ' ' + delay + 'ms';
+    toEl.style.opacity = '1';
+    var total = Math.max(outMs, delay + inMs);
+    screenMotionTimer = setTimeout(function () {
+      if (gen !== screenMotionGen) return;
+      leaves.forEach(function (L) {
+        L.el.classList.remove('active');
+        clearScreenMotion(L.el);
+      });
+      if (toEl.classList.contains('active')) {
+        toEl.style.opacity = '';
+        toEl.style.transition = '';
+      }
+    }, total + 70);
+  }
   function go(tab) {
     if (current === 'sos' && tab !== 'sos') resetSos();
     if (cropSheetOpen()) window.ZFCloud.closeCrop();
     if ($('actMask') && !$('actMask').classList.contains('hidden')) closeAct();
     if (dayKey) closeDay();
     if (current === 'settings' && tab !== 'settings' && settingsView !== 'root') {
+      settingsMotionLive = false;
+      settingsMotionGen++;
+      clearTimeout(settingsMotionTimer);
       settingsView = 'root';
       applySettingsDom();
       if (/^#settings/.test(location.hash) && location.hash !== '#admin') {
         try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
       }
     }
+    var screenChanged = tab !== current;
     current = tab;
     document.body.classList.toggle('sos-open', tab === 'sos');
-    document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.dataset.screen === tab); });
     document.querySelectorAll('.tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
       b.classList.toggle('active', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     $('tabbar').dataset.active = tab;
+    var toEl = document.querySelector('.screen[data-screen="' + tab + '"]');
+    if (!toEl) return;
+    if (!screenChanged || !motionReady()) {
+      if (screenChanged) {
+        screenMotionGen++;
+        clearTimeout(screenMotionTimer);
+        document.querySelectorAll('.screen').forEach(function (s) {
+          clearScreenMotion(s);
+          s.classList.toggle('active', s.dataset.screen === tab);
+        });
+      }
+    } else {
+      playScreenCrossfade(toEl);
+    }
     window.scrollTo(0, 0);
     render(tab);
   }
@@ -431,19 +525,145 @@
     return { prev: prev, next: next };
   }
 
-  function updateTimer() {
-    var ms = curMs();
-    var days = Math.floor(ms / DAY);
-    if ($('daysNum')) $('daysNum').textContent = days;
-    if ($('gaugeUnit')) $('gaugeUnit').textContent = t('ring.unit', { n: days });
-    var dFloat = ms / DAY;
+  var RING_DAYS_KEY = 'zenflow_ring_days';
+  var ringDeferred = false;
+  var ringFadeGen = 0;
+  var ringAnimUntil = 0;
+  function readRingDays() {
+    try {
+      var v = localStorage.getItem(RING_DAYS_KEY);
+      if (v === null || v === '') return null;
+      var n = parseInt(v, 10);
+      return isFinite(n) ? n : null;
+    } catch (e) { return null; }
+  }
+  function writeRingDays(n) {
+    try { localStorage.setItem(RING_DAYS_KEY, String(n)); } catch (e) {}
+  }
+  function ringProgress(dayFloat) {
     var goal = state.goalDays || 30;
-    var p = goal > 0 ? Math.min(1, Math.max(0, dFloat / goal)) : 0;
+    return goal > 0 ? Math.min(1, Math.max(0, dayFloat / goal)) : 0;
+  }
+  function setRingOffset(p, animate, shownDays) {
     var ring = $('ringFg');
-    if (ring) {
-      ring.style.strokeDasharray = String(RING_LEN);
-      ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
+    if (!ring) return;
+    var empty = shownDays <= 0 || !(p > 0);
+    ring.style.strokeDasharray = String(RING_LEN);
+    if (empty) {
+      ring.classList.add('is-empty');
+      ring.style.strokeDashoffset = String(RING_LEN);
+      return;
     }
+    ring.classList.remove('is-empty');
+    var ms = animate && motionReady() && !motionReduced() ? motionMs('--motion-ring', 600) : 0;
+    ring.style.transition = ms ? ('stroke-dashoffset ' + ms + 'ms var(--ease)') : 'none';
+    ring.style.strokeDashoffset = (RING_LEN * (1 - p)).toFixed(2);
+    if (ring.style.opacity === '0') ring.style.opacity = '1';
+  }
+  function paintDays(days, mode) {
+    var el = $('daysNum');
+    if (!el) return;
+    if (mode === 'snap' || !motionReady()) {
+      el.style.transition = 'none';
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+      el.textContent = String(days);
+      return;
+    }
+    var ms = mode === 'enter'
+      ? (motionReduced() ? motionMs('--motion-reduced', 150) : motionMs('--motion-ring', 600))
+      : motionMs('--motion-state', 200);
+    if (mode === 'enter') {
+      el.textContent = String(days);
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+      el.style.transform = motionReduced() ? 'none' : 'translateY(4px)';
+      el.offsetHeight;
+      el.style.transition = 'opacity ' + ms + 'ms var(--ease), transform ' + ms + 'ms var(--ease)';
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+      return;
+    }
+    el.style.transition = 'opacity ' + ms + 'ms var(--ease)';
+    el.style.transform = 'none';
+    el.style.opacity = '0';
+    var gen = ++ringFadeGen;
+    setTimeout(function () {
+      if (gen !== ringFadeGen) return;
+      el.textContent = String(days);
+      el.style.opacity = '1';
+    }, ms);
+  }
+  function crossfadeRing(p, days) {
+    var ring = $('ringFg');
+    var ms = motionMs(motionReduced() ? '--motion-reduced' : '--motion-state', 200);
+    if (!ring) { paintDays(days, 'cross'); setRingOffset(p, false, days); return; }
+    ring.style.transition = 'opacity ' + ms + 'ms var(--ease)';
+    ring.style.opacity = '0';
+    paintDays(days, 'cross');
+    var gen = ringFadeGen;
+    setTimeout(function () {
+      if (gen !== ringFadeGen) return;
+      if (days <= 0 || !(p > 0)) {
+        ring.classList.add('is-empty');
+        ring.style.transition = 'none';
+        ring.style.opacity = '0';
+        ring.style.strokeDashoffset = String(RING_LEN);
+        return;
+      }
+      setRingOffset(p, false, days);
+      ring.style.transition = 'none';
+      ring.style.opacity = '0';
+      ring.offsetHeight;
+      ring.style.transition = 'opacity ' + ms + 'ms var(--ease)';
+      ring.style.opacity = '1';
+    }, ms);
+  }
+  function updateTimer() {
+    if (ceremonyHeld && motionReady()) return;
+    var msTime = curMs();
+    var days = window.ZFStreak.wholeDays(msTime);
+    var dFloat = msTime / DAY;
+    var goal = state.goalDays || 30;
+    var p = ringProgress(dFloat);
+    var prev = readRingDays();
+    var sheetOpen = $('actMask') && !$('actMask').classList.contains('hidden');
+    if (sheetOpen && prev !== null && prev !== days && motionReady()) {
+      ringDeferred = true;
+    } else {
+      if (!motionReady()) {
+        var holdDays = prev === null || prev === days ? days : prev;
+        paintDays(holdDays, 'snap');
+        setRingOffset(prev === null || prev === days ? p : ringProgress(prev), false, holdDays);
+        if (prev === null) writeRingDays(days);
+      } else if (prev !== null && days > prev) {
+        if (motionReduced()) {
+          ringAnimUntil = Date.now() + motionMs('--motion-reduced', 150);
+          crossfadeRing(p, days);
+        } else {
+          ringAnimUntil = Date.now() + motionMs('--motion-ring', 600);
+          setRingOffset(p, true, days);
+          paintDays(days, 'enter');
+        }
+        writeRingDays(days);
+      } else if (prev !== null && days < prev) {
+        ringAnimUntil = Date.now() + motionMs(motionReduced() ? '--motion-reduced' : '--motion-state', 200);
+        crossfadeRing(p, days);
+        writeRingDays(days);
+      } else if (Date.now() < ringAnimUntil) {
+        writeRingDays(days);
+      } else {
+        paintDays(days, 'snap');
+        setRingOffset(p, false, days);
+        if (days <= 0) {
+          var ringNow = $('ringFg');
+          if (ringNow) ringNow.style.opacity = '0';
+        }
+        writeRingDays(days);
+      }
+      ringDeferred = false;
+    }
+    if ($('gaugeUnit')) $('gaugeUnit').textContent = t('ring.unit', { n: days });
     var grad = $('insRing');
     if (grad) {
       var ang = Math.max(p, 0.001) * Math.PI * 2;
@@ -499,14 +719,211 @@
     var now = new Date();
     return (date.getFullYear() - now.getFullYear()) * 12 + (date.getMonth() - now.getMonth());
   }
+  var ceremonyHeld = false;
+  try { ceremonyHeld = sessionStorage.getItem('zf-hold-ceremony') === '1'; } catch (e) {}
+  var dayAnimateNext = false;
+  var enterRowId = null;
+  var dayFlipGen = 0;
+  var monthGen = 0;
+  var pendingDelete = null;
+  function flushDelete() {
+    if (!pendingDelete) return;
+    var job = pendingDelete;
+    pendingDelete = null;
+    exitRow._g++;
+    var btn = $('btnOpenActLog');
+    if (btn) { btn.style.transition = 'none'; btn.style.transform = ''; }
+    performDelete(job.kind, job.id);
+  }
   function shiftMonth(delta) {
+    if (delta > 0 && calOffset >= 0) return;
+    flushDelete();
     calOffset += delta;
-    renderRecords();
+    if (motionReady()) playMonth(delta);
+    else renderRecords();
+  }
+  function monthFadeTiming() {
+    return {
+      outMs: motionMs('--motion-month-out', 100),
+      inMs: motionMs('--motion-month-in', 170),
+      delay: motionMs('--motion-month-delay', 80)
+    };
+  }
+  function settleMonthChrome() {
+    document.querySelectorAll('.title-leave').forEach(function (n) { n.remove(); });
+    var title = $('calTitle');
+    if (title) { title.style.transition = 'none'; title.style.opacity = '1'; }
+    var pill = $('calToday');
+    if (!pill) return;
+    pill.style.transition = 'none';
+    if (calOffset === 0) {
+      pill.classList.add('hidden');
+      pill.style.opacity = '';
+    } else {
+      pill.classList.remove('hidden');
+      pill.style.opacity = '1';
+    }
+  }
+  function fadeMonthTitle(gen, timing) {
+    var title = $('calTitle');
+    var slot = title && title.parentNode;
+    if (!title || !slot) return;
+    slot.querySelectorAll('.title-leave').forEach(function (n) { n.remove(); });
+    var leave = title.cloneNode(true);
+    leave.removeAttribute('id');
+    leave.classList.add('title-leave');
+    leave.setAttribute('aria-hidden', 'true');
+    leave.style.transition = 'none';
+    leave.style.opacity = '1';
+    slot.appendChild(leave);
+    title.style.transition = 'none';
+    title.style.opacity = '0';
+    leave.offsetHeight;
+    leave.style.transition = 'opacity ' + timing.outMs + 'ms var(--ease-exit)';
+    leave.style.opacity = '0';
+    setTimeout(function () {
+      if (gen !== monthGen || !title.isConnected) return;
+      title.style.transition = 'opacity ' + timing.inMs + 'ms var(--ease)';
+      title.style.opacity = '1';
+    }, timing.delay);
+    setTimeout(function () {
+      if (leave.parentNode) leave.remove();
+      if (gen !== monthGen || !title.isConnected) return;
+      title.style.transition = '';
+      title.style.opacity = '';
+    }, timing.delay + timing.inMs + 40);
+  }
+  function fadeTodayPill(gen, timing) {
+    var pill = $('calToday');
+    if (!pill) return;
+    var shown = !pill.classList.contains('hidden') && pill.style.opacity !== '0';
+    var want = calOffset !== 0;
+    if (shown === want) {
+      if (want) { pill.classList.remove('hidden'); pill.style.opacity = '1'; }
+      return;
+    }
+    if (want) {
+      pill.classList.remove('hidden');
+      pill.style.transition = 'none';
+      pill.style.opacity = '0';
+      pill.offsetHeight;
+      setTimeout(function () {
+        if (gen !== monthGen) return;
+        pill.style.transition = 'opacity ' + timing.inMs + 'ms var(--ease)';
+        pill.style.opacity = '1';
+      }, timing.delay);
+      setTimeout(function () {
+        if (gen !== monthGen) return;
+        pill.style.transition = '';
+        pill.style.opacity = '';
+      }, timing.delay + timing.inMs + 40);
+      return;
+    }
+    pill.style.transition = 'opacity ' + timing.outMs + 'ms var(--ease-exit)';
+    pill.style.opacity = '0';
+    setTimeout(function () {
+      if (gen !== monthGen) return;
+      pill.classList.add('hidden');
+      pill.style.transition = '';
+      pill.style.opacity = '';
+    }, timing.outMs + 40);
+  }
+  function slideMonthBelow(residual, delta, gen) {
+    var below = $('recDay');
+    if (!below) return;
+    if (motionReduced() || (!delta && !residual)) {
+      below.style.transition = 'none';
+      below.style.transform = '';
+      below.style.background = '';
+      below.style.zIndex = '';
+      return;
+    }
+    var ms = motionMs('--motion-height', 250);
+    below.style.transition = 'none';
+    below.style.background = 'var(--bg)';
+    below.style.zIndex = '1';
+    below.style.transform = 'translateY(' + (residual - delta) + 'px)';
+    below.offsetHeight;
+    below.style.transition = 'transform ' + ms + 'ms var(--ease)';
+    below.style.transform = 'translateY(0)';
+    setTimeout(function () {
+      if (gen !== monthGen) return;
+      below.style.transition = 'none';
+      below.style.transform = '';
+      below.style.background = '';
+      below.style.zIndex = '';
+    }, ms + 40);
   }
   function selectDay(k) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) return;
+    if (k === selectedDay) return;
+    flushDelete();
     selectedDay = k;
-    renderRecords();
+    paintDaySelection();
+    dayAnimateNext = true;
+    renderDayPanel();
+  }
+  function paintDaySelection() {
+    var nodes = document.querySelectorAll('#calGrid [data-date]');
+    nodes.forEach(function (cell) {
+      var on = cell.dataset.date === selectedDay && !cell.classList.contains('today');
+      cell.classList.toggle('sel', on);
+    });
+  }
+  function playMonth(dir) {
+    var grid = $('calGrid');
+    var clip = grid && grid.parentNode;
+    if (!grid || !clip) { renderRecords(); return; }
+    var gen = ++monthGen;
+    clip.querySelectorAll('.grid-leave').forEach(function (n) { n.remove(); });
+    var leave = grid.cloneNode(true);
+    leave.removeAttribute('id');
+    leave.classList.add('grid-leave');
+    leave.style.transition = 'none';
+    leave.style.transform = grid.style.transform || 'none';
+    leave.style.opacity = '1';
+    clip.appendChild(leave);
+    var reduced = motionReduced();
+    var timing = monthFadeTiming();
+    var outMs = timing.outMs;
+    var inMs = timing.inMs;
+    var delay = timing.delay;
+    var h0 = grid.offsetHeight;
+    var below = $('recDay');
+    var residual = below ? translateY(below) : 0;
+    fadeMonthTitle(gen, timing);
+    var shift = 12;
+    var dragged = parseFloat(String(leave.style.transform).replace(/[^-0-9.]/g, ''));
+    if (!isFinite(dragged)) dragged = 0;
+    var exitTo = (dragged + (-dir * shift)) + 'px';
+    var enterFrom = (dir * shift) + 'px';
+    grid.style.transition = 'none';
+    grid.style.opacity = '0';
+    grid.style.transform = reduced ? 'none' : ('translateX(' + enterFrom + ')');
+    renderRecords({ holdChrome: true });
+    fadeTodayPill(gen, timing);
+    slideMonthBelow(residual, grid.offsetHeight - h0, gen);
+    leave.offsetHeight;
+    leave.style.transition = reduced
+      ? ('opacity ' + outMs + 'ms var(--ease-exit)')
+      : ('transform ' + outMs + 'ms var(--ease-exit), opacity ' + outMs + 'ms var(--ease-exit)');
+    leave.style.opacity = '0';
+    if (!reduced) leave.style.transform = 'translateX(' + exitTo + ')';
+    setTimeout(function () {
+      if (gen !== monthGen || !grid.isConnected) return;
+      grid.style.transition = reduced
+        ? ('opacity ' + inMs + 'ms var(--ease)')
+        : ('transform ' + inMs + 'ms var(--ease), opacity ' + inMs + 'ms var(--ease)');
+      grid.style.opacity = '1';
+      grid.style.transform = 'none';
+    }, delay);
+    setTimeout(function () {
+      if (gen !== monthGen) return;
+      if (leave.parentNode) leave.remove();
+      grid.style.transition = '';
+      grid.style.transform = '';
+      grid.style.opacity = '';
+    }, delay + inMs + 40);
   }
   function renderRecords() {
     if (!$('calGrid') || !window.ZFRecords) return;
@@ -516,8 +933,14 @@
     var y = base.getFullYear(), mo = base.getMonth();
     var ui = (window.ZFStrings && window.ZFStrings.locale) || 'zh';
     if ($('calTitle')) $('calTitle').textContent = window.ZFRecords.monthTitle(base, ui);
-    if ($('calToday')) $('calToday').classList.toggle('hidden', calOffset === 0);
-    if ($('calNext')) { $('calNext').disabled = false; $('calNext').style.opacity = 1; }
+    var holdChrome = arguments[0] && arguments[0].holdChrome;
+    if ($('calToday') && !holdChrome) $('calToday').classList.toggle('hidden', calOffset === 0);
+    if ($('calNext')) {
+      var blocked = calOffset >= 0;
+      $('calNext').disabled = blocked;
+      if (blocked) $('calNext').setAttribute('aria-disabled', 'true');
+      else $('calNext').removeAttribute('aria-disabled');
+    }
     if ($('calWeek')) {
       var loc = ui === 'en' ? 'en' : 'zh-CN';
       var wk = new Intl.DateTimeFormat(loc, { weekday: 'narrow' });
@@ -601,7 +1024,7 @@
     var ui = (window.ZFStrings && window.ZFStrings.locale) === 'en' ? 'en' : 'zh-CN';
     return new Intl.DateTimeFormat(ui, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ts));
   }
-  function renderDayPanel() {
+  function renderDayPanelNow() {
     if (!$('dayHead') || !$('dayList') || !window.ZFRecords) return;
     var k = selectedDay;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
@@ -611,6 +1034,7 @@
     var events = dayEvents(k);
     if (!events.length) {
       $('dayList').innerHTML = '<p class="rec-empty">' + esc(t('cal.empty')) + '</p>';
+      enterRowId = null;
       return;
     }
     $('dayList').innerHTML = '<div class="list">' + events.map(function (ev) {
@@ -642,20 +1066,81 @@
       var action = ev.kind === 'checkin' ? ariaAttr('a11y.mood.edit') : ariaAttr('a11y.entry.edit');
       var actionKey = (/data-i18n-aria="([^"]+)"/.exec(action) || [])[1] || '';
       var rowLabel = rowClock(ev.ts) + ' ' + name + (meta ? ' ' + meta : '') + (actionKey ? ' ' + t(actionKey) : '');
-      return '<button type="button" class="row" data-kind="' + kind + '" data-id="' + esc(id) + '" data-i18n-aria="' + esc(actionKey) + '" aria-label="' + esc(rowLabel) + '">' +
+      var enter = enterRowId && enterRowId === id ? ' is-in' : '';
+      return '<button type="button" class="row' + enter + '" data-kind="' + kind + '" data-id="' + esc(id) + '" data-i18n-aria="' + esc(actionKey) + '" aria-label="' + esc(rowLabel) + '">' +
         '<span class="t">' + esc(rowClock(ev.ts)) + '</span>' +
         '<span class="rowic"' + color + '>' + ic(icon) + '</span>' +
         '<span class="name"' + nameStyle + '>' + esc(name) + '</span>' +
         (meta ? '<span class="meta">' + esc(meta) + '</span>' : '') +
         ic('chevron-right', 'chev') + '</button>';
     }).join('') + '</div>';
+    enterRowId = null;
+  }
+  function translateY(el) {
+    var tr = getComputedStyle(el).transform;
+    if (!tr || tr === 'none') return 0;
+    try { return new DOMMatrix(tr).m42 || 0; } catch (e) { return 0; }
+  }
+  function renderDayPanel() {
+    if (!dayAnimateNext || !motionReady()) {
+      dayAnimateNext = false;
+      renderDayPanelNow();
+      return;
+    }
+    dayAnimateNext = false;
+    var slot = $('daySlot');
+    if (!slot) { renderDayPanelNow(); return; }
+    document.querySelectorAll('.day-ghost').forEach(function (g) { g.remove(); });
+    var btn = $('btnOpenActLog');
+    slot.style.transition = 'none';
+    if (btn) btn.style.transition = 'none';
+    var h0 = slot.getBoundingClientRect().height;
+    var ty = btn ? translateY(btn) : 0;
+    var ghost = slot.cloneNode(true);
+    ghost.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+    ghost.classList.add('day-ghost');
+    ghost.setAttribute('aria-hidden', 'true');
+    slot.parentNode.insertBefore(ghost, slot);
+    renderDayPanelNow();
+    var h1 = slot.scrollHeight;
+    var reduced = motionReduced();
+    var hms = reduced ? motionMs('--motion-reduced', 150) : motionMs('--motion-height', 250);
+    var oms = reduced ? motionMs('--motion-reduced', 150) : motionMs('--motion-list', 200);
+    slot.style.overflow = 'hidden';
+    slot.style.height = h1 + 'px';
+    slot.style.opacity = '0';
+    var gen = ++dayFlipGen;
+    if (btn && !reduced) btn.style.transform = 'translateY(' + (ty - (h1 - h0)) + 'px)';
+    slot.offsetHeight;
+    ghost.style.transition = 'opacity ' + oms + 'ms var(--ease)';
+    slot.style.transition = 'opacity ' + oms + 'ms var(--ease)';
+    ghost.style.opacity = '0';
+    slot.style.opacity = '1';
+    if (btn && !reduced) {
+      btn.style.transition = 'transform ' + hms + 'ms var(--ease)';
+      btn.style.transform = 'translateY(0)';
+    }
+    setTimeout(function () {
+      if (ghost.parentNode) ghost.remove();
+      if (gen !== dayFlipGen) return;
+      slot.style.transition = 'none';
+      slot.style.height = '';
+      slot.style.overflow = '';
+      slot.style.opacity = '';
+      if (btn) { btn.style.transition = 'none'; btn.style.transform = ''; }
+    }, Math.max(hms, oms) + 70);
   }
   if ($('calPrev')) $('calPrev').addEventListener('click', function () { shiftMonth(-1); });
-  if ($('calNext')) $('calNext').addEventListener('click', function () { shiftMonth(1); });
+  if ($('calNext')) $('calNext').addEventListener('click', function () {
+    if (calOffset >= 0) return;
+    shiftMonth(1);
+  });
   if ($('calToday')) $('calToday').addEventListener('click', function () {
+    var dir = calOffset > 0 ? -1 : (calOffset < 0 ? 1 : 0);
     calOffset = 0;
     selectedDay = dateKey(Date.now());
-    renderRecords();
+    if (dir && motionReady()) playMonth(dir);
+    else renderRecords();
   });
   if ($('calGrid')) $('calGrid').addEventListener('click', function (e) {
     var cell = e.target.closest('[data-date]');
@@ -666,23 +1151,81 @@
     var swipe = null;
     var el = $('recCal');
     if (!el) return;
+    function gridEl() { return $('calGrid'); }
     el.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) return;
-      swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      monthGen++;
+      var clip = gridEl() && gridEl().parentNode;
+      if (clip) clip.querySelectorAll('.grid-leave').forEach(function (n) { n.remove(); });
+      settleMonthChrome();
+      var grid = gridEl();
+      if (grid) {
+        grid.style.transition = 'none';
+        grid.style.opacity = '1';
+        grid.style.transform = 'none';
+      }
+      swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, drag: false };
     }, { passive: true });
+    el.addEventListener('touchmove', function (e) {
+      if (!swipe || e.touches.length !== 1) return;
+      var dx = e.touches[0].clientX - swipe.x;
+      var dy = e.touches[0].clientY - swipe.y;
+      if (!swipe.drag) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) { swipe = null; return; }
+        swipe.drag = true;
+      }
+      var grid = gridEl();
+      if (!grid) return;
+      var x = dx;
+      if (!motionReduced() && calOffset >= 0 && dx < 0) x = Math.max(dx / 3, -24);
+      if (motionReduced()) x = 0;
+      grid.style.transition = 'none';
+      grid.style.transform = x ? ('translateX(' + x + 'px)') : 'none';
+      swipe.dx = dx;
+    }, { passive: true });
+    function endSwipe(dx) {
+      var grid = gridEl();
+      var towardFuture = calOffset >= 0 && dx < 0;
+      var commit = !towardFuture && Math.abs(dx) >= 48;
+      if (!commit) {
+        if (grid && !motionReduced()) {
+          var ms = towardFuture ? motionMs('--motion-state', 200) : motionMs('--motion-month', 250);
+          grid.style.transition = 'transform ' + ms + 'ms var(--ease)';
+          grid.style.transform = 'none';
+        }
+        return;
+      }
+      shiftMonth(dx < 0 ? 1 : -1);
+    }
     el.addEventListener('touchend', function (e) {
       if (!swipe || !e.changedTouches.length) return;
       var dx = e.changedTouches[0].clientX - swipe.x;
       var dy = e.changedTouches[0].clientY - swipe.y;
+      var dragged = swipe.drag;
       swipe = null;
-      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
-      shiftMonth(dx < 0 ? 1 : -1);
+      if (!dragged) return;
+      if (Math.abs(dx) < Math.abs(dy)) return;
+      endSwipe(dx);
+    }, { passive: true });
+    el.addEventListener('touchcancel', function () {
+      if (!swipe) return;
+      var dx = swipe.dx || 0;
+      swipe = null;
+      endSwipe(dx);
     }, { passive: true });
   })();
 
   var badgesExpanded = false;
+  var BADGE_SEEN_KEY = 'zenflow_badges_seen';
+  function readSeenBadges() {
+    try { var a = JSON.parse(localStorage.getItem(BADGE_SEEN_KEY) || 'null'); return Array.isArray(a) ? a : null; } catch (e) { return null; }
+  }
+  function writeSeenBadges(days) {
+    try { localStorage.setItem(BADGE_SEEN_KEY, JSON.stringify(days)); } catch (e) {}
+  }
   function badgeHtml(m, cls, sub) {
-    return '<div class="' + cls + '"><div class="b-ico">' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
+    return '<div class="' + cls + '"><div class="b-ico"><span class="b-fill" aria-hidden="true"></span>' + ic(m.icon) + '</div><span class="b-d">' + m.days + ' 天</span><span class="b-n">' + sub + '</span></div>';
   }
   function renderBadges() {
     var cd = curMs() / DAY, bd = bestMs() / DAY;
@@ -693,20 +1236,40 @@
     var unlocked = items.filter(function (x) { return x.on; });
     var next = null;
     for (var i = 0; i < items.length; i++) if (!items[i].on) { next = items[i]; break; }
+    var seen = readSeenBadges();
+    var seenSet = {};
+    (seen || []).forEach(function (d) { seenSet[d] = true; });
+    var fresh = {};
+    var present = motionReady() && !ceremonyHeld;
+    if (seen === null) {
+      writeSeenBadges(unlocked.map(function (x) { return x.m.days; }));
+      unlocked.forEach(function (item) { seenSet[item.m.days] = true; });
+    } else if (present) {
+      var newly = [];
+      unlocked.forEach(function (item) { if (!seenSet[item.m.days]) newly.push(item.m.days); });
+      if (newly.length) {
+        newly.forEach(function (d) { fresh[d] = true; seenSet[d] = true; });
+        writeSeenBadges((seen || []).concat(newly));
+      }
+    }
+    var shownSource = items.filter(function (item) { return seenSet[item.m.days] || fresh[item.m.days]; });
     var shown = items;
     if (!badgesExpanded) {
-      shown = next ? unlocked.slice(-3).concat([next]) : unlocked.slice(-4);
+      var visNext = next;
+      shown = visNext ? shownSource.slice(-3).concat([visNext]) : shownSource.slice(-4);
       if (!shown.length) shown = items.slice(0, 1);
     }
     $('badges').classList.toggle('expanded', badgesExpanded);
     $('badges').innerHTML = shown.map(function (item) {
       var m = item.m, cls = 'badge', sub = m.name;
-      if (item.on) cls += ' on';
-      else if (next && next.m === m) { cls += ' next'; sub = '下一个'; }
-      else if (bd >= m.days) sub = '曾达成';
+      if (seenSet[m.days] || fresh[m.days]) cls += ' on';
+      if (fresh[m.days]) cls += ' pop';
+      else if (!(seenSet[m.days]) && next && next.m === m) { cls += ' next'; sub = '下一个'; }
+      else if (!item.on && bd >= m.days) sub = '曾达成';
       return badgeHtml(m, cls, sub);
     }).join('');
-    $('badgeCount').textContent = '已解锁 ' + unlocked.length + '/' + D.milestones.length;
+    var presented = unlocked.filter(function (item) { return seenSet[item.m.days]; }).length;
+    $('badgeCount').textContent = '已解锁 ' + presented + '/' + D.milestones.length;
     var card = $('badgeCard');
     if (card) card.setAttribute('aria-expanded', badgesExpanded ? 'true' : 'false');
   }
@@ -785,8 +1348,21 @@
     var circle = $('breathCircle');
     var total = BREATH_ROUNDS * (BREATH_IN + BREATH_OUT);
     var elapsed = 0;
+    var reducedBreath = motionReduced();
+    var breathMs = 1000;
+    var cssBreath = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-breath'));
+    if (isFinite(cssBreath) && cssBreath > 0) breathMs = cssBreath / BREATH_IN * 1000;
+    circle.style.transitionTimingFunction = 'ease-in-out';
     circle.style.transitionDuration = '0s';
-    circle.style.transform = 'scale(.6)';
+    if (reducedBreath) {
+      circle.style.transform = 'none';
+      circle.style.opacity = '0.55';
+      circle.style.transitionProperty = 'opacity';
+    } else {
+      circle.style.opacity = '';
+      circle.style.transform = 'scale(.6)';
+      circle.style.transitionProperty = 'transform';
+    }
     function paintDots(round) {
       var dots = $('breathDots');
       if (!dots) return;
@@ -807,12 +1383,13 @@
       if ($('breathHint')) $('breathHint').textContent = round === 1 ? t('urge.breathHint') : '';
       paintDots(round);
       if (pos === 0 || pos === BREATH_IN) {
-        circle.style.transitionDuration = (inhale ? BREATH_IN : BREATH_OUT) + 's';
+        circle.style.transitionDuration = ((inhale ? BREATH_IN : BREATH_OUT) * breathMs / 1000) + 's';
         circle.style.transitionTimingFunction = 'ease-in-out';
-        circle.style.transform = inhale ? 'scale(1)' : 'scale(.6)';
+        if (reducedBreath) circle.style.opacity = inhale ? '1' : '0.55';
+        else circle.style.transform = inhale ? 'scale(1)' : 'scale(.6)';
       }
       elapsed++;
-      breathTimer = setTimeout(frame, 1000);
+      breathTimer = setTimeout(frame, breathMs);
     }
     requestAnimationFrame(function () { requestAnimationFrame(frame); });
   }
@@ -956,6 +1533,18 @@
     }
     paintActLabels();
   }
+  function paintActChoices() {
+    document.querySelectorAll('#actMoods [data-act-mood]').forEach(function (b) {
+      b.classList.toggle('sel', actDraft.mood === +b.dataset.actMood);
+    });
+    document.querySelectorAll('#actTypes [data-act-type]').forEach(function (b) {
+      b.classList.toggle('sel', !!actDraft.types[b.dataset.actType]);
+    });
+    document.querySelectorAll('#actTriggers [data-act-trigger]').forEach(function (b) {
+      b.classList.toggle('sel', !!actDraft.triggers[b.getAttribute('data-act-trigger')]);
+    });
+    if ($('actOther')) $('actOther').classList.toggle('hidden', !actDraft.triggers['其他']);
+  }
   function openAct(k, edit) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || k > dateKey(Date.now())) { toast('还不能记录未来的日期'); return; }
     actEdit = edit || null;
@@ -990,16 +1579,45 @@
     }
     if ($('actTime')) $('actTime').value = timeValue(ts);
     if ($('actNote')) $('actNote').value = note;
-    $('actMask').classList.remove('hidden');
+    var mask = $('actMask');
+    mask.classList.remove('hidden');
     lockScroll();
     renderActForm();
+    var gen = ++actGen;
+    if (!motionReady()) { mask.classList.add('is-open'); return; }
+    requestAnimationFrame(function () {
+      if (gen !== actGen) return;
+      mask.classList.add('is-open');
+    });
   }
-  function closeAct() {
-    if (!$('actMask') || $('actMask').classList.contains('hidden')) return;
-    $('actMask').classList.add('hidden');
+  var actGen = 0;
+  function closeAct(snapScrim) {
+    var mask = $('actMask');
+    if (!mask || mask.classList.contains('hidden')) return;
+    var gen = ++actGen;
+    if (snapScrim) mask.classList.add('scrim-snap');
+    mask.classList.remove('is-open');
     actDay = null;
     actEdit = null;
-    unlockScroll();
+    function finish() {
+      if (gen !== actGen) return;
+      mask.classList.remove('scrim-snap');
+      mask.classList.add('hidden');
+      unlockScroll();
+      if (ringDeferred) { ringDeferred = false; updateTimer(); }
+    }
+    if (!motionReady()) { finish(); return; }
+    var sheet = mask.querySelector('.sheet');
+    var ms = motionMs(motionReduced() ? '--motion-reduced' : '--motion-sheet-out', 250);
+    var done = false;
+    function end(e) {
+      if (e && e.target !== sheet) return;
+      if (done) return;
+      done = true;
+      finish();
+    }
+    if (sheet) sheet.addEventListener('transitionend', end);
+    setTimeout(end, ms + 80);
   }
   function focusSavedDay(k) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
@@ -1090,10 +1708,10 @@
         } else save();
       }
       focusSavedDay(k);
-      closeAct();
+      if (!editing) enterRowId = (made && made.id) || (urged && urged.id) || (added && added.id) || (mood ? k : null);
+      dayAnimateNext = true;
+      closeAct(!!changed);
       refreshAfterAct();
-      if (changed) toast('已记录，天数已重算');
-      else toast('已记录');
     }
     if (createsRelapse && relapseResets(types) && previewStart(ts, types) !== state.streakStart) {
       openModal({
@@ -1107,6 +1725,45 @@
     }
     write();
   }
+  function exitRow(row, done) {
+    if (!row || !motionReady()) { done(); return; }
+    var gen = ++exitRow._g;
+    row.style.pointerEvents = 'none';
+    var reduced = motionReduced();
+    var oms = reduced ? motionMs('--motion-reduced', 150) : motionMs('--motion-list', 200);
+    var hms = reduced ? 0 : motionMs('--motion-height', 250);
+    row.style.transition = 'opacity ' + oms + 'ms var(--ease)';
+    row.style.opacity = '0';
+    setTimeout(function () {
+      if (gen !== exitRow._g) return;
+      if (!hms) { done(); return; }
+      var list = row.closest('.list') || row;
+      var h = list.getBoundingClientRect().height;
+      var btn = $('btnOpenActLog');
+      var nodes = [];
+      if (list !== row) nodes.push(list);
+      if (btn) nodes.push(btn);
+      nodes.forEach(function (el) {
+        el.style.transition = 'none';
+        el.style.transform = 'none';
+      });
+      if (list !== row) list.style.transformOrigin = 'top';
+      row.offsetHeight;
+      nodes.forEach(function (el) {
+        el.style.transition = 'transform ' + hms + 'ms var(--ease)';
+        el.style.transform = el === list ? 'scaleY(0)' : ('translateY(' + (-h) + 'px)');
+      });
+      setTimeout(function () {
+        if (gen !== exitRow._g) return;
+        nodes.forEach(function (el) {
+          el.style.transition = 'none';
+          el.style.transform = '';
+        });
+        done();
+      }, hms + 40);
+    }, oms + 30);
+  }
+  exitRow._g = 0;
   function performDelete(kind, id) {
     if (kind === 'checkin') {
       dropCheckin(id);
@@ -1131,10 +1788,32 @@
       ok: t('confirm.delete'),
       danger: true,
       onOk: function () {
-        performDelete(kind, id);
-        if (actEdit && actEdit.kind === kind && actEdit.id === id) closeAct();
-        refreshAfterAct();
-        toast('已删除');
+        var row = document.querySelector('#dayList .row[data-kind="' + kind + '"][data-id="' + id + '"]');
+        var closing = !!(actEdit && actEdit.kind === kind && actEdit.id === id);
+        if (closing) closeAct();
+        pendingDelete = { kind: kind, id: id };
+        function run() {
+          if (!pendingDelete || pendingDelete.id !== id || pendingDelete.kind !== kind) return;
+          var live = document.querySelector('#dayList .row[data-kind="' + kind + '"][data-id="' + id + '"]') || row;
+          exitRow(live, function () {
+            if (!pendingDelete || pendingDelete.id !== id || pendingDelete.kind !== kind) return;
+            pendingDelete = null;
+            performDelete(kind, id);
+            refreshAfterAct();
+          });
+        }
+        if (!(closing && motionReady())) { run(); return; }
+        var sheet = $('actMask') && $('actMask').querySelector('.sheet');
+        var started = false;
+        function go(e) {
+          if (e && e.target && sheet && e.target !== sheet) return;
+          if (started) return;
+          started = true;
+          if (sheet) sheet.removeEventListener('transitionend', go);
+          run();
+        }
+        if (sheet) sheet.addEventListener('transitionend', go);
+        setTimeout(go, motionMs(motionReduced() ? '--motion-reduced' : '--motion-sheet-out', 250) + 90);
       }
     });
   }
@@ -1162,16 +1841,16 @@
     if (moodBtn) {
       var v = +moodBtn.dataset.actMood;
       actDraft.mood = actDraft.mood === v ? null : v;
-      renderActForm();
+      paintActChoices();
       return;
     }
     var tp = e.target.closest('[data-act-type]');
-    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; renderActForm(); return; }
+    if (tp) { actDraft.types[tp.dataset.actType] = !actDraft.types[tp.dataset.actType]; paintActChoices(); return; }
     var tr = e.target.closest('[data-act-trigger]');
     if (tr) {
       var name = tr.getAttribute('data-act-trigger');
       actDraft.triggers[name] = !actDraft.triggers[name];
-      renderActForm();
+      paintActChoices();
     }
   });
   if ($('actDate')) $('actDate').addEventListener('change', function () {
@@ -1365,6 +2044,12 @@
     about: '关于'
   };
   var settingsView = 'root';
+  var settingsMotionGen = 0;
+  var settingsMotionTimer = 0;
+  var settingsMotionLive = false;
+  var settingsMotionDone = null;
+  var settingsIgnorePop = false;
+  var edgeSwipe = null;
   function settingsViewFromHash() {
     var m = (location.hash || '').match(/^#settings(?:\/([a-z]+))?$/);
     if (!m) return null;
@@ -1372,35 +2057,252 @@
     if (m[1] === 'privacy') return 'data';
     return SETTINGS_PAGES[m[1]] ? m[1] : 'root';
   }
-  function applySettingsDom() {
+  function paintSettingsChrome() {
     var isRoot = settingsView === 'root';
-    if ($('settingsRoot')) $('settingsRoot').classList.toggle('hidden', !isRoot);
-    document.querySelectorAll('.settings-page').forEach(function (p) {
-      p.classList.toggle('hidden', p.dataset.settingsPage !== settingsView);
-    });
-    if ($('settingsBack')) $('settingsBack').classList.toggle('hidden', isRoot);
     if ($('settingsMe')) $('settingsMe').classList.toggle('hidden', !isRoot);
     var settingsScreen = $('screen-settings');
     if (settingsScreen) settingsScreen.classList.toggle('settings-root', isRoot);
-    if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '设置' : (SETTINGS_PAGES[settingsView] || '设置');
+  }
+  function applySettingsDom() {
+    if (settingsMotionLive) return;
+    var isRoot = settingsView === 'root';
+    var wrap = document.querySelector('.settings-wrap');
+    if (wrap) {
+      wrap.classList.remove('is-stack');
+      wrap.style.minHeight = '';
+    }
+    var root = $('settingsRoot');
+    if (root) {
+      root.classList.toggle('hidden', !isRoot);
+      root.style.transition = '';
+      root.style.transform = '';
+      root.style.opacity = '';
+      clearSettingsSheetBox(root);
+    }
+    document.querySelectorAll('.settings-page').forEach(function (p) {
+      var on = !isRoot && p.dataset.settingsPage === settingsView;
+      p.classList.toggle('hidden', !on);
+      p.style.transition = '';
+      p.style.transform = '';
+      p.style.opacity = '';
+      clearSettingsSheetBox(p);
+    });
+    paintSettingsChrome();
+  }
+  var settingsPoseMode = 'sheet';
+  function settingsShiftPx() {
+    return Math.max(1, Math.round(window.innerWidth * 0.3));
+  }
+  function settingsViewportPx() {
+    return Math.max(1, window.innerWidth);
+  }
+  function readSettingsProgress(layer) {
+    if (!layer || !layer.page) return 0;
+    if (motionReduced()) {
+      var op = parseFloat(window.getComputedStyle(layer.page).opacity);
+      return isFinite(op) ? Math.max(0, Math.min(1, 1 - op)) : 0;
+    }
+    var tr = window.getComputedStyle(layer.page).transform;
+    var denom = settingsPoseMode === 'edge' ? settingsViewportPx() : settingsShiftPx();
+    if (tr && tr !== 'none') {
+      var m = tr.match(/matrix(?:3d)?\(([^)]+)\)/);
+      if (m) {
+        var parts = m[1].split(',').map(function (n) { return parseFloat(n); });
+        var tx = parts.length === 16 ? parts[12] : parts[4];
+        if (isFinite(tx)) return Math.max(0, Math.min(1, tx / denom));
+      }
+    }
+    var op2 = parseFloat(window.getComputedStyle(layer.page).opacity);
+    return isFinite(op2) ? Math.max(0, Math.min(1, 1 - op2)) : 0;
+  }
+  function poseSettings(layer, p, anim) {
+    if (!layer) return;
+    anim = anim || {};
+    var reduced = motionReduced();
+    var shift = settingsShiftPx();
+    var vw = settingsViewportPx();
+    var edge = !reduced && (anim.edge || settingsPoseMode === 'edge');
+    p = Math.max(0, Math.min(1, p));
+    var dur = anim.duration || 0;
+    var ease = anim.ease || 'linear';
+    var trans = 'none';
+    if (dur > 0) {
+      trans = reduced
+        ? ('opacity ' + dur + 'ms ' + ease)
+        : ('transform ' + dur + 'ms ' + ease + ', opacity ' + dur + 'ms ' + ease);
+    }
+    layer.root.style.transition = trans;
+    layer.page.style.transition = trans;
+    if (reduced) {
+      layer.root.style.transition = 'none';
+      layer.root.style.transform = 'none';
+      layer.root.style.opacity = '1';
+      layer.page.style.transition = dur > 0 ? ('opacity ' + dur + 'ms ' + ease) : 'none';
+      layer.page.style.transform = 'none';
+      layer.page.style.opacity = String(1 - p);
+    } else if (edge) {
+      layer.page.style.transform = 'translate3d(' + (vw * p) + 'px,0,0)';
+      layer.page.style.opacity = '1';
+      layer.root.style.transform = 'translate3d(' + (-vw * 0.3 * (1 - p)) + 'px,0,0)';
+      layer.root.style.opacity = String(0.4 + 0.6 * p);
+    } else {
+      layer.page.style.transform = 'translate3d(' + (shift * p) + 'px,0,0)';
+      layer.page.style.opacity = '1';
+      layer.root.style.transform = 'translate3d(' + (-shift * (1 - p)) + 'px,0,0)';
+      layer.root.style.opacity = String(0.4 + 0.6 * p);
+    }
+  }
+  function clearSettingsSheetBox(el) {
+    if (!el) return;
+    el.style.boxSizing = '';
+    el.style.width = '';
+    el.style.minHeight = '';
+    el.style.paddingLeft = '';
+    el.style.paddingRight = '';
+    el.style.marginLeft = '';
+    el.style.left = '';
+    el.style.right = '';
+    el.style.background = '';
+  }
+  function layoutSettingsSheets(layer) {
+    var wrap = layer.wrap;
+    var rect = wrap.getBoundingClientRect();
+    var left = Math.max(0, rect.left);
+    var top = Math.max(0, rect.top);
+    var viewW = window.innerWidth;
+    var viewH = Math.max(layer.root.offsetHeight, layer.page.offsetHeight, window.innerHeight - top);
+    var rightPad = Math.max(0, viewW - rect.right);
+    function fill(el) {
+      el.style.boxSizing = 'border-box';
+      el.style.width = viewW + 'px';
+      el.style.minHeight = viewH + 'px';
+      el.style.paddingLeft = left + 'px';
+      el.style.paddingRight = rightPad + 'px';
+      el.style.background = 'var(--bg)';
+    }
+    fill(layer.root);
+    fill(layer.page);
+    layer.root.style.marginLeft = (-left) + 'px';
+    layer.page.style.left = (-left) + 'px';
+    layer.page.style.right = 'auto';
+    wrap.style.minHeight = viewH + 'px';
+  }
+  function captureSettingsProgress(pageName) {
+    var wrap = document.querySelector('.settings-wrap');
+    var root = $('settingsRoot');
+    var page = document.querySelector('.settings-page[data-settings-page="' + pageName + '"]');
+    if (!wrap || !root || !page) return null;
+    var layer = { wrap: wrap, root: root, page: page };
+    var p;
+    if (settingsMotionLive) p = readSettingsProgress(layer);
+    else if (page.classList.contains('hidden')) p = 1;
+    else if (root.classList.contains('hidden')) p = 0;
+    else p = readSettingsProgress(layer);
+    root.classList.remove('hidden');
+    page.classList.remove('hidden');
+    document.querySelectorAll('.settings-page').forEach(function (el) {
+      if (el === page) return;
+      el.classList.add('hidden');
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.opacity = '';
+    });
+    wrap.classList.add('is-stack');
+    layoutSettingsSheets(layer);
+    return { layer: layer, p: p };
+  }
+  function settleSettingsMotion(gen, target, pageName) {
+    if (gen !== settingsMotionGen) return;
+    settingsMotionLive = false;
+    settingsPoseMode = 'sheet';
+    if (target >= 0.999) settingsView = 'root';
+    else if (pageName) settingsView = pageName;
+    applySettingsDom();
+    updateSettingsChrome();
+    var done = settingsMotionDone;
+    settingsMotionDone = null;
+    if (done) done();
+  }
+  function runSettingsProgress(pageName, target, opts) {
+    opts = opts || {};
+    var wasLive = settingsMotionLive;
+    var gen = ++settingsMotionGen;
+    clearTimeout(settingsMotionTimer);
+    if (!opts.edge) settingsPoseMode = 'sheet';
+    var captured = captureSettingsProgress(pageName);
+    if (!captured) {
+      settingsMotionLive = false;
+      settingsPoseMode = 'sheet';
+      applySettingsDom();
+      if (opts.onDone) opts.onDone();
+      return;
+    }
+    var from = (wasLive || opts.from == null) ? captured.p : opts.from;
+    settingsMotionLive = true;
+    settingsMotionDone = opts.onDone || null;
+    var pose = { duration: 0, edge: !!opts.edge };
+    poseSettings(captured.layer, from, pose);
+    var dur = opts.duration || 0;
+    if (dur <= 0 || Math.abs(from - target) < 0.002) {
+      poseSettings(captured.layer, target, pose);
+      settleSettingsMotion(gen, target, pageName);
+      return;
+    }
+    void captured.layer.page.offsetWidth;
+    poseSettings(captured.layer, target, { duration: dur, ease: opts.ease || 'var(--ease)', edge: !!opts.edge });
+    settingsMotionTimer = setTimeout(function () {
+      settleSettingsMotion(gen, target, pageName);
+    }, dur + 50);
+  }
+  function syncSettingsHash(view, opts) {
+    if (opts.silent) return;
+    var hash = view === 'root' ? '#settings' : ('#settings/' + view);
+    var url = location.pathname + location.search + hash;
+    try {
+      if (opts.replace) history.replaceState({ zfSettings: view, zfEntry: !!opts.entry }, '', url);
+      else history.pushState({ zfSettings: view }, '', url);
+    } catch (e) {}
+  }
+  function commitSettingsHistory() {
+    if (history.state && history.state.zfSettings && history.state.zfSettings !== 'root' && !history.state.zfEntry) {
+      settingsIgnorePop = true;
+      history.back();
+    } else {
+      try { history.replaceState({ zfSettings: 'root' }, '', location.pathname + location.search + '#settings'); } catch (e) {}
+    }
   }
   function showSettings(view, opts) {
     opts = opts || {};
     if (view !== 'root' && !SETTINGS_PAGES[view]) view = 'root';
+    var prev = settingsView;
+    if (prev === view) {
+      syncSettingsHash(view, opts);
+      return;
+    }
     settingsView = view;
-    applySettingsDom();
     if (view === 'resets') renderResetToggles();
     if (view === 'goal') renderGoalControl();
     if (view === 'lock') paintLockGrace();
     updateSettingsChrome();
-    if (!opts.silent) {
-      var hash = view === 'root' ? '#settings' : ('#settings/' + view);
-      var url = location.pathname + location.search + hash;
-      try {
-        if (opts.replace) history.replaceState({ zfSettings: view, zfEntry: !!opts.entry }, '', url);
-        else history.pushState({ zfSettings: view }, '', url);
-      } catch (e) {}
+    syncSettingsHash(view, opts);
+    var animate = !opts.instant && motionReady() && ((prev === 'root' && view !== 'root') || (view === 'root' && prev !== 'root'));
+    if (animate && view !== 'root') paintSettingsChrome();
+    if (!animate) {
+      settingsMotionLive = false;
+      settingsMotionGen++;
+      clearTimeout(settingsMotionTimer);
+      applySettingsDom();
+      window.scrollTo(0, 0);
+      return;
     }
+    var pageName = view === 'root' ? prev : view;
+    var entering = view !== 'root';
+    var reduced = motionReduced();
+    runSettingsProgress(pageName, entering ? 0 : 1, {
+      from: entering ? 1 : 0,
+      duration: motionMs(entering ? '--motion-settings-in' : '--motion-settings-out', entering ? 300 : 250),
+      ease: reduced ? 'linear' : (entering ? 'var(--ease-sheet)' : 'var(--ease-exit)')
+    });
     window.scrollTo(0, 0);
   }
   function backSettings() {
@@ -1464,7 +2366,9 @@
     if (!row) return;
     showSettings(row.dataset.settings);
   });
-  if ($('settingsBack')) $('settingsBack').addEventListener('click', backSettings);
+  if ($('screen-settings')) $('screen-settings').addEventListener('click', function (e) {
+    if (e.target.closest('.settings-back')) backSettings();
+  });
   if ($('resetTypeList')) $('resetTypeList').addEventListener('click', function (e) {
     var b = e.target.closest('[data-reset-type]');
     if (!b || b.disabled) return;
@@ -1482,21 +2386,174 @@
   });
   window.addEventListener('popstate', function () {
     if ((location.hash || '') === '#admin') return;
+    if (settingsIgnorePop) { settingsIgnorePop = false; return; }
     var v = settingsViewFromHash();
     if (v) {
-      settingsView = v;
-      if (current !== 'settings') go('settings');
-      else applySettingsDom();
+      if (current !== 'settings') {
+        settingsMotionLive = false;
+        settingsView = v;
+        go('settings');
+        return;
+      }
+      if (v !== settingsView) {
+        showSettings(v, { silent: true });
+        return;
+      }
+      applySettingsDom();
       if (v === 'resets') renderResetToggles();
       updateSettingsChrome();
       return;
     }
-    if (current === 'settings' && settingsView !== 'root') {
-      settingsView = 'root';
-      applySettingsDom();
-      updateSettingsChrome();
-    }
+    if (current === 'settings' && settingsView !== 'root') showSettings('root', { silent: true });
   });
+  var clearingTextSelection = false;
+  function clearTextSelection() {
+    if (clearingTextSelection) return;
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.removeAllRanges) return;
+    clearingTextSelection = true;
+    try { sel.removeAllRanges(); } catch (e) {}
+    clearingTextSelection = false;
+  }
+  function setSettingsSelecting(on) {
+    var screen = $('screen-settings');
+    if (screen) screen.classList.toggle('settings-nosel', !!on);
+    if (on) clearTextSelection();
+  }
+  (function bindSettingsEdge() {
+    function finishEdge(x, y, id) {
+      if (!edgeSwipe || id !== edgeSwipe.id) return;
+      var s = edgeSwipe;
+      edgeSwipe = null;
+      setSettingsSelecting(false);
+      clearTextSelection();
+      if (!s.active) return;
+      var dx = x - s.x0;
+      var now = performance.now();
+      var dt = now - s.lastT;
+      var vx = (dt > 0 && dt < 80) ? ((x - s.lastX) / dt) : s.vx;
+      var p = s.p != null ? s.p : (s.p0 || 0);
+      var commit = p >= 0.5 || (vx > 0.45 && dx > 20);
+      var reduced = motionReduced();
+      settingsPoseMode = 'edge';
+      runSettingsProgress(s.page, commit ? 1 : 0, {
+        edge: true,
+        duration: motionMs(commit ? '--motion-settings-out' : '--motion-state', commit ? 250 : 200),
+        ease: reduced ? 'linear' : (commit ? 'var(--ease-exit)' : 'var(--ease)'),
+        onDone: commit ? commitSettingsHistory : null
+      });
+      function stopClick(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.removeEventListener('click', stopClick, true);
+      }
+      window.addEventListener('click', stopClick, true);
+      setTimeout(function () { window.removeEventListener('click', stopClick, true); }, 400);
+    }
+    function beginEdge(x, y, id, target, ev) {
+      if (motionReduced()) return;
+      if (current !== 'settings' || settingsView === 'root') return;
+      if (ev && ev.pointerType === 'mouse' && ev.button !== 0) return;
+      if (x > 28) return;
+      if (edgeSwipe) return;
+      var blocked = target && target.closest && target.closest('#tabbar, #modalMask, #actMask, #authMask, #lockShell');
+      if (blocked && !blocked.classList.contains('hidden')) return;
+      var editable = target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]');
+      if (editable) return;
+      var tappable = target && target.closest && target.closest('button, a');
+      if (!tappable && ev && ev.cancelable) ev.preventDefault();
+      setSettingsSelecting(true);
+      edgeSwipe = {
+        id: id,
+        x0: x,
+        y0: y,
+        lastX: x,
+        lastT: performance.now(),
+        vx: 0,
+        active: false,
+        page: settingsView
+      };
+    }
+    function moveEdge(x, y, id, ev) {
+      if (!edgeSwipe || id !== edgeSwipe.id) return;
+      var dx = x - edgeSwipe.x0;
+      var dy = y - edgeSwipe.y0;
+      if (!edgeSwipe.active) {
+        if (dx > 8 && Math.abs(dx) > Math.abs(dy)) {
+          edgeSwipe.active = true;
+          settingsPoseMode = 'edge';
+          var cap = captureSettingsProgress(edgeSwipe.page);
+          edgeSwipe.layer = cap && cap.layer;
+          edgeSwipe.p0 = cap ? cap.p : 0;
+          edgeSwipe.trackX = x;
+          settingsMotionGen++;
+          clearTimeout(settingsMotionTimer);
+          settingsMotionLive = true;
+          settingsMotionDone = null;
+          if (edgeSwipe.layer) poseSettings(edgeSwipe.layer, edgeSwipe.p0, { duration: 0, edge: true });
+        } else if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+          edgeSwipe = null;
+          settingsPoseMode = 'sheet';
+          setSettingsSelecting(false);
+        }
+        return;
+      }
+      if (ev && ev.cancelable) ev.preventDefault();
+      var now = performance.now();
+      var dt = now - edgeSwipe.lastT;
+      if (dt > 0) edgeSwipe.vx = (x - edgeSwipe.lastX) / dt;
+      edgeSwipe.lastX = x;
+      edgeSwipe.lastT = now;
+      if (!edgeSwipe.layer) return;
+      var vw = settingsViewportPx();
+      var tx = edgeSwipe.p0 * vw + (x - edgeSwipe.trackX);
+      if (tx < 0) tx = 0;
+      if (tx > vw) tx = vw;
+      var p = tx / vw;
+      poseSettings(edgeSwipe.layer, p, { duration: 0, edge: true });
+      edgeSwipe.p = p;
+    }
+    document.addEventListener('pointerdown', function (e) {
+      beginEdge(e.clientX, e.clientY, e.pointerId, e.target, e);
+    });
+    document.addEventListener('pointermove', function (e) {
+      moveEdge(e.clientX, e.clientY, e.pointerId, e);
+    }, { passive: false });
+    document.addEventListener('pointerup', function (e) { finishEdge(e.clientX, e.clientY, e.pointerId); });
+    document.addEventListener('pointercancel', function (e) { finishEdge(e.clientX, e.clientY, e.pointerId); });
+    document.addEventListener('touchstart', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      beginEdge(t.clientX, t.clientY, t.identifier, e.target, e);
+    }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      if (edgeSwipe && edgeSwipe.active && e.cancelable) e.preventDefault();
+      moveEdge(t.clientX, t.clientY, t.identifier, e);
+    }, { passive: false });
+    document.addEventListener('touchend', function (e) {
+      var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+      if (!t) return;
+      finishEdge(t.clientX, t.clientY, t.identifier);
+    });
+    document.addEventListener('touchcancel', function (e) {
+      var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+      if (!t) return;
+      finishEdge(t.clientX, t.clientY, t.identifier);
+    });
+    document.addEventListener('selectstart', function (e) {
+      if (!edgeSwipe) return;
+      e.preventDefault();
+    }, true);
+    document.addEventListener('dragstart', function (e) {
+      if (!edgeSwipe) return;
+      e.preventDefault();
+    }, true);
+    document.addEventListener('selectionchange', function () {
+      if (edgeSwipe) clearTextSelection();
+    });
+  })();
   function addReason() {
     var v = $('reasonInput').value.trim();
     if (!v) { toast('请输入内容'); return; }
@@ -1861,6 +2918,14 @@
   /* ---------------- 启动 ---------------- */
   load();
   applyTheme(getTheme(), false);
+  applyNewCopy();
+  renderHome();
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      document.documentElement.classList.add('motion-ready');
+      if (!ceremonyHeld) { updateTimer(); renderBadges(); }
+    });
+  });
   var lastDay = dateKey(Date.now());
   setInterval(function () {
     if (current === 'home') {
@@ -1869,8 +2934,6 @@
       if (k !== lastDay) { lastDay = k; renderHome(); }
     }
   }, 1000);
-  applyNewCopy();
-  renderHome();
   paintLockRow();
   if (window.ZFLock && window.ZFLock.enabled()) presentLock('unlock');
   else document.documentElement.classList.remove('lock-pending');
@@ -1896,7 +2959,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '44';
+  var APP_VERSION = '46';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
@@ -1910,7 +2973,19 @@
   if (DESKTOP_MQ) { if (DESKTOP_MQ.addEventListener) DESKTOP_MQ.addEventListener('change', renderVersion); else if (DESKTOP_MQ.addListener) DESKTOP_MQ.addListener(renderVersion); }
 
   // 便于测试
-  window.ZenFlow = { version: APP_VERSION, go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme };
+  window.ZenFlow = {
+    version: APP_VERSION, go: go, state: function () { return state; }, setTheme: setTheme, getTheme: getTheme,
+    setMotionScale: function (n) {
+      if (n && n !== 1) document.documentElement.setAttribute('data-motion-scale', String(n));
+      else document.documentElement.removeAttribute('data-motion-scale');
+    },
+    playCeremony: function () {
+      ceremonyHeld = false;
+      try { sessionStorage.removeItem('zf-hold-ceremony'); } catch (e) {}
+      updateTimer();
+      renderBadges();
+    }
+  };
 
   // 供 cloud.js 使用的接口（云端模块不直接改内部变量）
   window.ZenFlowCore = {

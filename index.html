@@ -44,7 +44,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=44" />
+  <link rel="stylesheet" href="styles.css?v=46" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -168,7 +168,7 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=44" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=46" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
     <p class="muted small" id="authBootText">正在恢复登录…</p>
@@ -183,7 +183,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=44" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=46" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -201,7 +201,7 @@
               </linearGradient>
             </defs>
             <circle class="ring-bg" cx="100" cy="100" r="86" />
-            <path id="ringFg" class="ring-fg" fill="none" stroke="url(#insRing)" d="M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
+            <path id="ringFg" class="ring-fg is-empty" fill="none" stroke="url(#insRing)" d="M 100 14 A 86 86 0 1 1 100 186 A 86 86 0 1 1 100 14" stroke-dasharray="540.35" stroke-dashoffset="540.35" />
           </svg>
           <div class="gauge-copy">
             <p class="gauge-days"><span class="days-num" id="daysNum">0</span></p>
@@ -277,7 +277,7 @@
       <div class="rec-layout">
         <div class="rec-cal" id="recCal">
           <div class="mhead">
-            <h1 class="mtitle" id="calTitle"></h1>
+            <div class="mtitle-slot"><h1 class="mtitle" id="calTitle"></h1></div>
             <button type="button" class="today-pill hidden" id="calToday" data-i18n="record.today">今天</button>
             <div class="mnav">
               <button type="button" id="calPrev" data-i18n-aria="a11y.month.prev" aria-label="上个月"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
@@ -286,11 +286,13 @@
           </div>
           <div class="msum" id="calSum" aria-hidden="true"></div>
           <div class="wk" id="calWeek"></div>
-          <div class="grid" id="calGrid"></div>
+          <div class="grid-clip"><div class="grid" id="calGrid"></div></div>
         </div>
         <div class="rec-day" id="recDay">
-          <h2 class="dhead" id="dayHead"></h2>
-          <div id="dayList"></div>
+          <div class="day-slot" id="daySlot">
+            <h2 class="dhead" id="dayHead"></h2>
+            <div id="dayList"></div>
+          </div>
           <button class="btn btn-gray" type="button" id="btnOpenActLog"><svg class="ic" aria-hidden="true"><use href="#i-pen-line"/></svg><span data-i18n="nav.log">记录</span></button>
         </div>
       </div>
@@ -338,18 +340,13 @@
 
     <!-- ========== 设置（Instagram 式二级菜单） ========== -->
     <section class="screen" id="screen-settings" data-screen="settings">
-      <header class="page-head settings-head">
-        <button class="icon-btn settings-back hidden" id="settingsBack" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
-        <div class="settings-head-main">
-          <div>
-            <p class="eyebrow" id="settingsEyebrow">设置</p>
-            <h1 id="settingsTitle">设置</h1>
-          </div>
-        </div>
-      </header>
-
       <div class="settings-wrap">
       <div id="settingsRoot">
+        <header class="page-head settings-head">
+          <div class="settings-head-main">
+            <h1>设置</h1>
+          </div>
+        </header>
         <p class="set-label">账号</p>
         <div class="set-group">
           <button class="set-row" type="button" data-settings="account">
@@ -440,6 +437,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="account">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>账号与资料</h1>
+            </div>
+          </div>
+        </header>
         <div class="card account-card" id="accountCard">
           <div class="card-title">
             <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号</h2>
@@ -478,6 +484,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="goal">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>目标天数</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-target"/></svg>目标天数</h2>
           <p class="muted small">默认 30 天。</p>
@@ -490,6 +505,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="resets">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>重置规则</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-flame"/></svg>重置规则</h2>
           <p class="muted small">打开会清零天数。关掉只记在日历上。</p>
@@ -498,6 +522,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="theme">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>外观</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <div class="card-title">
             <h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-sun-moon"/></svg>外观</h2>
@@ -512,6 +545,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="reasons">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>理由</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>理由</h2>
           <ul class="reasons-edit" id="reasonsEdit"></ul>
@@ -523,6 +565,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="data">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>数据</h1>
+            </div>
+          </div>
+        </header>
         <div class="set-group">
           <div class="set-row">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-cloud-check"/></svg></span>
@@ -554,6 +605,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="lock">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>应用锁</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="lock.when">锁定时机</span></h2>
           <p class="muted small" data-i18n="lock.whenHint">离开后再打开，超过这个时间要输入密码。</p>
@@ -566,6 +626,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="about">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>关于</h1>
+            </div>
+          </div>
+        </header>
         <div class="set-group">
           <a class="set-row" href="privacy.html">
             <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>
@@ -586,7 +655,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=44" alt="" class="side-logo" />
+      <img src="icon.svg?v=46" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -637,7 +706,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" data-i18n-aria="a11y.close" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=44" alt="" class="auth-logo" />
+        <img src="icon.svg?v=46" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -846,7 +915,7 @@
 <div class="lock-screen hidden" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <button type="button" class="lock-cancel hidden" id="lockCancel" data-i18n="lock.cancel">取消</button>
   <div class="lock-body">
-    <img src="icon.svg?v=44" alt="" class="lock-logo" width="64" height="64" />
+    <img src="icon.svg?v=46" alt="" class="lock-logo" width="64" height="64" />
     <p class="wordmark lock-word">ZENFLOW</p>
     <h2 id="lockTitle" class="lock-title"></h2>
     <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -883,7 +952,7 @@
   </div>
 </div>
 
-<script src="config.js?v=44"></script>
+<script src="config.js?v=46"></script>
 <script id="auth-boot-early">
 (function () {
   try {
@@ -892,13 +961,13 @@
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=44"></script>
-<script src="streak.js?v=44"></script>
-<script src="strings.js?v=44"></script>
-<script src="records.js?v=44"></script>
-<script src="lock.js?v=44"></script>
-<script src="app.js?v=44"></script>
-<script src="cloud.js?v=44"></script>
-<script src="admin.js?v=44"></script>
+<script src="data.js?v=46"></script>
+<script src="streak.js?v=46"></script>
+<script src="strings.js?v=46"></script>
+<script src="records.js?v=46"></script>
+<script src="lock.js?v=46"></script>
+<script src="app.js?v=46"></script>
+<script src="cloud.js?v=46"></script>
+<script src="admin.js?v=46"></script>
 </body>
 </html>

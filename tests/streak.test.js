@@ -112,4 +112,12 @@ var manualLater = base({
 assert.strictEqual(S.computeStreakStart(manualLater, t0 + 12 * DAY), t0 + 10 * DAY);
 assert.strictEqual(S.totalCleanMs(manualLater, t0 + 12 * DAY), 6 * DAY);
 
+assert.strictEqual(S.wholeDays(0), 0);
+assert.strictEqual(S.wholeDays(-DAY), 0);
+assert.strictEqual(S.wholeDays(1.2 * DAY), 1);
+assert.strictEqual(S.wholeDays(6.9 * DAY), 6);
+assert.strictEqual(S.wholeDays(9.9 * DAY), 9);
+assert.strictEqual(S.wholeDays(10 * DAY), 10);
+assert.strictEqual(S.wholeDays(10.2 * DAY), 10);
+
 console.log('streak tests ok');
