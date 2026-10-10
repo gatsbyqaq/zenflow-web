@@ -2089,8 +2089,12 @@
     });
     paintSettingsChrome();
   }
+  var settingsPoseMode = 'sheet';
   function settingsShiftPx() {
     return Math.max(1, Math.round(window.innerWidth * 0.3));
+  }
+  function settingsViewportPx() {
+    return Math.max(1, window.innerWidth);
   }
   function readSettingsProgress(layer) {
     if (!layer || !layer.page) return 0;
@@ -2099,13 +2103,13 @@
       return isFinite(op) ? Math.max(0, Math.min(1, 1 - op)) : 0;
     }
     var tr = window.getComputedStyle(layer.page).transform;
-    var shift = settingsShiftPx();
+    var denom = settingsPoseMode === 'edge' ? settingsViewportPx() : settingsShiftPx();
     if (tr && tr !== 'none') {
       var m = tr.match(/matrix(?:3d)?\(([^)]+)\)/);
       if (m) {
         var parts = m[1].split(',').map(function (n) { return parseFloat(n); });
         var tx = parts.length === 16 ? parts[12] : parts[4];
-        if (isFinite(tx)) return Math.max(0, Math.min(1, tx / shift));
+        if (isFinite(tx)) return Math.max(0, Math.min(1, tx / denom));
       }
     }
     var op2 = parseFloat(window.getComputedStyle(layer.page).opacity);
@@ -2116,6 +2120,8 @@
     anim = anim || {};
     var reduced = motionReduced();
     var shift = settingsShiftPx();
+    var vw = settingsViewportPx();
+    var edge = !reduced && (anim.edge || settingsPoseMode === 'edge');
     p = Math.max(0, Math.min(1, p));
     var dur = anim.duration || 0;
     var ease = anim.ease || 'linear';
@@ -2134,6 +2140,11 @@
       layer.page.style.transition = dur > 0 ? ('opacity ' + dur + 'ms ' + ease) : 'none';
       layer.page.style.transform = 'none';
       layer.page.style.opacity = String(1 - p);
+    } else if (edge) {
+      layer.page.style.transform = 'translate3d(' + (vw * p) + 'px,0,0)';
+      layer.page.style.opacity = '1';
+      layer.root.style.transform = 'translate3d(' + (-vw * 0.3 * (1 - p)) + 'px,0,0)';
+      layer.root.style.opacity = String(0.4 + 0.6 * p);
     } else {
       layer.page.style.transform = 'translate3d(' + (shift * p) + 'px,0,0)';
       layer.page.style.opacity = '1';
@@ -2203,6 +2214,7 @@
   function settleSettingsMotion(gen, target, pageName) {
     if (gen !== settingsMotionGen) return;
     settingsMotionLive = false;
+    settingsPoseMode = 'sheet';
     if (target >= 0.999) settingsView = 'root';
     else if (pageName) settingsView = pageName;
     applySettingsDom();
@@ -2216,9 +2228,11 @@
     var wasLive = settingsMotionLive;
     var gen = ++settingsMotionGen;
     clearTimeout(settingsMotionTimer);
+    if (!opts.edge) settingsPoseMode = 'sheet';
     var captured = captureSettingsProgress(pageName);
     if (!captured) {
       settingsMotionLive = false;
+      settingsPoseMode = 'sheet';
       applySettingsDom();
       if (opts.onDone) opts.onDone();
       return;
@@ -2226,15 +2240,16 @@
     var from = (wasLive || opts.from == null) ? captured.p : opts.from;
     settingsMotionLive = true;
     settingsMotionDone = opts.onDone || null;
-    poseSettings(captured.layer, from, { duration: 0 });
+    var pose = { duration: 0, edge: !!opts.edge };
+    poseSettings(captured.layer, from, pose);
     var dur = opts.duration || 0;
     if (dur <= 0 || Math.abs(from - target) < 0.002) {
-      poseSettings(captured.layer, target, { duration: 0 });
+      poseSettings(captured.layer, target, pose);
       settleSettingsMotion(gen, target, pageName);
       return;
     }
     void captured.layer.page.offsetWidth;
-    poseSettings(captured.layer, target, { duration: dur, ease: opts.ease || 'var(--ease)' });
+    poseSettings(captured.layer, target, { duration: dur, ease: opts.ease || 'var(--ease)', edge: !!opts.edge });
     settingsMotionTimer = setTimeout(function () {
       settleSettingsMotion(gen, target, pageName);
     }, dur + 50);
@@ -2406,32 +2421,27 @@
     if (on) clearTextSelection();
   }
   (function bindSettingsEdge() {
-    function endEdge(e) {
-      if (!edgeSwipe || e.pointerId !== edgeSwipe.id) return;
+    function finishEdge(x, y, id) {
+      if (!edgeSwipe || id !== edgeSwipe.id) return;
       var s = edgeSwipe;
       edgeSwipe = null;
       setSettingsSelecting(false);
       clearTextSelection();
       if (!s.active) return;
-      var dx = e.clientX - s.x0;
+      var dx = x - s.x0;
       var now = performance.now();
       var dt = now - s.lastT;
-      var vx = (dt > 0 && dt < 80) ? ((e.clientX - s.lastX) / dt) : s.vx;
+      var vx = (dt > 0 && dt < 80) ? ((x - s.lastX) / dt) : s.vx;
       var p = s.p != null ? s.p : (s.p0 || 0);
-      var commit = p > 0.35 || (vx > 0.45 && dx > 20);
+      var commit = p >= 0.5 || (vx > 0.45 && dx > 20);
       var reduced = motionReduced();
-      if (commit) {
-        runSettingsProgress(s.page, 1, {
-          duration: motionMs('--motion-settings-out', 250),
-          ease: reduced ? 'linear' : 'var(--ease-exit)',
-          onDone: commitSettingsHistory
-        });
-      } else {
-        runSettingsProgress(s.page, 0, {
-          duration: motionMs('--motion-state', 200),
-          ease: reduced ? 'linear' : 'var(--ease)'
-        });
-      }
+      settingsPoseMode = 'edge';
+      runSettingsProgress(s.page, commit ? 1 : 0, {
+        edge: true,
+        duration: motionMs(commit ? '--motion-settings-out' : '--motion-state', commit ? 250 : 200),
+        ease: reduced ? 'linear' : (commit ? 'var(--ease-exit)' : 'var(--ease)'),
+        onDone: commit ? commitSettingsHistory : null
+      });
       function stopClick(ev) {
         ev.preventDefault();
         ev.stopPropagation();
@@ -2440,67 +2450,98 @@
       window.addEventListener('click', stopClick, true);
       setTimeout(function () { window.removeEventListener('click', stopClick, true); }, 400);
     }
-    document.addEventListener('pointerdown', function (e) {
+    function beginEdge(x, y, id, target, ev) {
       if (motionReduced()) return;
       if (current !== 'settings' || settingsView === 'root') return;
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      if (e.clientX > 28) return;
-      var blocked = e.target && e.target.closest && e.target.closest('#tabbar, #modalMask, #actMask, #authMask, #lockShell');
+      if (ev && ev.pointerType === 'mouse' && ev.button !== 0) return;
+      if (x > 28) return;
+      if (edgeSwipe) return;
+      var blocked = target && target.closest && target.closest('#tabbar, #modalMask, #actMask, #authMask, #lockShell');
       if (blocked && !blocked.classList.contains('hidden')) return;
-      var editable = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+      var editable = target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]');
       if (editable) return;
-      var tappable = e.target && e.target.closest && e.target.closest('button, a');
-      if (!tappable && e.cancelable) e.preventDefault();
+      var tappable = target && target.closest && target.closest('button, a');
+      if (!tappable && ev && ev.cancelable) ev.preventDefault();
       setSettingsSelecting(true);
       edgeSwipe = {
-        id: e.pointerId,
-        x0: e.clientX,
-        y0: e.clientY,
-        lastX: e.clientX,
+        id: id,
+        x0: x,
+        y0: y,
+        lastX: x,
         lastT: performance.now(),
         vx: 0,
         active: false,
         page: settingsView
       };
-    });
-    document.addEventListener('pointermove', function (e) {
-      if (!edgeSwipe || e.pointerId !== edgeSwipe.id) return;
-      var dx = e.clientX - edgeSwipe.x0;
-      var dy = e.clientY - edgeSwipe.y0;
+    }
+    function moveEdge(x, y, id, ev) {
+      if (!edgeSwipe || id !== edgeSwipe.id) return;
+      var dx = x - edgeSwipe.x0;
+      var dy = y - edgeSwipe.y0;
       if (!edgeSwipe.active) {
         if (dx > 8 && Math.abs(dx) > Math.abs(dy)) {
           edgeSwipe.active = true;
+          settingsPoseMode = 'edge';
           var cap = captureSettingsProgress(edgeSwipe.page);
           edgeSwipe.layer = cap && cap.layer;
           edgeSwipe.p0 = cap ? cap.p : 0;
-          edgeSwipe.trackX = e.clientX;
+          edgeSwipe.trackX = x;
           settingsMotionGen++;
           clearTimeout(settingsMotionTimer);
           settingsMotionLive = true;
           settingsMotionDone = null;
-          if (edgeSwipe.layer) poseSettings(edgeSwipe.layer, edgeSwipe.p0, { duration: 0 });
+          if (edgeSwipe.layer) poseSettings(edgeSwipe.layer, edgeSwipe.p0, { duration: 0, edge: true });
         } else if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
           edgeSwipe = null;
+          settingsPoseMode = 'sheet';
           setSettingsSelecting(false);
         }
         return;
       }
-      if (e.cancelable) e.preventDefault();
+      if (ev && ev.cancelable) ev.preventDefault();
       var now = performance.now();
       var dt = now - edgeSwipe.lastT;
-      if (dt > 0) edgeSwipe.vx = (e.clientX - edgeSwipe.lastX) / dt;
-      edgeSwipe.lastX = e.clientX;
+      if (dt > 0) edgeSwipe.vx = (x - edgeSwipe.lastX) / dt;
+      edgeSwipe.lastX = x;
       edgeSwipe.lastT = now;
       if (!edgeSwipe.layer) return;
-      var shift = settingsShiftPx();
-      var p = edgeSwipe.p0 + ((e.clientX - edgeSwipe.trackX) / shift);
-      if (p < 0) p = 0;
-      if (p > 1) p = 1;
-      poseSettings(edgeSwipe.layer, p, { duration: 0 });
+      var vw = settingsViewportPx();
+      var tx = edgeSwipe.p0 * vw + (x - edgeSwipe.trackX);
+      if (tx < 0) tx = 0;
+      if (tx > vw) tx = vw;
+      var p = tx / vw;
+      poseSettings(edgeSwipe.layer, p, { duration: 0, edge: true });
       edgeSwipe.p = p;
+    }
+    document.addEventListener('pointerdown', function (e) {
+      beginEdge(e.clientX, e.clientY, e.pointerId, e.target, e);
+    });
+    document.addEventListener('pointermove', function (e) {
+      moveEdge(e.clientX, e.clientY, e.pointerId, e);
     }, { passive: false });
-    document.addEventListener('pointerup', endEdge);
-    document.addEventListener('pointercancel', endEdge);
+    document.addEventListener('pointerup', function (e) { finishEdge(e.clientX, e.clientY, e.pointerId); });
+    document.addEventListener('pointercancel', function (e) { finishEdge(e.clientX, e.clientY, e.pointerId); });
+    document.addEventListener('touchstart', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      beginEdge(t.clientX, t.clientY, t.identifier, e.target, e);
+    }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+      if (edgeSwipe && edgeSwipe.active && e.cancelable) e.preventDefault();
+      moveEdge(t.clientX, t.clientY, t.identifier, e);
+    }, { passive: false });
+    document.addEventListener('touchend', function (e) {
+      var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+      if (!t) return;
+      finishEdge(t.clientX, t.clientY, t.identifier);
+    });
+    document.addEventListener('touchcancel', function (e) {
+      var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
+      if (!t) return;
+      finishEdge(t.clientX, t.clientY, t.identifier);
+    });
     document.addEventListener('selectstart', function (e) {
       if (!edgeSwipe) return;
       e.preventDefault();
@@ -2512,20 +2553,6 @@
     document.addEventListener('selectionchange', function () {
       if (edgeSwipe) clearTextSelection();
     });
-    document.addEventListener('touchstart', function (e) {
-      if (motionReduced()) return;
-      if (current !== 'settings' || settingsView === 'root') return;
-      var t = e.touches && e.touches[0];
-      if (!t || t.clientX > 28) return;
-      var editable = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
-      if (editable) return;
-      var tappable = e.target && e.target.closest && e.target.closest('button, a');
-      if (!tappable && e.cancelable) e.preventDefault();
-    }, { passive: false });
-    document.addEventListener('touchmove', function (e) {
-      if (!edgeSwipe || !edgeSwipe.active) return;
-      if (e.cancelable) e.preventDefault();
-    }, { passive: false });
   })();
   function addReason() {
     var v = $('reasonInput').value.trim();
