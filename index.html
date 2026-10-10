@@ -340,18 +340,13 @@
 
     <!-- ========== 设置（Instagram 式二级菜单） ========== -->
     <section class="screen" id="screen-settings" data-screen="settings">
-      <header class="page-head settings-head">
-        <button class="icon-btn settings-back hidden" id="settingsBack" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
-        <div class="settings-head-main">
-          <div>
-            <p class="eyebrow" id="settingsEyebrow">设置</p>
-            <h1 id="settingsTitle">设置</h1>
-          </div>
-        </div>
-      </header>
-
       <div class="settings-wrap">
       <div id="settingsRoot">
+        <header class="page-head settings-head">
+          <div class="settings-head-main">
+            <h1>设置</h1>
+          </div>
+        </header>
         <p class="set-label">账号</p>
         <div class="set-group">
           <button class="set-row" type="button" data-settings="account">
@@ -442,6 +437,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="account">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>账号与资料</h1>
+            </div>
+          </div>
+        </header>
         <div class="card account-card" id="accountCard">
           <div class="card-title">
             <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-circle-user-round"/></svg>账号</h2>
@@ -480,6 +484,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="goal">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>目标天数</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-target"/></svg>目标天数</h2>
           <p class="muted small">默认 30 天。</p>
@@ -492,6 +505,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="resets">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>重置规则</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-flame"/></svg>重置规则</h2>
           <p class="muted small">打开会清零天数。关掉只记在日历上。</p>
@@ -500,6 +522,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="theme">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>外观</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <div class="card-title">
             <h2><svg class="ic h-ic tint-amber" aria-hidden="true"><use href="#i-sun-moon"/></svg>外观</h2>
@@ -514,6 +545,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="reasons">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>理由</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic tint-pink" aria-hidden="true"><use href="#i-heart"/></svg>理由</h2>
           <ul class="reasons-edit" id="reasonsEdit"></ul>
@@ -525,6 +565,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="data">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>数据</h1>
+            </div>
+          </div>
+        </header>
         <div class="set-group">
           <div class="set-row">
             <span class="row-ic ri-blue"><svg class="ic" aria-hidden="true"><use href="#i-cloud-check"/></svg></span>
@@ -556,6 +605,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="lock">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>应用锁</h1>
+            </div>
+          </div>
+        </header>
         <div class="card">
           <h2><svg class="ic h-ic" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="lock.when">锁定时机</span></h2>
           <p class="muted small" data-i18n="lock.whenHint">离开后再打开，超过这个时间要输入密码。</p>
@@ -568,6 +626,15 @@
       </div>
 
       <div class="settings-page hidden" data-settings-page="about">
+        <header class="page-head settings-head">
+          <button class="icon-btn settings-back" type="button" data-i18n-aria="a11y.settings.back" aria-label="返回设置"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
+          <div class="settings-head-main">
+            <div>
+              <p class="eyebrow">设置</p>
+              <h1>关于</h1>
+            </div>
+          </div>
+        </header>
         <div class="set-group">
           <a class="set-row" href="privacy.html">
             <span class="row-ic"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg></span>

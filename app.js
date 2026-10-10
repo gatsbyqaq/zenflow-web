@@ -2059,11 +2059,9 @@
   }
   function paintSettingsChrome() {
     var isRoot = settingsView === 'root';
-    if ($('settingsBack')) $('settingsBack').classList.toggle('hidden', isRoot);
     if ($('settingsMe')) $('settingsMe').classList.toggle('hidden', !isRoot);
     var settingsScreen = $('screen-settings');
     if (settingsScreen) settingsScreen.classList.toggle('settings-root', isRoot);
-    if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '设置' : (SETTINGS_PAGES[settingsView] || '设置');
   }
   function applySettingsDom() {
     if (settingsMotionLive) return;
@@ -2353,7 +2351,9 @@
     if (!row) return;
     showSettings(row.dataset.settings);
   });
-  if ($('settingsBack')) $('settingsBack').addEventListener('click', backSettings);
+  if ($('screen-settings')) $('screen-settings').addEventListener('click', function (e) {
+    if (e.target.closest('.settings-back')) backSettings();
+  });
   if ($('resetTypeList')) $('resetTypeList').addEventListener('click', function (e) {
     var b = e.target.closest('[data-reset-type]');
     if (!b || b.disabled) return;

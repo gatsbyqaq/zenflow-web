@@ -1092,8 +1092,8 @@ body.auth-ready #authBoot{display:none!important}
 .settings-head-main{min-width:0;flex:1}
 .settings-head h1{font-size:28px;font-weight:600;letter-spacing:-.02em}
 .settings-back{flex-shrink:0;margin-left:-4px}
+.settings-head + .set-label{margin-top:0}
 .settings-me{display:flex;align-items:center;gap:12px;margin:0 0 4px}
-#screen-settings.settings-root #settingsEyebrow{display:none}
 .settings-me-avatar{width:64px;height:64px;font-size:24px}
 .settings-me-text{display:flex;flex-direction:column;min-width:0;gap:2px}
 .settings-me-text b{font-size:18px;font-weight:700;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
