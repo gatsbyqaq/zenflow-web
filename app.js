@@ -2079,6 +2079,7 @@
       root.style.transition = '';
       root.style.transform = '';
       root.style.opacity = '';
+      clearSettingsSheetBox(root);
     }
     document.querySelectorAll('.settings-page').forEach(function (p) {
       var on = !isRoot && p.dataset.settingsPage === settingsView;
@@ -2086,6 +2087,7 @@
       p.style.transition = '';
       p.style.transform = '';
       p.style.opacity = '';
+      clearSettingsSheetBox(p);
     });
     paintSettingsChrome();
   }
@@ -2136,10 +2138,45 @@
       layer.page.style.opacity = String(1 - p);
     } else {
       layer.page.style.transform = 'translate3d(' + (shift * p) + 'px,0,0)';
-      layer.page.style.opacity = String(1 - p);
+      layer.page.style.opacity = '1';
       layer.root.style.transform = 'translate3d(' + (-shift * (1 - p)) + 'px,0,0)';
       layer.root.style.opacity = String(0.4 + 0.6 * p);
     }
+  }
+  function clearSettingsSheetBox(el) {
+    if (!el) return;
+    el.style.boxSizing = '';
+    el.style.width = '';
+    el.style.minHeight = '';
+    el.style.paddingLeft = '';
+    el.style.paddingRight = '';
+    el.style.marginLeft = '';
+    el.style.left = '';
+    el.style.right = '';
+    el.style.background = '';
+  }
+  function layoutSettingsSheets(layer) {
+    var wrap = layer.wrap;
+    var rect = wrap.getBoundingClientRect();
+    var left = Math.max(0, rect.left);
+    var top = Math.max(0, rect.top);
+    var viewW = window.innerWidth;
+    var viewH = Math.max(layer.root.offsetHeight, layer.page.offsetHeight, window.innerHeight - top);
+    var rightPad = Math.max(0, viewW - rect.right);
+    function fill(el) {
+      el.style.boxSizing = 'border-box';
+      el.style.width = viewW + 'px';
+      el.style.minHeight = viewH + 'px';
+      el.style.paddingLeft = left + 'px';
+      el.style.paddingRight = rightPad + 'px';
+      el.style.background = 'var(--bg)';
+    }
+    fill(layer.root);
+    fill(layer.page);
+    layer.root.style.marginLeft = (-left) + 'px';
+    layer.page.style.left = (-left) + 'px';
+    layer.page.style.right = 'auto';
+    wrap.style.minHeight = viewH + 'px';
   }
   function captureSettingsProgress(pageName) {
     var wrap = document.querySelector('.settings-wrap');
@@ -2161,10 +2198,8 @@
       el.style.transform = '';
       el.style.opacity = '';
     });
-    var rh = root.offsetHeight;
-    var ph = page.offsetHeight;
     wrap.classList.add('is-stack');
-    wrap.style.minHeight = Math.max(rh, ph) + 'px';
+    layoutSettingsSheets(layer);
     return { layer: layer, p: p };
   }
   function settleSettingsMotion(gen, target, pageName) {
@@ -2356,11 +2391,27 @@
     }
     if (current === 'settings' && settingsView !== 'root') showSettings('root', { silent: true });
   });
+  var clearingTextSelection = false;
+  function clearTextSelection() {
+    if (clearingTextSelection) return;
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.removeAllRanges) return;
+    clearingTextSelection = true;
+    try { sel.removeAllRanges(); } catch (e) {}
+    clearingTextSelection = false;
+  }
+  function setSettingsSelecting(on) {
+    var screen = $('screen-settings');
+    if (screen) screen.classList.toggle('settings-nosel', !!on);
+    if (on) clearTextSelection();
+  }
   (function bindSettingsEdge() {
     function endEdge(e) {
       if (!edgeSwipe || e.pointerId !== edgeSwipe.id) return;
       var s = edgeSwipe;
       edgeSwipe = null;
+      setSettingsSelecting(false);
+      clearTextSelection();
       if (!s.active) return;
       var dx = e.clientX - s.x0;
       var now = performance.now();
@@ -2396,6 +2447,11 @@
       if (e.clientX > 28) return;
       var blocked = e.target && e.target.closest && e.target.closest('#tabbar, #modalMask, #actMask, #authMask, #lockShell');
       if (blocked && !blocked.classList.contains('hidden')) return;
+      var editable = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+      if (editable) return;
+      var tappable = e.target && e.target.closest && e.target.closest('button, a');
+      if (!tappable && e.cancelable) e.preventDefault();
+      setSettingsSelecting(true);
       edgeSwipe = {
         id: e.pointerId,
         x0: e.clientX,
@@ -2425,6 +2481,7 @@
           if (edgeSwipe.layer) poseSettings(edgeSwipe.layer, edgeSwipe.p0, { duration: 0 });
         } else if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
           edgeSwipe = null;
+          setSettingsSelecting(false);
         }
         return;
       }
@@ -2444,6 +2501,31 @@
     }, { passive: false });
     document.addEventListener('pointerup', endEdge);
     document.addEventListener('pointercancel', endEdge);
+    document.addEventListener('selectstart', function (e) {
+      if (!edgeSwipe) return;
+      e.preventDefault();
+    }, true);
+    document.addEventListener('dragstart', function (e) {
+      if (!edgeSwipe) return;
+      e.preventDefault();
+    }, true);
+    document.addEventListener('selectionchange', function () {
+      if (edgeSwipe) clearTextSelection();
+    });
+    document.addEventListener('touchstart', function (e) {
+      if (motionReduced()) return;
+      if (current !== 'settings' || settingsView === 'root') return;
+      var t = e.touches && e.touches[0];
+      if (!t || t.clientX > 28) return;
+      var editable = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+      if (editable) return;
+      var tappable = e.target && e.target.closest && e.target.closest('button, a');
+      if (!tappable && e.cancelable) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      if (!edgeSwipe || !edgeSwipe.active) return;
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
   })();
   function addReason() {
     var v = $('reasonInput').value.trim();
