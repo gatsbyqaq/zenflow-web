@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"45";
+  --zf-css:"46";
   --motion-press:100ms;
   --motion-state:200ms;
   --motion-panel:300ms;
@@ -18,6 +18,11 @@
   --motion-day:150ms;
   --motion-list:200ms;
   --motion-height:250ms;
+  --motion-tab-out:120ms;
+  --motion-tab-in:160ms;
+  --motion-tab-delay:40ms;
+  --motion-settings-in:300ms;
+  --motion-settings-out:250ms;
   --motion-ring:600ms;
   --motion-badge:400ms;
   --motion-reduced:150ms;
@@ -148,6 +153,11 @@ html[data-motion-scale="4"]{
   --motion-day:600ms;
   --motion-list:800ms;
   --motion-height:1000ms;
+  --motion-tab-out:480ms;
+  --motion-tab-in:640ms;
+  --motion-tab-delay:160ms;
+  --motion-settings-in:1200ms;
+  --motion-settings-out:1000ms;
   --motion-ring:2400ms;
   --motion-badge:1600ms;
   --motion-reduced:600ms;
@@ -210,8 +220,11 @@ html,body{background-color:#ffffff}
   padding:calc(var(--safe-t) + 8px) 20px calc(var(--safe-b) + 76px);
 }
 .screen{display:none}
-.screen.active{display:block}
-html.motion-ready .screen.enter{animation:fade var(--motion-panel) var(--ease)}
+.screen.active{display:block;position:relative;z-index:1}
+.screen.screen-leave{
+  display:block;position:absolute;left:0;right:0;top:0;z-index:0;
+  pointer-events:none;
+}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 
 .page-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 0 12px;margin-bottom:12px}
@@ -805,7 +818,7 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   .gauge-days{font-size:72px}
   .side-keys{font-size:12px;color:var(--muted);margin:4px 8px 0;line-height:1.7}
 
-  #screen-home.active{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,1fr);column-gap:16px;align-items:start}
+  #screen-home.active,#screen-home.screen-leave{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(280px,1fr);column-gap:16px;align-items:start}
   #screen-home .page-head{grid-column:1/-1}
   #screen-home .page-head .brand{display:none}
   #screen-home .eyebrow{margin:0;font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.02em}
@@ -868,6 +881,8 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
     --motion-sheet-in:150ms;--motion-sheet-out:150ms;--motion-select:150ms;
     --motion-month:150ms;--motion-month-out:60ms;--motion-month-in:102ms;--motion-month-delay:48ms;
     --motion-day:150ms;--motion-list:150ms;--motion-height:150ms;
+    --motion-tab-out:100ms;--motion-tab-in:100ms;--motion-tab-delay:100ms;
+    --motion-settings-in:150ms;--motion-settings-out:150ms;
     --motion-ring:150ms;--motion-badge:150ms;--motion-reduced:150ms;
   }
   html.motion-ready button{
@@ -1082,7 +1097,11 @@ body.auth-ready #authBoot{display:none!important}
 .settings-me-text{display:flex;flex-direction:column;min-width:0;gap:2px}
 .settings-me-text b{font-size:18px;font-weight:700;letter-spacing:-.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .settings-me-text small{font-size:13px;font-weight:600;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.settings-wrap{max-width:560px}
+.settings-wrap{max-width:560px;position:relative}
+.settings-wrap.is-stack > #settingsRoot{position:relative;z-index:1;background:var(--bg)}
+.settings-wrap.is-stack > .settings-page:not(.hidden){
+  position:absolute;left:0;right:0;top:0;z-index:2;background:var(--bg);
+}
 .avatar-edit{display:flex;align-items:center;gap:14px;margin:4px 0 8px}
 .profile-avatar{width:84px;height:84px;font-size:30px}
 .avatar-edit-actions{display:flex;flex-wrap:wrap;gap:8px}

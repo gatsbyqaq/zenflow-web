@@ -372,12 +372,79 @@
 
   /* ---------------- 导航 ---------------- */
   var current = 'home';
+  var screenMotionGen = 0;
+  var screenMotionTimer = 0;
+  function clearScreenMotion(el) {
+    if (!el) return;
+    el.classList.remove('screen-leave', 'enter');
+    el.style.opacity = '';
+    el.style.transition = '';
+    el.style.pointerEvents = '';
+  }
+  function shownScreenOpacity(el) {
+    if (!el || (!el.classList.contains('active') && !el.classList.contains('screen-leave'))) return 0;
+    var o = parseFloat(window.getComputedStyle(el).opacity);
+    return isFinite(o) ? o : 0;
+  }
+  function playScreenCrossfade(toEl) {
+    var gen = ++screenMotionGen;
+    clearTimeout(screenMotionTimer);
+    var outMs = motionMs('--motion-tab-out', 120);
+    var inMs = motionMs('--motion-tab-in', 160);
+    var delay = motionMs('--motion-tab-delay', 40);
+    var ease = 'var(--ease)';
+    var leaves = [];
+    var toOp = shownScreenOpacity(toEl);
+    document.querySelectorAll('.screen').forEach(function (s) {
+      if (s === toEl) return;
+      var op = shownScreenOpacity(s);
+      if (op > 0.015) leaves.push({ el: s, op: op });
+      else {
+        s.classList.remove('active');
+        clearScreenMotion(s);
+      }
+    });
+    leaves.forEach(function (L) {
+      L.el.style.transition = 'none';
+      L.el.style.opacity = String(L.op);
+      L.el.classList.remove('active');
+      L.el.classList.add('screen-leave');
+      L.el.style.pointerEvents = 'none';
+    });
+    toEl.style.transition = 'none';
+    toEl.style.opacity = String(toOp);
+    toEl.classList.remove('screen-leave');
+    toEl.classList.add('active');
+    toEl.style.pointerEvents = '';
+    void toEl.offsetWidth;
+    leaves.forEach(function (L) {
+      L.el.style.transition = 'opacity ' + outMs + 'ms ' + ease;
+      L.el.style.opacity = '0';
+    });
+    toEl.style.transition = 'opacity ' + inMs + 'ms ' + ease + ' ' + delay + 'ms';
+    toEl.style.opacity = '1';
+    var total = Math.max(outMs, delay + inMs);
+    screenMotionTimer = setTimeout(function () {
+      if (gen !== screenMotionGen) return;
+      leaves.forEach(function (L) {
+        L.el.classList.remove('active');
+        clearScreenMotion(L.el);
+      });
+      if (toEl.classList.contains('active')) {
+        toEl.style.opacity = '';
+        toEl.style.transition = '';
+      }
+    }, total + 70);
+  }
   function go(tab) {
     if (current === 'sos' && tab !== 'sos') resetSos();
     if (cropSheetOpen()) window.ZFCloud.closeCrop();
     if ($('actMask') && !$('actMask').classList.contains('hidden')) closeAct();
     if (dayKey) closeDay();
     if (current === 'settings' && tab !== 'settings' && settingsView !== 'root') {
+      settingsMotionLive = false;
+      settingsMotionGen++;
+      clearTimeout(settingsMotionTimer);
       settingsView = 'root';
       applySettingsDom();
       if (/^#settings/.test(location.hash) && location.hash !== '#admin') {
@@ -387,17 +454,26 @@
     var screenChanged = tab !== current;
     current = tab;
     document.body.classList.toggle('sos-open', tab === 'sos');
-    document.querySelectorAll('.screen').forEach(function (s) {
-      var on = s.dataset.screen === tab;
-      s.classList.toggle('active', on);
-      s.classList.toggle('enter', on && screenChanged && motionReady());
-    });
     document.querySelectorAll('.tab').forEach(function (b) {
       var on = b.dataset.tab === tab;
       b.classList.toggle('active', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     $('tabbar').dataset.active = tab;
+    var toEl = document.querySelector('.screen[data-screen="' + tab + '"]');
+    if (!toEl) return;
+    if (!screenChanged || !motionReady()) {
+      if (screenChanged) {
+        screenMotionGen++;
+        clearTimeout(screenMotionTimer);
+        document.querySelectorAll('.screen').forEach(function (s) {
+          clearScreenMotion(s);
+          s.classList.toggle('active', s.dataset.screen === tab);
+        });
+      }
+    } else {
+      playScreenCrossfade(toEl);
+    }
     window.scrollTo(0, 0);
     render(tab);
   }
@@ -1968,6 +2044,12 @@
     about: '关于'
   };
   var settingsView = 'root';
+  var settingsMotionGen = 0;
+  var settingsMotionTimer = 0;
+  var settingsMotionLive = false;
+  var settingsMotionDone = null;
+  var settingsIgnorePop = false;
+  var edgeSwipe = null;
   function settingsViewFromHash() {
     var m = (location.hash || '').match(/^#settings(?:\/([a-z]+))?$/);
     if (!m) return null;
@@ -1975,35 +2057,202 @@
     if (m[1] === 'privacy') return 'data';
     return SETTINGS_PAGES[m[1]] ? m[1] : 'root';
   }
-  function applySettingsDom() {
+  function paintSettingsChrome() {
     var isRoot = settingsView === 'root';
-    if ($('settingsRoot')) $('settingsRoot').classList.toggle('hidden', !isRoot);
-    document.querySelectorAll('.settings-page').forEach(function (p) {
-      p.classList.toggle('hidden', p.dataset.settingsPage !== settingsView);
-    });
     if ($('settingsBack')) $('settingsBack').classList.toggle('hidden', isRoot);
     if ($('settingsMe')) $('settingsMe').classList.toggle('hidden', !isRoot);
     var settingsScreen = $('screen-settings');
     if (settingsScreen) settingsScreen.classList.toggle('settings-root', isRoot);
     if ($('settingsTitle')) $('settingsTitle').textContent = isRoot ? '设置' : (SETTINGS_PAGES[settingsView] || '设置');
   }
+  function applySettingsDom() {
+    if (settingsMotionLive) return;
+    var isRoot = settingsView === 'root';
+    var wrap = document.querySelector('.settings-wrap');
+    if (wrap) {
+      wrap.classList.remove('is-stack');
+      wrap.style.minHeight = '';
+    }
+    var root = $('settingsRoot');
+    if (root) {
+      root.classList.toggle('hidden', !isRoot);
+      root.style.transition = '';
+      root.style.transform = '';
+      root.style.opacity = '';
+    }
+    document.querySelectorAll('.settings-page').forEach(function (p) {
+      var on = !isRoot && p.dataset.settingsPage === settingsView;
+      p.classList.toggle('hidden', !on);
+      p.style.transition = '';
+      p.style.transform = '';
+      p.style.opacity = '';
+    });
+    paintSettingsChrome();
+  }
+  function settingsShiftPx() {
+    return Math.max(1, Math.round(window.innerWidth * 0.3));
+  }
+  function readSettingsProgress(layer) {
+    if (!layer || !layer.page) return 0;
+    if (motionReduced()) {
+      var op = parseFloat(window.getComputedStyle(layer.page).opacity);
+      return isFinite(op) ? Math.max(0, Math.min(1, 1 - op)) : 0;
+    }
+    var tr = window.getComputedStyle(layer.page).transform;
+    var shift = settingsShiftPx();
+    if (tr && tr !== 'none') {
+      var m = tr.match(/matrix(?:3d)?\(([^)]+)\)/);
+      if (m) {
+        var parts = m[1].split(',').map(function (n) { return parseFloat(n); });
+        var tx = parts.length === 16 ? parts[12] : parts[4];
+        if (isFinite(tx)) return Math.max(0, Math.min(1, tx / shift));
+      }
+    }
+    var op2 = parseFloat(window.getComputedStyle(layer.page).opacity);
+    return isFinite(op2) ? Math.max(0, Math.min(1, 1 - op2)) : 0;
+  }
+  function poseSettings(layer, p, anim) {
+    if (!layer) return;
+    anim = anim || {};
+    var reduced = motionReduced();
+    var shift = settingsShiftPx();
+    p = Math.max(0, Math.min(1, p));
+    var dur = anim.duration || 0;
+    var ease = anim.ease || 'linear';
+    var trans = 'none';
+    if (dur > 0) {
+      trans = reduced
+        ? ('opacity ' + dur + 'ms ' + ease)
+        : ('transform ' + dur + 'ms ' + ease + ', opacity ' + dur + 'ms ' + ease);
+    }
+    layer.root.style.transition = trans;
+    layer.page.style.transition = trans;
+    if (reduced) {
+      layer.root.style.transform = 'none';
+      layer.page.style.transform = 'none';
+      layer.root.style.opacity = String(p);
+      layer.page.style.opacity = String(1 - p);
+    } else {
+      layer.page.style.transform = 'translate3d(' + (shift * p) + 'px,0,0)';
+      layer.page.style.opacity = String(1 - p);
+      layer.root.style.transform = 'translate3d(' + (-shift * (1 - p)) + 'px,0,0)';
+      layer.root.style.opacity = String(0.4 + 0.6 * p);
+    }
+  }
+  function captureSettingsProgress(pageName) {
+    var wrap = document.querySelector('.settings-wrap');
+    var root = $('settingsRoot');
+    var page = document.querySelector('.settings-page[data-settings-page="' + pageName + '"]');
+    if (!wrap || !root || !page) return null;
+    var layer = { wrap: wrap, root: root, page: page };
+    var p;
+    if (settingsMotionLive) p = readSettingsProgress(layer);
+    else if (page.classList.contains('hidden')) p = 1;
+    else if (root.classList.contains('hidden')) p = 0;
+    else p = readSettingsProgress(layer);
+    root.classList.remove('hidden');
+    page.classList.remove('hidden');
+    document.querySelectorAll('.settings-page').forEach(function (el) {
+      if (el === page) return;
+      el.classList.add('hidden');
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.opacity = '';
+    });
+    var rh = root.offsetHeight;
+    var ph = page.offsetHeight;
+    wrap.classList.add('is-stack');
+    wrap.style.minHeight = Math.max(rh, ph) + 'px';
+    return { layer: layer, p: p };
+  }
+  function settleSettingsMotion(gen, target, pageName) {
+    if (gen !== settingsMotionGen) return;
+    settingsMotionLive = false;
+    if (target >= 0.999) settingsView = 'root';
+    else if (pageName) settingsView = pageName;
+    applySettingsDom();
+    updateSettingsChrome();
+    var done = settingsMotionDone;
+    settingsMotionDone = null;
+    if (done) done();
+  }
+  function runSettingsProgress(pageName, target, opts) {
+    opts = opts || {};
+    var wasLive = settingsMotionLive;
+    var gen = ++settingsMotionGen;
+    clearTimeout(settingsMotionTimer);
+    var captured = captureSettingsProgress(pageName);
+    if (!captured) {
+      settingsMotionLive = false;
+      applySettingsDom();
+      if (opts.onDone) opts.onDone();
+      return;
+    }
+    var from = (wasLive || opts.from == null) ? captured.p : opts.from;
+    settingsMotionLive = true;
+    settingsMotionDone = opts.onDone || null;
+    poseSettings(captured.layer, from, { duration: 0 });
+    var dur = opts.duration || 0;
+    if (dur <= 0 || Math.abs(from - target) < 0.002) {
+      poseSettings(captured.layer, target, { duration: 0 });
+      settleSettingsMotion(gen, target, pageName);
+      return;
+    }
+    void captured.layer.page.offsetWidth;
+    poseSettings(captured.layer, target, { duration: dur, ease: opts.ease || 'var(--ease)' });
+    settingsMotionTimer = setTimeout(function () {
+      settleSettingsMotion(gen, target, pageName);
+    }, dur + 50);
+  }
+  function syncSettingsHash(view, opts) {
+    if (opts.silent) return;
+    var hash = view === 'root' ? '#settings' : ('#settings/' + view);
+    var url = location.pathname + location.search + hash;
+    try {
+      if (opts.replace) history.replaceState({ zfSettings: view, zfEntry: !!opts.entry }, '', url);
+      else history.pushState({ zfSettings: view }, '', url);
+    } catch (e) {}
+  }
+  function commitSettingsHistory() {
+    if (history.state && history.state.zfSettings && history.state.zfSettings !== 'root' && !history.state.zfEntry) {
+      settingsIgnorePop = true;
+      history.back();
+    } else {
+      try { history.replaceState({ zfSettings: 'root' }, '', location.pathname + location.search + '#settings'); } catch (e) {}
+    }
+  }
   function showSettings(view, opts) {
     opts = opts || {};
     if (view !== 'root' && !SETTINGS_PAGES[view]) view = 'root';
+    var prev = settingsView;
+    if (prev === view) {
+      syncSettingsHash(view, opts);
+      return;
+    }
     settingsView = view;
-    applySettingsDom();
     if (view === 'resets') renderResetToggles();
     if (view === 'goal') renderGoalControl();
     if (view === 'lock') paintLockGrace();
     updateSettingsChrome();
-    if (!opts.silent) {
-      var hash = view === 'root' ? '#settings' : ('#settings/' + view);
-      var url = location.pathname + location.search + hash;
-      try {
-        if (opts.replace) history.replaceState({ zfSettings: view, zfEntry: !!opts.entry }, '', url);
-        else history.pushState({ zfSettings: view }, '', url);
-      } catch (e) {}
+    syncSettingsHash(view, opts);
+    var animate = !opts.instant && motionReady() && ((prev === 'root' && view !== 'root') || (view === 'root' && prev !== 'root'));
+    if (animate && view !== 'root') paintSettingsChrome();
+    if (!animate) {
+      settingsMotionLive = false;
+      settingsMotionGen++;
+      clearTimeout(settingsMotionTimer);
+      applySettingsDom();
+      window.scrollTo(0, 0);
+      return;
     }
+    var pageName = view === 'root' ? prev : view;
+    var entering = view !== 'root';
+    var reduced = motionReduced();
+    runSettingsProgress(pageName, entering ? 0 : 1, {
+      from: entering ? 1 : 0,
+      duration: motionMs(entering ? '--motion-settings-in' : '--motion-settings-out', entering ? 300 : 250),
+      ease: reduced ? 'linear' : (entering ? 'var(--ease-sheet)' : 'var(--ease-exit)')
+    });
     window.scrollTo(0, 0);
   }
   function backSettings() {
@@ -2085,21 +2334,114 @@
   });
   window.addEventListener('popstate', function () {
     if ((location.hash || '') === '#admin') return;
+    if (settingsIgnorePop) { settingsIgnorePop = false; return; }
     var v = settingsViewFromHash();
     if (v) {
-      settingsView = v;
-      if (current !== 'settings') go('settings');
-      else applySettingsDom();
+      if (current !== 'settings') {
+        settingsMotionLive = false;
+        settingsView = v;
+        go('settings');
+        return;
+      }
+      if (v !== settingsView) {
+        showSettings(v, { silent: true });
+        return;
+      }
+      applySettingsDom();
       if (v === 'resets') renderResetToggles();
       updateSettingsChrome();
       return;
     }
-    if (current === 'settings' && settingsView !== 'root') {
-      settingsView = 'root';
-      applySettingsDom();
-      updateSettingsChrome();
-    }
+    if (current === 'settings' && settingsView !== 'root') showSettings('root', { silent: true });
   });
+  (function bindSettingsEdge() {
+    function endEdge(e) {
+      if (!edgeSwipe || e.pointerId !== edgeSwipe.id) return;
+      var s = edgeSwipe;
+      edgeSwipe = null;
+      if (!s.active) return;
+      var dx = e.clientX - s.x0;
+      var now = performance.now();
+      var dt = now - s.lastT;
+      var vx = (dt > 0 && dt < 80) ? ((e.clientX - s.lastX) / dt) : s.vx;
+      var p = s.p != null ? s.p : (s.p0 || 0);
+      var commit = p > 0.35 || (vx > 0.45 && dx > 20);
+      var reduced = motionReduced();
+      if (commit) {
+        runSettingsProgress(s.page, 1, {
+          duration: motionMs('--motion-settings-out', 250),
+          ease: reduced ? 'linear' : 'var(--ease-exit)',
+          onDone: commitSettingsHistory
+        });
+      } else {
+        runSettingsProgress(s.page, 0, {
+          duration: motionMs('--motion-state', 200),
+          ease: reduced ? 'linear' : 'var(--ease)'
+        });
+      }
+      function stopClick(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.removeEventListener('click', stopClick, true);
+      }
+      window.addEventListener('click', stopClick, true);
+      setTimeout(function () { window.removeEventListener('click', stopClick, true); }, 400);
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (current !== 'settings' || settingsView === 'root') return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.clientX > 28) return;
+      var blocked = e.target && e.target.closest && e.target.closest('#tabbar, #modalMask, #actMask, #authMask, #lockShell');
+      if (blocked && !blocked.classList.contains('hidden')) return;
+      edgeSwipe = {
+        id: e.pointerId,
+        x0: e.clientX,
+        y0: e.clientY,
+        lastX: e.clientX,
+        lastT: performance.now(),
+        vx: 0,
+        active: false,
+        page: settingsView
+      };
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!edgeSwipe || e.pointerId !== edgeSwipe.id) return;
+      var dx = e.clientX - edgeSwipe.x0;
+      var dy = e.clientY - edgeSwipe.y0;
+      if (!edgeSwipe.active) {
+        if (dx > 8 && Math.abs(dx) > Math.abs(dy)) {
+          edgeSwipe.active = true;
+          var cap = captureSettingsProgress(edgeSwipe.page);
+          edgeSwipe.layer = cap && cap.layer;
+          edgeSwipe.p0 = cap ? cap.p : 0;
+          edgeSwipe.trackX = e.clientX;
+          settingsMotionGen++;
+          clearTimeout(settingsMotionTimer);
+          settingsMotionLive = true;
+          settingsMotionDone = null;
+          if (edgeSwipe.layer) poseSettings(edgeSwipe.layer, edgeSwipe.p0, { duration: 0 });
+        } else if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+          edgeSwipe = null;
+        }
+        return;
+      }
+      if (e.cancelable) e.preventDefault();
+      var now = performance.now();
+      var dt = now - edgeSwipe.lastT;
+      if (dt > 0) edgeSwipe.vx = (e.clientX - edgeSwipe.lastX) / dt;
+      edgeSwipe.lastX = e.clientX;
+      edgeSwipe.lastT = now;
+      if (!edgeSwipe.layer) return;
+      var shift = settingsShiftPx();
+      var p = edgeSwipe.p0 + ((e.clientX - edgeSwipe.trackX) / shift);
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      poseSettings(edgeSwipe.layer, p, { duration: 0 });
+      edgeSwipe.p = p;
+    }, { passive: false });
+    document.addEventListener('pointerup', endEdge);
+    document.addEventListener('pointercancel', endEdge);
+  })();
   function addReason() {
     var v = $('reasonInput').value.trim();
     if (!v) { toast('请输入内容'); return; }
@@ -2505,7 +2847,7 @@
   }
 
   /* ---------------- 版本信息（设置 → 关于，便于排查缓存问题） ---------------- */
-  var APP_VERSION = '45';
+  var APP_VERSION = '46';
   var DESKTOP_MQ = window.matchMedia ? window.matchMedia('(min-width: 1024px)') : null;
   function renderVersion() {
     var el = $('appVersion'); if (!el) return;
