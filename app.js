@@ -2128,9 +2128,11 @@
     layer.root.style.transition = trans;
     layer.page.style.transition = trans;
     if (reduced) {
+      layer.root.style.transition = 'none';
       layer.root.style.transform = 'none';
+      layer.root.style.opacity = '1';
+      layer.page.style.transition = dur > 0 ? ('opacity ' + dur + 'ms ' + ease) : 'none';
       layer.page.style.transform = 'none';
-      layer.root.style.opacity = String(p);
       layer.page.style.opacity = String(1 - p);
     } else {
       layer.page.style.transform = 'translate3d(' + (shift * p) + 'px,0,0)';
@@ -2388,6 +2390,7 @@
       setTimeout(function () { window.removeEventListener('click', stopClick, true); }, 400);
     }
     document.addEventListener('pointerdown', function (e) {
+      if (motionReduced()) return;
       if (current !== 'settings' || settingsView === 'root') return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (e.clientX > 28) return;

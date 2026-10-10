@@ -894,7 +894,8 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
     transition-duration:100ms,var(--motion-select),100ms;
   }
   .tab .ic-line,.tab .ic-fill,.tab.active .ic-line,.tab.active .ic-fill,
-  #actMask .sheet,.grid,.grid-leave,.days-num,.badge .b-ico{transform:none!important}
+  #actMask .sheet,.grid,.grid-leave,.days-num,.badge .b-ico,
+  #settingsRoot,.settings-page{transform:none!important}
   .lock-dots.shake{animation:none}
 }
 
