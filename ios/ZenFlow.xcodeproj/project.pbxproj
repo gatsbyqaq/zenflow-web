@@ -1,0 +1,411 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CE56738837E9555BA4DA7C1D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5786DE7EE01A9A6C51EEFC3A /* AppModel.swift */; };
+		DB8C89B6799DC2A59ABBB2C4 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31FF527A59B6418FB1F33DBB /* AppConfig.swift */; };
+		91005765BC821A22EA78D8C9 /* CloudClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA622BEF3087B6623FCD61 /* CloudClient.swift */; };
+		3BADB87205E7015414D5AE39 /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */; };
+		18144A273AE26AC1F6EA4FC3 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31636C229172CE8CD880F56 /* Theme.swift */; };
+		3DAA9933EE388D96842AD487 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF544BDFCDA4F68F0E01406 /* AuthView.swift */; };
+		52E2E89EF39CE6E59313C82C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D54DE54D98E8A970C6F7FC2 /* HomeView.swift */; };
+		FB30B17ED55AA4D4B502BCBB /* LogStatsSOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EB93538EB4E7AA8CDC3F126 /* LogStatsSOS.swift */; };
+		786C25F775A0C2DF66E4877B /* RecordSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB8911BCE1131D7DEC8C896 /* RecordSheets.swift */; };
+		5C27732EED8B22BC838F4DC8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2D3D28CA93983AF080BF84F /* RootView.swift */; };
+		F3DA546E899C84A8CCA2E47C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D22D7E3318FEDF0AD0AD2792 /* SettingsView.swift */; };
+		12A72D63E9099270DF48265A /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7321AA381739846909484E1E /* Support.swift */; };
+		2E72E5FAE6425A142E8B717B /* TurnstileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4051A1DF434AC3D62898DB79 /* TurnstileView.swift */; };
+		592EF23F8FF351B9CB7A4964 /* ZenFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01E4B1D33FF24CCABDD6ACD /* ZenFlowApp.swift */; };
+		A4F50764710EF3A14EF234E7 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34F30130F6FE0E61D1BCE679 /* AppState.swift */; };
+		02A5BCEEA844B19749C7E260 /* Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9EB66F1DFF1B49BCCB66EFE /* Catalog.swift */; };
+		2D3B9E1941F66E333CF4F137 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9F341C9371858DFEFF1B04 /* JSONValue.swift */; };
+		FE7DCC6083F1127972241A19 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6DBDD1995D7B0EF80949BA /* Merge.swift */; };
+		85B5D73CCE9C3A203CB76DB2 /* Streak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 669109310D8907D5A41B4B94 /* Streak.swift */; };
+		C1FFFB61196F8C993C0041FD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05FAC94380A70241F23780E7 /* Assets.xcassets */; };
+		9FD78D7CD15DCAAE31666556 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8F3DE973B2BBB6E994C24F77 /* Supabase */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5786DE7EE01A9A6C51EEFC3A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		31FF527A59B6418FB1F33DBB /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		BACA622BEF3087B6623FCD61 /* CloudClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudClient.swift; sourceTree = "<group>"; };
+		4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStore.swift; sourceTree = "<group>"; };
+		C31636C229172CE8CD880F56 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		1AF544BDFCDA4F68F0E01406 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		1D54DE54D98E8A970C6F7FC2 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		9EB93538EB4E7AA8CDC3F126 /* LogStatsSOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatsSOS.swift; sourceTree = "<group>"; };
+		2CB8911BCE1131D7DEC8C896 /* RecordSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordSheets.swift; sourceTree = "<group>"; };
+		E2D3D28CA93983AF080BF84F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		D22D7E3318FEDF0AD0AD2792 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7321AA381739846909484E1E /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
+		4051A1DF434AC3D62898DB79 /* TurnstileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnstileView.swift; sourceTree = "<group>"; };
+		F01E4B1D33FF24CCABDD6ACD /* ZenFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZenFlowApp.swift; sourceTree = "<group>"; };
+		34F30130F6FE0E61D1BCE679 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		C9EB66F1DFF1B49BCCB66EFE /* Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalog.swift; sourceTree = "<group>"; };
+		5A9F341C9371858DFEFF1B04 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		1F6DBDD1995D7B0EF80949BA /* Merge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Merge.swift; sourceTree = "<group>"; };
+		669109310D8907D5A41B4B94 /* Streak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Streak.swift; sourceTree = "<group>"; };
+		05FAC94380A70241F23780E7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0112DAE3F84CB4DF5179BE01 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		38A007151ABE87CC01A5B6E9 /* ZenFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZenFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D1897DBBE7DC4EBFD5751F23 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9FD78D7CD15DCAAE31666556 /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		243AD15AC6F62B26B5840D80 /* ZenFlow */ = {
+			isa = PBXGroup;
+			children = (
+				AD2529923327F05B02324541 /* App */,
+				733FC108B04D2CE28385EFAF /* Config */,
+				1689747A979C67F59B49CA11 /* Services */,
+				360BA26E3965880843CAB551 /* Theme */,
+				52C19C56A8DA699009E04C01 /* Views */,
+				05FAC94380A70241F23780E7 /* Assets.xcassets */,
+				0112DAE3F84CB4DF5179BE01 /* Info.plist */,
+				F01E4B1D33FF24CCABDD6ACD /* ZenFlowApp.swift */,
+			);
+			path = ZenFlow;
+			sourceTree = "<group>";
+		};
+		AD2529923327F05B02324541 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				5786DE7EE01A9A6C51EEFC3A /* AppModel.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		733FC108B04D2CE28385EFAF /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				31FF527A59B6418FB1F33DBB /* AppConfig.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		1689747A979C67F59B49CA11 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				BACA622BEF3087B6623FCD61 /* CloudClient.swift */,
+				4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		360BA26E3965880843CAB551 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				C31636C229172CE8CD880F56 /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		52C19C56A8DA699009E04C01 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				1AF544BDFCDA4F68F0E01406 /* AuthView.swift */,
+				1D54DE54D98E8A970C6F7FC2 /* HomeView.swift */,
+				9EB93538EB4E7AA8CDC3F126 /* LogStatsSOS.swift */,
+				2CB8911BCE1131D7DEC8C896 /* RecordSheets.swift */,
+				E2D3D28CA93983AF080BF84F /* RootView.swift */,
+				D22D7E3318FEDF0AD0AD2792 /* SettingsView.swift */,
+				7321AA381739846909484E1E /* Support.swift */,
+				4051A1DF434AC3D62898DB79 /* TurnstileView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		04E6D9D2E2495E1E9447AA35 /* ZenFlowCore */ = {
+			isa = PBXGroup;
+			children = (
+				9E6549232893A6284E943DB4 /* Sources */,
+			);
+			path = ZenFlowCore;
+			sourceTree = "<group>";
+		};
+		9E6549232893A6284E943DB4 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				D1349E5D3D856C288ACB3551 /* ZenFlowCore */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		D1349E5D3D856C288ACB3551 /* ZenFlowCore */ = {
+			isa = PBXGroup;
+			children = (
+				34F30130F6FE0E61D1BCE679 /* AppState.swift */,
+				C9EB66F1DFF1B49BCCB66EFE /* Catalog.swift */,
+				5A9F341C9371858DFEFF1B04 /* JSONValue.swift */,
+				1F6DBDD1995D7B0EF80949BA /* Merge.swift */,
+				669109310D8907D5A41B4B94 /* Streak.swift */,
+			);
+			path = ZenFlowCore;
+			sourceTree = "<group>";
+		};
+		265994BF137919F08007EFB9 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				243AD15AC6F62B26B5840D80 /* ZenFlow */,
+				04E6D9D2E2495E1E9447AA35 /* ZenFlowCore */,
+			);
+			name = ios;
+			sourceTree = "<group>";
+		};
+		A511EC6FC8BCAFC6B21CD81D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				38A007151ABE87CC01A5B6E9 /* ZenFlow.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		22EA56DD29576E62BCCCA1AA = {
+			isa = PBXGroup;
+			children = (
+				265994BF137919F08007EFB9 /* ios */,
+				A511EC6FC8BCAFC6B21CD81D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E8A3AD980EC179856012B7E /* ZenFlow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5209E82A00554D92E0D2033F /* Build configuration list for PBXNativeTarget "ZenFlow" */;
+			buildPhases = (
+				60C4A7BCE9558CB20D9ADDCB /* Sources */,
+				D1897DBBE7DC4EBFD5751F23 /* Frameworks */,
+				6AC696A880E335123309EDD3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZenFlow;
+			packageProductDependencies = (
+				8F3DE973B2BBB6E994C24F77 /* Supabase */,
+			);
+			productName = ZenFlow;
+			productReference = 38A007151ABE87CC01A5B6E9 /* ZenFlow.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		98F54143AB4E86B28C3AFEE0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					0E8A3AD980EC179856012B7E = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 26C232C07EDBE60E96BF27C5 /* Build configuration list for PBXProject "ZenFlow" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh-Hans;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+				Base,
+			);
+			mainGroup = 22EA56DD29576E62BCCCA1AA;
+			packageReferences = (
+				4FF15B936B8851E2CAA578B9 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
+			productRefGroup = A511EC6FC8BCAFC6B21CD81D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0E8A3AD980EC179856012B7E /* ZenFlow */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6AC696A880E335123309EDD3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C1FFFB61196F8C993C0041FD /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60C4A7BCE9558CB20D9ADDCB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE56738837E9555BA4DA7C1D /* AppModel.swift in Sources */,
+				DB8C89B6799DC2A59ABBB2C4 /* AppConfig.swift in Sources */,
+				91005765BC821A22EA78D8C9 /* CloudClient.swift in Sources */,
+				3BADB87205E7015414D5AE39 /* LocalStore.swift in Sources */,
+				18144A273AE26AC1F6EA4FC3 /* Theme.swift in Sources */,
+				3DAA9933EE388D96842AD487 /* AuthView.swift in Sources */,
+				52E2E89EF39CE6E59313C82C /* HomeView.swift in Sources */,
+				FB30B17ED55AA4D4B502BCBB /* LogStatsSOS.swift in Sources */,
+				786C25F775A0C2DF66E4877B /* RecordSheets.swift in Sources */,
+				5C27732EED8B22BC838F4DC8 /* RootView.swift in Sources */,
+				F3DA546E899C84A8CCA2E47C /* SettingsView.swift in Sources */,
+				12A72D63E9099270DF48265A /* Support.swift in Sources */,
+				2E72E5FAE6425A142E8B717B /* TurnstileView.swift in Sources */,
+				592EF23F8FF351B9CB7A4964 /* ZenFlowApp.swift in Sources */,
+				A4F50764710EF3A14EF234E7 /* AppState.swift in Sources */,
+				02A5BCEEA844B19749C7E260 /* Catalog.swift in Sources */,
+				2D3B9E1941F66E333CF4F137 /* JSONValue.swift in Sources */,
+				FE7DCC6083F1127972241A19 /* Merge.swift in Sources */,
+				85B5D73CCE9C3A203CB76DB2 /* Streak.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		81EF0B87F7311582A413F85B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		6CA505421E42DBA0E456489F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		753223D7C43D419B56801EA3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 30;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ZenFlow/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 30;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gatsbyqaq.zenflow;
+				PRODUCT_NAME = ZenFlow;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Debug;
+		};
+		FD302D95624D72423D81F976 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 30;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ZenFlow/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 30;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gatsbyqaq.zenflow;
+				PRODUCT_NAME = ZenFlow;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		26C232C07EDBE60E96BF27C5 /* Build configuration list for PBXProject "ZenFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81EF0B87F7311582A413F85B /* Debug */,
+				6CA505421E42DBA0E456489F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5209E82A00554D92E0D2033F /* Build configuration list for PBXNativeTarget "ZenFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				753223D7C43D419B56801EA3 /* Debug */,
+				FD302D95624D72423D81F976 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4FF15B936B8851E2CAA578B9 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.46.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8F3DE973B2BBB6E994C24F77 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4FF15B936B8851E2CAA578B9 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 98F54143AB4E86B28C3AFEE0 /* Project object */;
+}
