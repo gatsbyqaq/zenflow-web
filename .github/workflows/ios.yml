@@ -67,6 +67,13 @@ jobs:
           cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark-appearance.png"
           ls -l "$RUNNER_TEMP/shots"
 
+      - name: Upload icon renditions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-icon
+          path: ${{ runner.temp }}/shots/icon-*.png
+          if-no-files-found: error
+
       - name: Build for iOS Simulator
         working-directory: ios
         run: |
@@ -237,7 +244,12 @@ jobs:
             xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow "$@"
             sleep 2.8
             kill -INT "$vpid" 2>/dev/null || true
-            wait "$vpid" 2>/dev/null || true
+            local n
+            for n in 1 2 3 4 5 6 7 8; do
+              kill -0 "$vpid" 2>/dev/null || break
+              sleep 1
+            done
+            kill -9 "$vpid" 2>/dev/null || true
           }
           record_launch timeout-light light -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
           record_launch timeout-dark dark -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
