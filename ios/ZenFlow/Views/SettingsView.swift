@@ -406,7 +406,7 @@ struct DataPage: View {
     if !deleteMessage.isEmpty {
       Text(deleteMessage).font(.system(size: 13)).foregroundStyle(ZFColor.warm)
     }
-
+    }
     .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
       if case let .success(url) = result, url.startAccessingSecurityScopedResource() {
         defer { url.stopAccessingSecurityScopedResource() }
@@ -498,7 +498,6 @@ struct DataPage: View {
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDeleteHandle = false } } }
       }
       .presentationDetents([.medium])
-    }
     }
   }
 
@@ -745,8 +744,8 @@ struct AvatarCropView: View {
       ctx.cgContext.addEllipse(in: rect)
       ctx.cgContext.clip()
       let fitted = aspectFill(image.size, in: side)
-      let draw = fitted.applying(CGAffineTransform(scaleX: scale, y: scale))
-        .offsetBy(dx: (side - draw.width) / 2 + offset.width, dy: (side - draw.height) / 2 + offset.height)
+      let scaled = fitted.applying(CGAffineTransform(scaleX: scale, y: scale))
+      let draw = scaled.offsetBy(dx: (side - scaled.width) / 2 + offset.width, dy: (side - scaled.height) / 2 + offset.height)
       image.draw(in: draw)
     }
     return output.jpegData(compressionQuality: 0.86)
