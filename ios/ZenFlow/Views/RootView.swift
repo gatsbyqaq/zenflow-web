@@ -261,11 +261,7 @@ struct ConnectTimeoutCard: View {
 
   private var timeoutContent: some View {
     VStack(spacing: 0) {
-      Image(systemName: "link.slash")
-        .symbolRenderingMode(.monochrome)
-        .font(.system(size: 24, weight: .regular))
-        .foregroundStyle(ZFColor.text)
-        .frame(width: 24, height: 24)
+      DisconnectLinkIcon()
         .padding(.top, 8)
       Text(model.t("连接超时", "Connection timed out"))
         .font(.system(size: 17, weight: .semibold))
@@ -284,6 +280,24 @@ struct ConnectTimeoutCard: View {
       }
       .padding(.top, 24)
     }
+  }
+}
+
+/// 24pt 断开链接。用实色位图，避免玻璃把模板符号融进背景后看不见。
+private struct DisconnectLinkIcon: View {
+  @Environment(\.colorScheme) private var scheme
+
+  var body: some View {
+    let color: UIColor = scheme == .dark ? .white : .black
+    let config = UIImage.SymbolConfiguration(pointSize: 24, weight: .regular)
+    let raw = UIImage(systemName: "link.slash", withConfiguration: config)
+      ?? UIImage(systemName: "link", withConfiguration: config)
+      ?? UIImage()
+    Image(uiImage: raw.withTintColor(color, renderingMode: .alwaysOriginal))
+      .resizable()
+      .interpolation(.high)
+      .frame(width: 24, height: 24)
+      .accessibilityHidden(true)
   }
 }
 
