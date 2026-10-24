@@ -51,17 +51,14 @@ jobs:
           set -euo pipefail
           ICTOOL="$(dirname "$(xcode-select -p)")/Applications/Icon Composer.app/Contents/Executables/ictool"
           test -x "$ICTOOL"
+          "$ICTOOL" --version || true
           ICON="$GITHUB_WORKSPACE/ios/ZenFlow/AppIcon.icon"
           mkdir -p "$RUNNER_TEMP/shots"
           render() {
             local rend="$1"
             local out="$RUNNER_TEMP/shots/icon-${rend}.png"
-            if ! "$ICTOOL" "$ICON" --export-image --output-file "$out" \
-                --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1 \
-                --design-generation 26; then
-              "$ICTOOL" "$ICON" --export-image --output-file "$out" \
-                --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1
-            fi
+            "$ICTOOL" "$ICON" --export-image --output-file "$out" \
+              --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1
             test -s "$out"
           }
           for rend in Default Dark TintedLight TintedDark ClearLight ClearDark; do
