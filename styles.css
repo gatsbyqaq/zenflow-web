@@ -4,7 +4,7 @@
    连续天数圆环用故事环渐变；深色模式只在设置里切换。
    ========================================================= */
 :root{
-  --zf-css:"46";
+  --zf-css:"47";
   --motion-press:100ms;
   --motion-state:200ms;
   --motion-panel:300ms;
@@ -895,7 +895,10 @@ button:focus-visible,.btn:focus-visible,.tab:focus-visible,.seg-btn:focus-visibl
   }
   .tab .ic-line,.tab .ic-fill,.tab.active .ic-line,.tab.active .ic-fill,
   #actMask .sheet,.grid,.grid-leave,.days-num,.badge .b-ico,
-  #settingsRoot,.settings-page{transform:none!important}
+  #settingsRoot,.settings-page,
+  .connect-card,.connect-mask.is-open .connect-card{transform:none!important}
+  .connect-card,.connect-mask.is-open .connect-card{transition:none!important}
+  .connect-mask{transition:opacity var(--motion-reduced) var(--ease)}
   .lock-dots.shake{animation:none}
 }
 
@@ -1085,6 +1088,32 @@ body.auth-gated .auth-mask{align-items:center;background:var(--bg);padding:28px 
 body.auth-gated .auth-mask::before{content:none}
 body.auth-gated .auth-sheet{max-width:400px;border:none;border-radius:0;padding:8px 0 24px;background:transparent;box-shadow:none}
 body.auth-ready #authBoot{display:none!important}
+.connect-mask{
+  position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(0,0,0,.4);opacity:0;
+  transition:opacity var(--motion-panel) var(--ease);
+}
+.connect-card{
+  width:280px;max-width:100%;min-height:168px;box-sizing:border-box;
+  border-radius:16px;background:var(--card);color:var(--text);
+  padding:22px 16px 16px;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;
+  transform:scale(0.96);
+  transition:transform var(--motion-panel) var(--ease);
+}
+.connect-mask.is-open{opacity:1}
+.connect-mask.is-open .connect-card{transform:scale(1)}
+.connect-ico{width:24px;height:24px;display:block;margin:0 auto 12px;color:var(--text)}
+.connect-card h2{margin:0;font-size:17px;font-weight:700;letter-spacing:0;color:var(--text)}
+.connect-card p{margin:6px 0 0;font-size:14px;line-height:1.4;color:var(--muted)}
+.connect-actions{display:flex;gap:8px;margin-top:18px}
+.connect-actions .btn{flex:1;margin-top:0;padding-left:8px;padding-right:8px}
+.connect-spin{display:flex;align-items:center;justify-content:center;min-height:120px}
+.connect-spin .auth-boot-spin{width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--text);border-radius:50%;animation:zf-boot-spin .8s linear infinite}
+@media (prefers-reduced-motion:reduce){
+  .connect-card,.connect-mask.is-open .connect-card{transform:none!important;transition:none!important}
+  .connect-mask{transition:opacity var(--motion-reduced) var(--ease)}
+}
 #formInviteGate .field{margin-top:12px}
 
 /* ---------- 设置二级菜单 ---------- */

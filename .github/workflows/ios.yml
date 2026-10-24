@@ -1,0 +1,693 @@
+name: iOS
+
+on:
+  push:
+    branches:
+      - cursor/ios-client-8629
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          best_ver=""
+          best_app=""
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "found $ver at $app"
+            top=$(printf '%s\n%s\n' "$best_ver" "$ver" | sort -V | tail -1)
+            if [ -z "$best_ver" ] || [ "$top" = "$ver" ]; then
+              best_ver="$ver"
+              best_app="$app"
+            fi
+          done
+          if [ -z "$best_app" ]; then
+            echo "no Xcode installed" >&2
+            exit 1
+          fi
+          echo "using Xcode $best_ver at $best_app"
+          sudo xcode-select -s "$best_app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Render Icon Composer appearances
+        run: |
+          set -euo pipefail
+          ICTOOL="$(dirname "$(xcode-select -p)")/Applications/Icon Composer.app/Contents/Executables/ictool"
+          test -x "$ICTOOL"
+          "$ICTOOL" --version || true
+          ICON="$GITHUB_WORKSPACE/ios/ZenFlow/AppIcon.icon"
+          mkdir -p "$RUNNER_TEMP/shots"
+          render() {
+            local rend="$1"
+            local out="$RUNNER_TEMP/shots/icon-${rend}.png"
+            "$ICTOOL" "$ICON" --export-image --output-file "$out" \
+              --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1
+            test -s "$out"
+          }
+          for rend in Default Dark TintedLight TintedDark ClearLight ClearDark; do
+            render "$rend"
+          done
+          cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark-appearance.png"
+          python3 - "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-Default.png" << 'PY'
+          import struct, sys, zlib
+          def load(path):
+              data = open(path, "rb").read()
+              i = 8
+              idat = b""
+              w = h = None
+              while i < len(data):
+                  ln = struct.unpack(">I", data[i:i+4])[0]
+                  typ = data[i+4:i+8]
+                  chunk = data[i+8:i+8+ln]
+                  if typ == b"IHDR":
+                      w, h = struct.unpack(">II", chunk[:8])
+                  elif typ == b"IDAT":
+                      idat += chunk
+                  elif typ == b"IEND":
+                      break
+                  i += 12 + ln
+              raw = zlib.decompress(idat)
+              bpp = 4
+              stride = w * bpp + 1
+              rows = []
+              prev = bytearray(w * bpp)
+              for y in range(h):
+                  f = raw[y * stride]
+                  row = bytearray(raw[y * stride + 1:(y + 1) * stride])
+                  if f == 1:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + left) & 255
+                  elif f == 2:
+                      for x in range(len(row)):
+                          row[x] = (row[x] + prev[x]) & 255
+                  elif f == 3:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + ((left + prev[x]) // 2)) & 255
+                  elif f == 4:
+                      def paeth(a, b, c):
+                          p = a + b - c
+                          pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                          if pa <= pb and pa <= pc:
+                              return a
+                          if pb <= pc:
+                              return b
+                          return c
+                      for x in range(len(row)):
+                          a = row[x - bpp] if x >= bpp else 0
+                          b = prev[x]
+                          c = prev[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + paeth(a, b, c)) & 255
+                  rows.append(row)
+                  prev = row
+              return w, h, rows
+          for path in sys.argv[1:]:
+              w, h, rows = load(path)
+              white = 0
+              for y in range(0, h, 2):
+                  row = rows[y]
+                  for x in range(0, w, 2):
+                      r, g, b, a = row[x * 4:x * 4 + 4]
+                      if a > 200 and r > 230 and g > 230 and b > 230:
+                          white += 1
+              peak = 0
+              for y in range(0, h, 4):
+                  row = rows[y]
+                  for x in range(0, w, 4):
+                      r, g, b, a = row[x * 4:x * 4 + 4]
+                      if a > 200:
+                          peak = max(peak, r, g, b)
+              def pix(x, y):
+                  row = rows[min(y, h - 1)]
+                  o = min(x, w - 1) * 4
+                  return tuple(row[o:o + 4])
+              center = pix(w // 2, h // 2)
+              corner = pix(8, 8)
+              print(path, "bright-white-samples", white, "peak", peak, "center", center, "corner", corner)
+              if white < 8000:
+                  raise SystemExit(f"star not visible in {path}")
+              if not (center[3] > 200 and min(center[:3]) > 230):
+                  raise SystemExit(f"star center is not white in {path}")
+              if corner[3] > 200 and min(corner[:3]) > 230:
+                  raise SystemExit(f"star filled the whole icon in {path}")
+          PY
+          ls -l "$RUNNER_TEMP/shots"
+
+      - name: Upload icon renditions
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-icon
+          path: ${{ runner.temp }}/shots/icon-*.png
+          if-no-files-found: error
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ZenFlow.xcodeproj \
+            -scheme ZenFlow \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/ZenFlow.app"
+          test -d "$APP"
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+
+      - name: Test ZenFlowCore
+        working-directory: ios/ZenFlowCore
+        run: swift test
+
+      - name: Boot iOS 26 simulator and capture glass states
+        run: |
+          set -euo pipefail
+          python3 - << 'PY'
+          import json, re, subprocess
+          raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"])
+          data = json.loads(raw)
+          def key(runtime):
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          runtimes = [name for name in data["devices"] if re.search(r"iOS-26-", name) and data["devices"][name]]
+          runtimes.sort(key=key)
+          if not runtimes:
+              print("available runtimes:", ", ".join(data["devices"]))
+              raise SystemExit("no iOS 26 simulator runtime")
+          runtime = runtimes[-1]
+          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and "SE" not in d.get("name", "") and d.get("isAvailable", True)]
+          if not phones:
+              raise SystemExit(f"no iPhone on {runtime}")
+          def rank(d):
+              name = d["name"]
+              penalty = 0
+              if "Pro" in name: penalty += 1
+              if "Max" in name: penalty += 1
+              if "Plus" in name: penalty += 1
+              if "mini" in name: penalty += 2
+              return (penalty, name)
+          phones.sort(key=rank)
+          chosen = phones[0]
+          print(f"SIM_UDID={chosen['udid']}")
+          print(f"SIM_NAME={chosen['name']}")
+          print(f"SIM_RUNTIME={runtime}")
+          open("/tmp/sim.env", "w").write(chosen["udid"] + "\n")
+          PY
+          UDID=$(cat /tmp/sim.env)
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, ".GlobalPreferences.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["AppleLanguages"] = ["zh-Hans", "en"]
+          data["AppleLocale"] = "zh_CN"
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          print("locale", path)
+          PY
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP_PATH"
+          mkdir -p "$RUNNER_TEMP/shots" "$RUNNER_TEMP/videos" /tmp/zenflow-shots
+
+          shoot() {
+            local appearance="$1"
+            local tab="$2"
+            local name="$3"
+            shift 3
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            sleep 0.5
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow -ZenFlowPreviewLocal -ZenFlowPreviewTab "$tab" "$@"
+            sleep 5
+            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/${appearance}-${name}.png"
+          }
+
+          shoot light 0 checkin
+          shoot light 1 log
+          shoot light 2 stats
+          shoot light 3 settings
+          shoot dark 0 checkin
+          shoot dark 1 log
+          shoot dark 2 stats
+          shoot dark 3 settings
+          shoot light 0 timeout -ZenFlowPreviewTimeout
+          shoot dark 0 timeout -ZenFlowPreviewTimeout
+          shoot light 0 timeout-retry -ZenFlowPreviewRetry
+          shoot dark 0 timeout-retry -ZenFlowPreviewRetry
+
+          record_test() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only was not ready"
+              tail -n 120 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            set +e
+            wait "$xpid"
+            local status=$?
+            set -e
+            stop_record "$vpid"
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 120 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
+          }
+
+          stop_record() {
+            local vpid="$1"
+            kill -INT "$vpid" 2>/dev/null || true
+            local n
+            for n in $(seq 1 30); do
+              if ! kill -0 "$vpid" 2>/dev/null; then
+                wait "$vpid" 2>/dev/null || true
+                return 0
+              fi
+              sleep 1
+            done
+            echo "recordVideo did not finish" >&2
+            kill -9 "$vpid" 2>/dev/null || true
+            return 1
+          }
+
+          record_play() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only never showed 正在登录"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            set +e
+            wait "$xpid"
+            local status=$?
+            set -e
+            stop_record "$vpid"
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
+          }
+
+          record_play timeout-light testTimeoutLight light
+          record_play timeout-dark testTimeoutDark dark
+
+          record_test scroll-light testScrollLight light
+          record_test scroll-dark testScrollDark dark
+          record_test settings-light testSettingsLight light
+          record_test settings-dark testSettingsDark dark
+          record_test sheet-light testSheetLight light
+          record_test sheet-dark testSheetDark dark
+
+          cp /tmp/zenflow-shots/*.png "$RUNNER_TEMP/shots/" 2>/dev/null || true
+          test -s "$RUNNER_TEMP/shots/light-tab-min.png"
+          test -s "$RUNNER_TEMP/shots/dark-tab-min.png"
+
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, "com.apple.Accessibility.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["ReduceTransparency"] = True
+          data["ReduceTransparencyEnabled"] = True
+          data["EnhancedBackgroundContrastEnabled"] = True
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          print("reduce transparency", path)
+          PY
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparency -bool YES
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparencyEnabled -bool YES
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility EnhancedBackgroundContrastEnabled -bool YES
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" defaults read com.apple.Accessibility || true
+          shoot light 0 tab-solid
+          shoot dark 0 tab-solid
+          shoot light 0 timeout-solid -ZenFlowPreviewTimeout
+          shoot dark 0 timeout-solid -ZenFlowPreviewTimeout
+          python3 - "$RUNNER_TEMP/shots" << 'PY'
+          import struct, sys, zlib
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          def load(path):
+              data = path.read_bytes()
+              i = 8
+              idat = b""
+              w = h = None
+              while i < len(data):
+                  ln = struct.unpack(">I", data[i:i+4])[0]
+                  typ = data[i+4:i+8]
+                  chunk = data[i+8:i+8+ln]
+                  if typ == b"IHDR":
+                      w, h = struct.unpack(">II", chunk[:8])
+                  elif typ == b"IDAT":
+                      idat += chunk
+                  elif typ == b"IEND":
+                      break
+                  i += 12 + ln
+              raw = zlib.decompress(idat)
+              bpp = 4
+              stride = w * bpp + 1
+              rows = []
+              prev = bytearray(w * bpp)
+              for y in range(h):
+                  f = raw[y * stride]
+                  row = bytearray(raw[y * stride + 1:(y + 1) * stride])
+                  if f == 1:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + left) & 255
+                  elif f == 2:
+                      for x in range(len(row)):
+                          row[x] = (row[x] + prev[x]) & 255
+                  elif f == 3:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + ((left + prev[x]) // 2)) & 255
+                  elif f == 4:
+                      def paeth(a, b, c):
+                          p = a + b - c
+                          pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                          if pa <= pb and pa <= pc:
+                              return a
+                          if pb <= pc:
+                              return b
+                          return c
+                      for x in range(len(row)):
+                          a = row[x - bpp] if x >= bpp else 0
+                          b = prev[x]
+                          c = prev[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + paeth(a, b, c)) & 255
+                  rows.append(row)
+                  prev = row
+              return w, h, rows
+          def differ(a, b):
+              wa, ha, ra = load(root / a)
+              wb, hb, rb = load(root / b)
+              if (wa, ha) != (wb, hb):
+                  print(a, b, "size", wa, ha, wb, hb)
+                  return 999
+              y0, y1 = int(ha * 0.28), int(ha * 0.50)
+              x0, x1 = int(wa * 0.22), int(wa * 0.78)
+              total = 0
+              count = 0
+              for y in range(y0, y1, 3):
+                  for x in range(x0, x1, 3):
+                      pa = ra[y][x * 4:x * 4 + 3]
+                      pb = rb[y][x * 4:x * 4 + 3]
+                      total += abs(pa[0] - pb[0]) + abs(pa[1] - pb[1]) + abs(pa[2] - pb[2])
+                      count += 3
+              mean = total / max(count, 1)
+              print(a, "vs", b, "mean", round(mean, 2))
+              return mean
+          for pair in (("light-timeout.png", "light-timeout-solid.png"), ("dark-timeout.png", "dark-timeout-solid.png")):
+              if differ(*pair) < 4:
+                  raise SystemExit("reduce transparency screenshot matches the glass one: " + pair[1])
+          PY
+
+          find "$RUNNER_TEMP/videos" -name '*.mp4' -size +15M -print | tee /tmp/big-videos.txt
+          if [ -s /tmp/big-videos.txt ]; then
+            echo "video over 15MB" >&2
+            exit 1
+          fi
+          ls -l "$RUNNER_TEMP/shots" "$RUNNER_TEMP/videos"
+          ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/ZenFlow-simulator.app.zip"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: ${{ runner.temp }}/shots/*.png
+          if-no-files-found: ignore
+
+      - name: Upload videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-videos
+          path: ${{ runner.temp }}/videos/*.mp4
+          if-no-files-found: error
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZenFlow-simulator-app
+          path: ${{ runner.temp }}/ZenFlow-simulator.app.zip
+          if-no-files-found: error
+
+  timeout-videos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          best_ver=""
+          best_app=""
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "found $ver at $app"
+            top=$(printf '%s\n%s\n' "$best_ver" "$ver" | sort -V | tail -1)
+            if [ -z "$best_ver" ] || [ "$top" = "$ver" ]; then
+              best_ver="$ver"
+              best_app="$app"
+            fi
+          done
+          if [ -z "$best_app" ]; then
+            echo "no Xcode installed" >&2
+            exit 1
+          fi
+          echo "using Xcode $best_ver at $best_app"
+          sudo xcode-select -s "$best_app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ZenFlow.xcodeproj \
+            -scheme ZenFlow \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Record timeout dialog
+        run: |
+          set -euo pipefail
+          python3 - << 'PY'
+          import json, re, subprocess
+          raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"])
+          data = json.loads(raw)
+          def key(runtime):
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          runtimes = [name for name in data["devices"] if re.search(r"iOS-26-", name) and data["devices"][name]]
+          runtimes.sort(key=key)
+          if not runtimes:
+              raise SystemExit("no iOS 26 simulator runtime")
+          runtime = runtimes[-1]
+          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and "SE" not in d.get("name", "") and d.get("isAvailable", True)]
+          if not phones:
+              raise SystemExit(f"no iPhone on {runtime}")
+          def rank(d):
+              name = d["name"]
+              penalty = 0
+              if "Pro" in name: penalty += 1
+              if "Max" in name: penalty += 1
+              if "Plus" in name: penalty += 1
+              if "mini" in name: penalty += 2
+              return (penalty, name)
+          phones.sort(key=rank)
+          chosen = phones[0]
+          print(f"SIM_NAME={chosen['name']} {runtime}")
+          open("/tmp/sim.env", "w").write(chosen["udid"] + "\n")
+          PY
+          UDID=$(cat /tmp/sim.env)
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, ".GlobalPreferences.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["AppleLanguages"] = ["zh-Hans", "en"]
+          data["AppleLocale"] = "zh_CN"
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          PY
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          mkdir -p "$RUNNER_TEMP/videos"
+
+          stop_record() {
+            local vpid="$1"
+            kill -INT "$vpid" 2>/dev/null || true
+            local n
+            for n in $(seq 1 30); do
+              if ! kill -0 "$vpid" 2>/dev/null; then
+                wait "$vpid" 2>/dev/null || true
+                return 0
+              fi
+              sleep 1
+            done
+            echo "recordVideo did not finish" >&2
+            kill -9 "$vpid" 2>/dev/null || true
+            return 1
+          }
+
+          record_play() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only never showed 正在登录"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            set +e
+            wait "$xpid"
+            local status=$?
+            set -e
+            stop_record "$vpid"
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
+          }
+
+          record_play timeout-light testTimeoutLight light
+          record_play timeout-dark testTimeoutDark dark
+          ls -l "$RUNNER_TEMP/videos"
+
+      - name: Upload timeout videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-timeout-videos
+          path: ${{ runner.temp }}/videos/timeout-*.mp4
+          if-no-files-found: error

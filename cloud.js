@@ -96,6 +96,48 @@
     if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url)) return 'Project URL 格式不正确，例如 https://xxxx.supabase.co';
     return '';
   }
+  function connectTimeoutMs() {
+    var n = window.ZF_CONNECT_TIMEOUT_MS;
+    if (typeof n === 'number' && isFinite(n) && n >= 0) return n;
+    return 10000;
+  }
+  // 只在预览 worker 注入 ZENFLOW_PREVIEW 时生效。正式站没有这个标志，gatsbyqaq.github.io 再保险。
+  function previewSimulate(flag, hostname, search) {
+    if (!flag || typeof flag !== 'object') return '';
+    if (String(hostname || '').toLowerCase() === 'gatsbyqaq.github.io') return '';
+    var q = '';
+    try {
+      q = new URLSearchParams(String(search || '').replace(/^\?/, '')).get('simulate') || '';
+    } catch (e) { return ''; }
+    if (q === 'timeout' || q === 'retry-ok') return q;
+    return '';
+  }
+  function currentSimulate() {
+    var host = '';
+    var search = '';
+    try { host = location.hostname; search = location.search; } catch (e) {}
+    return previewSimulate(window.ZENFLOW_PREVIEW, host, search);
+  }
+  function isConnectFailure(err) {
+    if (!err) return false;
+    var name = err.name || '';
+    if (err.code === 'CONNECT_TIMEOUT' || name === 'AbortError' || name === 'TimeoutError' || name === 'AuthRetryableFetchError') return true;
+    var status = err.status || err.statusCode;
+    if (status === 0 || status === 502 || status === 503 || status === 504 || status === 521 || status === 540) return true;
+    var m = errText(err);
+    if (/Failed to fetch|NetworkError|Load failed|network|timeout|aborted|ECONN|ENOTFOUND|fetch failed/i.test(m)) return true;
+    return false;
+  }
+  function anySignal(signals) {
+    var ctrl = new AbortController();
+    function onAbort() { if (!ctrl.signal.aborted) ctrl.abort(); }
+    signals.forEach(function (s) {
+      if (!s) return;
+      if (s.aborted) { onAbort(); return; }
+      s.addEventListener('abort', onAbort);
+    });
+    return ctrl.signal;
+  }
   var cfg = readConfig();
   var cfgError = cfg.url || cfg.key ? (urlProblem(cfg.url) || keyProblem(cfg.key)) : '';
   var configured = !!(cfg.url && cfg.key && !cfgError);
@@ -105,6 +147,14 @@
   var gateMode = 'none'; // none | boot | login | invite
   var authReady = false; // getSession 已确认
   var profileReady = false; // 有 session 时 profile/invite_ok 已解析
+  var localMode = false; // 启动连接超时或失败后，先用本机数据
+  var connectPhase = 'idle'; // idle | pending | local | ready
+  var remoteAuthLive = false;
+  var clientHolder = null;
+  var authUnsub = null;
+  var connectTimer = null;
+  var connectGen = 0;
+  var sessionResolved = false;
   var sync = { status: 'off', at: +localStorage.getItem(LAST_SYNC_KEY) || 0, error: '' };
   var syncing = false, pending = false, pushTimer = null, replaceAllPending = false, wipeLock = false, suppressSignedOut = false;
   var loadError = '';
@@ -198,7 +248,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=46'; s.async = true;
+      s.src = 'vendor/supabase.js?v=47'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -464,16 +514,19 @@
       return '<li><code>' + esc(v.code) + '</code>' + st + (!used && !expired ? '<button class="icon-btn" data-copy="' + esc(v.code) + '" aria-label="复制 ' + esc(v.code) + '" title="复制">' + ic('copy') + '</button>' : '<span class="inv-sp"></span>') + '</li>';
     }).join('') + '</ul>';
   }
-  async function loadProfile() {
-    profile = null; invites = null; profileReady = false;
-    if (!user()) { profileReady = true; updateGate(); return; }
+  async function loadProfile(opts) {
+    opts = opts || {};
+    profile = null; invites = null;
+    if (!opts.quiet) profileReady = false;
+    if (!user()) { profileReady = true; if (!opts.quiet) updateGate(); return; }
     var r = await sb.from('profiles').select('display_name,handle,avatar_url,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
+    if (r.error && opts.quiet && isConnectFailure(r.error)) throw r.error;
     if (!r.error) profile = r.data;
     if (!profile) profile = { display_name: null, handle: null, avatar_url: null, is_admin: false, invite_ok: false };
     profileReady = true;
     renderAccount();
     renderChrome();
-    updateGate();
+    if (!opts.quiet) updateGate();
     if (inviteOk() && profile.is_admin) loadInvites();
     if (inviteOk() && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
   }
@@ -795,7 +848,7 @@
   }
   function setBootText(t) {
     var el = $('authBootText');
-    if (el) el.textContent = t || '正在恢复登录…';
+    if (el) el.textContent = t || '正在登录';
   }
   var bootFinished = false; // 已经进入主界面后，切回标签页不得再盖启动闪屏
   function showBootSplash(text) {
@@ -804,7 +857,7 @@
     document.body.classList.add('auth-booting');
     document.body.classList.remove('auth-gated');
     document.body.classList.remove('auth-ready');
-    setBootText(text || (peekPersistedSession() ? '正在恢复登录…' : '正在加载…'));
+    setBootText(text || '正在登录');
     if ($('authMask') && !$('authMask').classList.contains('hidden')) {
       // 启动闪屏期间不要露出登录表单
       $('authMask').classList.add('hidden');
@@ -893,6 +946,11 @@
     }
   }
   function updateGate() {
+    if (localMode) {
+      authReady = true; profileReady = true;
+      clearGate();
+      return;
+    }
     if (!configured) {
       authReady = true; profileReady = true;
       clearGate();
@@ -2137,7 +2195,7 @@
     merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
     userId: function () { return user() && user().id; },
-    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
+    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode, localMode: localMode, connectPhase: connectPhase }; },
     onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
     syncNow: syncNow, openAuth: openAuth, logout: function (opts) { return doLogout(opts || {}); }, client: function () { return sb; },
     refreshChrome: renderChrome,
@@ -2145,21 +2203,8 @@
     closeCrop: closeCrop
   };
   renderChrome(); renderAccount();
-  if (!configured) {
-    authReady = true; profileReady = true;
-    document.body.classList.remove('auth-booting');
-    document.body.classList.add('auth-ready');
-    return;
-  }
-  // 云端已配置：启动闪屏（非登录表单），直到 getSession + invite_ok 解析完成
-  showBootSplash();
-  // 若 localStorage 已有会话，优先进入「恢复登录」文案；无会话也不提前亮登录门
-  var peeked = peekPersistedSession();
-  if (peeked) setBootText('正在恢复登录…');
 
-  var sessionResolved = false;
-  function markSession(s, from) {
-    // getSession 与 INITIAL_SESSION 可能先后到达；只采纳第一次，避免闪屏被登录门打断或重复拉 profile
+  function markSession(s) {
     if (sessionResolved) return;
     sessionResolved = true;
     authReady = true;
@@ -2174,68 +2219,232 @@
     updateGate();
     loadProfile().then(function () { if (inviteOk()) syncNow(); });
   }
-
-  loadLib().then(function () {
+  function applyAuthEvent(event, s) {
+    if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
+    if (event === 'SIGNED_OUT') {
+      if (wipeLock || suppressSignedOut) return;
+      session = null; profile = null; invites = null; profileReady = true; authReady = true;
+      localMode = false;
+      bootFinished = false;
+      setSync('off'); renderAccount(); renderChrome(); updateGate();
+      Z.toast && Z.toast('已退出登录');
+      return;
+    }
+    // 标签页重新可见时，supabase-js 可能对同一会话再发 SIGNED_IN。
+    // 会话已确认且仍是同一用户时，只更新内存中的 session，不再盖启动闪屏。
+    if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+      markSession(s);
+      return;
+    }
+    if (sessionResolved && s && s.user) {
+      suppressSignedOut = false;
+      var prevId = user() && user().id;
+      session = s;
+      if (prevId && prevId === s.user.id) return;
+      bootFinished = false;
+      profileReady = false;
+      renderAccount(); updateGate();
+      loadProfile().then(function () { if (inviteOk()) syncNow(); });
+    } else if (sessionResolved && !s && event !== 'INITIAL_SESSION') {
+      markSession(null);
+    }
+  }
+  function mountClient(withGuard, gen) {
+    if (authUnsub) { try { authUnsub(); } catch (e) {} authUnsub = null; }
+    var holder = { ctrl: withGuard && typeof AbortController === 'function' ? new AbortController() : null };
+    clientHolder = holder;
     sb = window.supabase.createClient(cfg.url, cfg.key, {
+      global: {
+        fetch: function (input, init) {
+          var next = Object.assign({}, init || {});
+          if (holder.ctrl) next.signal = next.signal ? anySignal([next.signal, holder.ctrl.signal]) : holder.ctrl.signal;
+          return fetch(input, next).then(function (res) { return res; }, function (err) {
+            if (gen === connectGen && connectPhase === 'pending' && holder.ctrl && isConnectFailure(err)) failConnect();
+            throw err;
+          });
+        }
+      },
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'zenflow_auth', flowType: 'implicit' }
     });
-    function applyAuthEvent(event, s) {
-      if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
-      if (event === 'SIGNED_OUT') {
-        if (wipeLock || suppressSignedOut) return;
-        session = null; profile = null; invites = null; profileReady = true; authReady = true;
-        bootFinished = false;
-        setSync('off'); renderAccount(); renderChrome(); updateGate();
-        Z.toast && Z.toast('已退出登录');
-        return;
-      }
-      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED
-      // 标签页重新可见时，supabase-js 的 _recoverAndRefresh 会对同一会话再发一次 SIGNED_IN。
-      // 会话已确认且仍是同一用户时，只更新内存中的 session，绝不重新进入「正在恢复登录」。
-      if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
-        markSession(s, event);
-        return;
-      }
-      if (sessionResolved && s && s.user) {
-        suppressSignedOut = false;
-        var prevId = user() && user().id;
-        session = s;
-        if (prevId && prevId === s.user.id) return;
-        bootFinished = false;
-        profileReady = false;
-        renderAccount(); updateGate();
-        loadProfile().then(function () { if (inviteOk()) syncNow(); });
-      } else if (sessionResolved && !s && event !== 'INITIAL_SESSION') {
-        markSession(null, event);
-      }
+    var sub = sb.auth.onAuthStateChange(function (event, s) {
+      if (!remoteAuthLive || connectPhase === 'pending') return;
+      applyAuthEvent(event, s);
+    });
+    if (sub && sub.data && sub.data.subscription) {
+      authUnsub = function () { sub.data.subscription.unsubscribe(); };
     }
-    sb.auth.onAuthStateChange(applyAuthEvent);
-    // 与 onAuthStateChange 并行：尽快确认会话（避免只等 INITIAL_SESSION）
-    sb.auth.getSession().then(function (r) {
-      if (sessionResolved) return;
-      markSession(r.data && r.data.session, 'getSession');
-    }).catch(function () {
-      if (sessionResolved) return;
-      markSession(null, 'getSession-error');
+    return holder;
+  }
+  function setConnectFace(face) {
+    var card = document.querySelector('#connectTimeout .connect-card');
+    var content = $('connectFace');
+    var spin = $('connectSpin');
+    var showTimeout = face !== 'spin';
+    if (content) content.classList.toggle('hidden', !showTimeout);
+    if (spin) {
+      spin.classList.toggle('hidden', showTimeout);
+      spin.setAttribute('aria-hidden', showTimeout ? 'true' : 'false');
+    }
+    if (card) card.setAttribute('aria-busy', showTimeout ? 'false' : 'true');
+  }
+  function presentConnectCard() {
+    var mask = $('connectTimeout');
+    if (!mask) return;
+    setConnectFace('timeout');
+    if (!mask.classList.contains('hidden')) return;
+    mask.classList.remove('hidden');
+    mask.classList.remove('is-open');
+    void mask.offsetWidth;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { mask.classList.add('is-open'); });
     });
-    window.addEventListener('online', function () { if (user()) syncNow(); });
-    // 切回标签页只补同步，不重走启动闪屏（闪屏只属于冷启动 / 真正的会话恢复）
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState !== 'visible') return;
-      if (bootFinished) {
-        document.body.classList.remove('auth-booting');
-        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+  }
+  function closeConnectCard() {
+    var mask = $('connectTimeout');
+    if (!mask || mask.classList.contains('hidden')) return;
+    mask.classList.remove('is-open');
+    var ms = 300;
+    try {
+      var raw = getComputedStyle(mask).transitionDuration || '';
+      var n = parseFloat(raw);
+      if (isFinite(n)) ms = raw.indexOf('ms') >= 0 ? n : n * 1000;
+    } catch (e) {}
+    setTimeout(function () {
+      if (!mask.classList.contains('is-open')) mask.classList.add('hidden');
+    }, (ms || 300) + 40);
+  }
+  function enterLocalMode() {
+    localMode = true;
+    authReady = true;
+    profileReady = true;
+    session = null;
+    profile = null;
+    invites = null;
+    setSync('offline');
+    updateGate();
+    renderAccount();
+    renderChrome();
+  }
+  function failConnect() {
+    if (connectPhase !== 'pending') return;
+    connectPhase = 'local';
+    remoteAuthLive = false;
+    clearTimeout(connectTimer);
+    connectTimer = null;
+    if (clientHolder && clientHolder.ctrl) {
+      try { clientHolder.ctrl.abort(); } catch (e) {}
+    }
+    var mask = $('connectTimeout');
+    var already = mask && !mask.classList.contains('hidden');
+    enterLocalMode();
+    if (already) setConnectFace('timeout');
+    else presentConnectCard();
+  }
+  function completeConnect(s) {
+    if (connectPhase !== 'pending') return;
+    connectPhase = 'ready';
+    remoteAuthLive = true;
+    localMode = false;
+    clearTimeout(connectTimer);
+    connectTimer = null;
+    if (clientHolder) clientHolder.ctrl = null;
+    closeConnectCard();
+    document.body.classList.remove('auth-booting');
+    sessionResolved = true;
+    authReady = true;
+    session = s || null;
+    if (!session) {
+      profile = null; profileReady = true; invites = null; setSync('off');
+      renderAccount(); updateGate();
+      return;
+    }
+    profileReady = true;
+    renderAccount();
+    updateGate();
+    if (inviteOk()) syncNow();
+  }
+  function attemptConnect(retry) {
+    var gen = ++connectGen;
+    connectPhase = 'pending';
+    remoteAuthLive = true;
+    if (!retry) localMode = false;
+    clearTimeout(connectTimer);
+    connectTimer = setTimeout(failConnect, connectTimeoutMs());
+    if (retry) setConnectFace('spin');
+    else showBootSplash('正在登录');
+    loadLib().then(function () {
+      if (gen !== connectGen || connectPhase !== 'pending') return;
+      mountClient(true, gen);
+      return sb.auth.getSession().then(function (r) {
+        if (connectPhase !== 'pending') return;
+        if (r && r.error && isConnectFailure(r.error)) throw r.error;
+        var s = r && r.data && r.data.session;
+        if (!s) { completeConnect(null); return; }
+        session = s;
+        return loadProfile({ quiet: true }).then(function () {
+          if (connectPhase !== 'pending') return;
+          completeConnect(s);
+        });
+      });
+    }).catch(function (e) {
+      if (connectPhase !== 'pending') return;
+      loadError = e && e.message ? e.message : '';
+      failConnect();
+    });
+  }
+  function beginSimulate(retry) {
+    var mode = currentSimulate();
+    if (!mode) return false;
+    connectPhase = 'pending';
+    remoteAuthLive = false;
+    clearTimeout(connectTimer);
+    if (retry) setConnectFace('spin');
+    else showBootSplash('正在登录');
+    var wait = (retry && mode === 'retry-ok') ? 2000 : connectTimeoutMs();
+    connectTimer = setTimeout(function () {
+      if (connectPhase !== 'pending') return;
+      if (retry && mode === 'retry-ok') {
+        connectPhase = 'ready';
+        clearTimeout(connectTimer);
+        connectTimer = null;
+        closeConnectCard();
+        enterLocalMode();
+        return;
       }
-      if (user() && Date.now() - sync.at > 60000) syncNow();
-    });
-    window.addEventListener('pageshow', function (e) {
-      if (e.persisted && bootFinished) {
-        document.body.classList.remove('auth-booting');
-        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
-      }
-    });
-    setInterval(function () { if (user() && sync.status === 'error') syncNow(); }, 60000);
-  }).catch(function (e) {
-    loadError = e.message; authReady = true; profileReady = true; renderAccount(); updateGate();
+      failConnect();
+    }, wait);
+    return true;
+  }
+  if ($('connectLocal')) $('connectLocal').addEventListener('click', function () { closeConnectCard(); });
+  if ($('connectRetry')) $('connectRetry').addEventListener('click', function () {
+    if (connectPhase === 'pending') return;
+    if (beginSimulate(true)) return;
+    attemptConnect(true);
   });
+  window.addEventListener('online', function () { if (user() && connectPhase === 'ready') syncNow(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    if (bootFinished) {
+      document.body.classList.remove('auth-booting');
+      if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+    }
+    if (user() && connectPhase === 'ready' && Date.now() - sync.at > 60000) syncNow();
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted && bootFinished) {
+      document.body.classList.remove('auth-booting');
+      if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+    }
+  });
+  setInterval(function () { if (user() && connectPhase === 'ready' && sync.status === 'error') syncNow(); }, 60000);
+
+  if (beginSimulate(false)) return;
+  if (!configured) {
+    authReady = true; profileReady = true;
+    connectPhase = 'ready';
+    document.body.classList.remove('auth-booting');
+    document.body.classList.add('auth-ready');
+    return;
+  }
+  attemptConnect(false);
 })();
