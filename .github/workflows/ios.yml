@@ -118,20 +118,17 @@ jobs:
           shoot dark 3 settings
           ls -l "$RUNNER_TEMP/shots"
           ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/ZenFlow-simulator.app.zip"
-          mkdir -p screenshots
-          cp "$RUNNER_TEMP/shots/"*.png screenshots/
-          cp "$RUNNER_TEMP/ZenFlow-simulator.app.zip" ZenFlow-simulator.app.zip
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
           name: ios-screenshots
-          path: screenshots/*.png
+          path: ${{ runner.temp }}/shots/*.png
           if-no-files-found: error
 
       - name: Upload app
         uses: actions/upload-artifact@v4
         with:
           name: ZenFlow-simulator-app
-          path: ZenFlow-simulator.app.zip
+          path: ${{ runner.temp }}/ZenFlow-simulator.app.zip
           if-no-files-found: error
