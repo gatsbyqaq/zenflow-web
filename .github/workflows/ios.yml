@@ -46,6 +46,30 @@ jobs:
           sudo xcode-select -s "$best_app/Contents/Developer"
           xcodebuild -version
 
+      - name: Render Icon Composer appearances
+        run: |
+          set -euo pipefail
+          ICTOOL="$(dirname "$(xcode-select -p)")/Applications/Icon Composer.app/Contents/Executables/ictool"
+          test -x "$ICTOOL"
+          ICON="$GITHUB_WORKSPACE/ios/ZenFlow/AppIcon.icon"
+          mkdir -p "$RUNNER_TEMP/shots"
+          render() {
+            local rend="$1"
+            local out="$RUNNER_TEMP/shots/icon-${rend}.png"
+            if ! "$ICTOOL" "$ICON" --export-image --output-file "$out" \
+                --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1 \
+                --design-generation 26; then
+              "$ICTOOL" "$ICON" --export-image --output-file "$out" \
+                --platform iOS --rendition "$rend" --width 1024 --height 1024 --scale 1
+            fi
+            test -s "$out"
+          }
+          for rend in Default Dark TintedLight TintedDark ClearLight ClearDark; do
+            render "$rend"
+          done
+          cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark.png"
+          ls -l "$RUNNER_TEMP/shots"
+
       - name: Build for iOS Simulator
         working-directory: ios
         run: |
@@ -67,7 +91,7 @@ jobs:
         working-directory: ios/ZenFlowCore
         run: swift test
 
-      - name: Boot simulator, launch, screenshot
+      - name: Boot iOS 26 simulator and capture glass states
         run: |
           set -euo pipefail
           python3 - << 'PY'
@@ -77,37 +101,69 @@ jobs:
           def key(runtime):
               m = re.search(r"iOS-(\d+)-(\d+)", runtime)
               return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
-          runtimes = [name for name in data["devices"] if "iOS-" in name and data["devices"][name]]
+          runtimes = [name for name in data["devices"] if re.search(r"iOS-26-", name) and data["devices"][name]]
           runtimes.sort(key=key)
           if not runtimes:
-              raise SystemExit("no iOS simulator runtime")
+              print("available runtimes:", ", ".join(data["devices"]))
+              raise SystemExit("no iOS 26 simulator runtime")
           runtime = runtimes[-1]
-          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and d.get("isAvailable", True)]
+          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and "SE" not in d.get("name", "") and d.get("isAvailable", True)]
           if not phones:
               raise SystemExit(f"no iPhone on {runtime}")
-          phones.sort(key=lambda d: d["name"])
-          chosen = phones[-1]
+          def rank(d):
+              name = d["name"]
+              penalty = 0
+              if "Pro" in name: penalty += 1
+              if "Max" in name: penalty += 1
+              if "Plus" in name: penalty += 1
+              if "mini" in name: penalty += 2
+              return (penalty, name)
+          phones.sort(key=rank)
+          chosen = phones[0]
           print(f"SIM_UDID={chosen['udid']}")
           print(f"SIM_NAME={chosen['name']}")
           print(f"SIM_RUNTIME={runtime}")
-          open("/tmp/sim.env", "w").write(f"{chosen['udid']}\n")
+          open("/tmp/sim.env", "w").write(chosen["udid"] + "\n")
           PY
           UDID=$(cat /tmp/sim.env)
-          echo "simulator $UDID"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, ".GlobalPreferences.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["AppleLanguages"] = ["zh-Hans", "en"]
+          data["AppleLocale"] = "zh_CN"
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          print("locale", path)
+          PY
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP_PATH"
-          mkdir -p "$RUNNER_TEMP/shots"
+          mkdir -p "$RUNNER_TEMP/shots" "$RUNNER_TEMP/videos" /tmp/zenflow-shots
+
           shoot() {
             local appearance="$1"
             local tab="$2"
             local name="$3"
+            shift 3
             xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            sleep 0.5
             xcrun simctl ui "$UDID" appearance "$appearance"
-            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow -ZenFlowPreviewLocal -ZenFlowPreviewTab "$tab"
+            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow -ZenFlowPreviewLocal -ZenFlowPreviewTab "$tab" "$@"
             sleep 5
             xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/${appearance}-${name}.png"
           }
+
           shoot light 0 checkin
           shoot light 1 log
           shoot light 2 stats
@@ -116,7 +172,109 @@ jobs:
           shoot dark 1 log
           shoot dark 2 stats
           shoot dark 3 settings
-          ls -l "$RUNNER_TEMP/shots"
+          shoot light 0 timeout -ZenFlowPreviewTimeout
+          shoot dark 0 timeout -ZenFlowPreviewTimeout
+          shoot light 0 timeout-retry -ZenFlowPreviewRetry
+          shoot dark 0 timeout-retry -ZenFlowPreviewRetry
+
+          record_test() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            sleep 5
+            kill -INT "$vpid" 2>/dev/null || true
+            set +e
+            wait "$vpid"
+            wait "$xpid"
+            local status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 120 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+          }
+
+          record_test scroll-light testScrollLight light
+          record_test scroll-dark testScrollDark dark
+          record_test settings-light testSettingsLight light
+          record_test settings-dark testSettingsDark dark
+          record_test sheet-light testSheetLight light
+          record_test sheet-dark testSheetDark dark
+
+          record_launch() {
+            local name="$1"
+            local appearance="$2"
+            shift 2
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            sleep 0.4
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            sleep 0.4
+            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow "$@"
+            sleep 2.8
+            kill -INT "$vpid" 2>/dev/null || true
+            wait "$vpid" 2>/dev/null || true
+          }
+          record_launch timeout-light light -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
+          record_launch timeout-dark dark -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
+
+          cp /tmp/zenflow-shots/*.png "$RUNNER_TEMP/shots/" 2>/dev/null || true
+          test -s "$RUNNER_TEMP/shots/light-tab-min.png"
+          test -s "$RUNNER_TEMP/shots/dark-tab-min.png"
+
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, "com.apple.Accessibility.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["ReduceTransparency"] = True
+          data["ReduceTransparencyEnabled"] = True
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          print("reduce transparency", path)
+          PY
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparency -bool YES || true
+          shoot light 0 tab-solid
+          shoot dark 0 tab-solid
+          shoot light 0 timeout-solid -ZenFlowPreviewTimeout
+          shoot dark 0 timeout-solid -ZenFlowPreviewTimeout
+
+          find "$RUNNER_TEMP/videos" -name '*.mp4' -size +15M -print | tee /tmp/big-videos.txt
+          if [ -s /tmp/big-videos.txt ]; then
+            echo "video over 15MB" >&2
+            exit 1
+          fi
+          ls -l "$RUNNER_TEMP/shots" "$RUNNER_TEMP/videos"
           ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/ZenFlow-simulator.app.zip"
 
       - name: Upload screenshots
@@ -124,6 +282,13 @@ jobs:
         with:
           name: ios-screenshots
           path: ${{ runner.temp }}/shots/*.png
+          if-no-files-found: error
+
+      - name: Upload videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-videos
+          path: ${{ runner.temp }}/videos/*.mp4
           if-no-files-found: error
 
       - name: Upload app

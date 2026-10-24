@@ -47,19 +47,9 @@ struct MainView: View {
 
   var body: some View {
     @Bindable var model = model
-    VStack(spacing: 0) {
-      Group {
-        switch tab {
-        case 0: HomeView()
-        case 1: LogView()
-        case 2: StatsView()
-        default: NavigationStack { SettingsView() }
-        }
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      tabBar
-    }
-    .background(ZFColor.bg)
+    tabRoot
+      .tint(ZFColor.text)
+      .background(ZFColor.bg)
     .onChange(of: scenePhase) { _, phase in
       model.lock.scene(phase)
     }
@@ -82,6 +72,7 @@ struct MainView: View {
       }
       .padding(20)
       .presentationDetents([.height(260)])
+      .zfSheetGlass()
     }
     .fullScreenCover(isPresented: $model.showSOS) {
       SOSView()
@@ -106,96 +97,53 @@ struct MainView: View {
       }
       .padding(20)
       .presentationDetents([.height(240)])
+      .zfSheetGlass()
     }
   }
 
-  private var tabBar: some View {
-    HStack(spacing: 0) {
-      tab(.home, model.t("打卡", "Check-in"), 0)
-      tab(.log, model.t("记录", "Log"), 1)
-      tab(.stats, model.t("统计", "Stats"), 2)
-      tab(.settings, model.t("设置", "Settings"), 3)
+  @ViewBuilder
+  private var tabRoot: some View {
+    if #available(iOS 26, *) {
+      systemTabs.tabBarMinimizeBehavior(.onScrollDown)
+    } else if #available(iOS 18, *) {
+      systemTabs
+    } else {
+      legacyTabs
     }
-    .padding(.top, 6)
-    .padding(.bottom, 4)
-    .background(ZFColor.bg)
-    .overlay(alignment: .top) { Rectangle().fill(ZFColor.line).frame(height: 1) }
   }
 
-  private func tab(_ kind: ZFTabIcon.Kind, _ title: String, _ index: Int) -> some View {
-    let on = tab == index
-    return Button { tab = index } label: {
-      VStack(spacing: 3) {
-        ZFTabIcon(kind: kind, filled: on)
-          .frame(width: 24, height: 24)
-        Text(title).font(.system(size: 10, weight: on ? .bold : .medium))
+  @available(iOS 18, *)
+  private var systemTabs: some View {
+    TabView(selection: $tab) {
+      Tab(model.t("打卡", "Check-in"), systemImage: "checkmark.circle", value: 0) {
+        HomeView()
       }
-      .foregroundStyle(on ? ZFColor.text : ZFColor.muted)
-      .frame(maxWidth: .infinity)
-      .padding(.vertical, 4)
-    }
-    .buttonStyle(.plain)
-  }
-}
-
-struct ZFTabIcon: View {
-  enum Kind { case home, log, stats, settings }
-  var kind: Kind
-  var filled: Bool
-
-  var body: some View {
-    Canvas { context, size in
-      let s = min(size.width, size.height) / 24
-      var path = Path()
-      switch kind {
-      case .home:
-        path.move(to: CGPoint(x: 4 * s, y: 11 * s))
-        path.addLine(to: CGPoint(x: 12 * s, y: 4 * s))
-        path.addLine(to: CGPoint(x: 20 * s, y: 11 * s))
-        path.addLine(to: CGPoint(x: 20 * s, y: 20 * s))
-        path.addLine(to: CGPoint(x: 4 * s, y: 20 * s))
-        path.closeSubpath()
-        if filled {
-          context.fill(path, with: .foreground)
-        } else {
-          context.stroke(path, with: .foreground, style: StrokeStyle(lineWidth: 1.6 * s, lineJoin: .round))
-        }
-      case .log:
-        let book = CGRect(x: 4 * s, y: 3 * s, width: 12 * s, height: 18 * s)
-        path.addRoundedRect(in: book, cornerSize: CGSize(width: 2 * s, height: 2 * s))
-        if filled { context.fill(path, with: .foreground) }
-        else { context.stroke(path, with: .foreground, style: StrokeStyle(lineWidth: 1.6 * s, lineJoin: .round)) }
-        var pen = Path()
-        pen.move(to: CGPoint(x: 14 * s, y: 14 * s))
-        pen.addLine(to: CGPoint(x: 21 * s, y: 7 * s))
-        pen.move(to: CGPoint(x: 18 * s, y: 6 * s))
-        pen.addLine(to: CGPoint(x: 21 * s, y: 9 * s))
-        context.stroke(pen, with: .foreground, style: StrokeStyle(lineWidth: 1.6 * s, lineCap: .round))
-      case .stats:
-        let bars = [
-          CGRect(x: 4 * s, y: 12 * s, width: 4 * s, height: 8 * s),
-          CGRect(x: 10 * s, y: 7 * s, width: 4 * s, height: 13 * s),
-          CGRect(x: 16 * s, y: 4 * s, width: 4 * s, height: 16 * s)
-        ]
-        for rect in bars {
-          let bar = Path(roundedRect: rect, cornerSize: CGSize(width: 1 * s, height: 1 * s))
-          if filled { context.fill(bar, with: .foreground) }
-          else { context.stroke(bar, with: .foreground, style: StrokeStyle(lineWidth: 1.6 * s)) }
-        }
-      case .settings:
-        let circle = Path(ellipseIn: CGRect(x: 8 * s, y: 8 * s, width: 8 * s, height: 8 * s))
-        if filled { context.fill(circle, with: .foreground) }
-        else { context.stroke(circle, with: .foreground, style: StrokeStyle(lineWidth: 1.6 * s)) }
-        var teeth = Path()
-        for i in 0..<8 {
-          let angle = CGFloat(i) * .pi / 4
-          let inner: CGFloat = 10
-          let outer: CGFloat = 11.5
-          teeth.move(to: CGPoint(x: (12 + cos(angle) * inner) * s, y: (12 + sin(angle) * inner) * s))
-          teeth.addLine(to: CGPoint(x: (12 + cos(angle) * outer) * s, y: (12 + sin(angle) * outer) * s))
-        }
-        context.stroke(teeth, with: .foreground, style: StrokeStyle(lineWidth: filled ? 2.4 * s : 1.6 * s, lineCap: .round))
+      Tab(model.t("记录", "Log"), systemImage: "list.bullet", value: 1) {
+        LogView()
       }
+      Tab(model.t("统计", "Stats"), systemImage: "chart.bar", value: 2) {
+        StatsView()
+      }
+      Tab(model.t("设置", "Settings"), systemImage: "gearshape", value: 3) {
+        SettingsView()
+      }
+    }
+  }
+
+  private var legacyTabs: some View {
+    TabView(selection: $tab) {
+      HomeView()
+        .tabItem { Label(model.t("打卡", "Check-in"), systemImage: "checkmark.circle") }
+        .tag(0)
+      LogView()
+        .tabItem { Label(model.t("记录", "Log"), systemImage: "list.bullet") }
+        .tag(1)
+      StatsView()
+        .tabItem { Label(model.t("统计", "Stats"), systemImage: "chart.bar") }
+        .tag(2)
+      SettingsView()
+        .tabItem { Label(model.t("设置", "Settings"), systemImage: "gearshape") }
+        .tag(3)
     }
   }
 }
@@ -223,8 +171,10 @@ struct StartAdjustSheet: View {
           }
         }
       }
+      .scrollContentBackground(.hidden)
     }
     .presentationDetents([.medium])
+    .zfSheetGlass()
     .onAppear { startDate = Date(timeIntervalSince1970: model.state.streakStart / 1000) }
   }
 }
@@ -258,46 +208,67 @@ struct ConnectTimeoutCard: View {
   @Environment(\.accessibilityReduceMotion) private var reduce
   @State private var shown = false
 
+  private var spinning: Bool { model.connectFace == .spinning }
+
   var body: some View {
     ZStack {
       Color.black.opacity(0.4).ignoresSafeArea()
-      VStack(spacing: 12) {
-        if model.connectFace == .spinning {
-          ProgressView()
-            .controlSize(.large)
-            .frame(maxWidth: .infinity, minHeight: 120)
-        } else {
-          BrokenLinkIcon()
-            .frame(width: 24, height: 24)
-            .foregroundStyle(ZFColor.text)
-          Text(model.t("连接超时", "Connection timed out"))
-            .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(ZFColor.text)
-          Text(model.t("数据已保存在本机", "Saved on this device"))
-            .font(.system(size: 14))
-            .foregroundStyle(ZFColor.muted)
-            .lineLimit(1)
-          HStack(spacing: 8) {
-            Button(model.t("本机模式", "On this device")) { model.useLocalMode() }
-              .buttonStyle(ConnectButtonStyle(gray: true))
-            Button(model.t("重试", "Retry")) { model.retryConnect() }
-              .buttonStyle(ConnectButtonStyle(gray: false))
-          }
-          .padding(.top, 4)
-        }
-      }
-      .padding(.init(top: 22, leading: 16, bottom: 16, trailing: 16))
-      .frame(width: 280)
-      .frame(minHeight: 168)
-      .background(ZFColor.card)
-      .clipShape(RoundedRectangle(cornerRadius: 16))
-      .scaleEffect(reduce ? 1 : (shown ? 1 : 0.96))
-      .opacity(shown ? 1 : 0)
+      card
+        .scaleEffect(reduce ? 1 : (shown ? 1 : 0.96))
+        .opacity(shown ? 1 : 0)
     }
     .onAppear {
       withAnimation(reduce ? .linear(duration: 0.15) : .timingCurve(0.2, 0, 0, 1, duration: 0.3)) {
         shown = true
       }
+    }
+  }
+
+  /// 超时内容和「正在连接」叠在同一块里，高度跟着超时内容走，重试时不改卡片高度。
+  private var card: some View {
+    ZStack {
+      timeoutContent
+        .opacity(spinning ? 0 : 1)
+        .accessibilityHidden(spinning)
+        .allowsHitTesting(!spinning)
+      if spinning {
+        VStack(spacing: 16) {
+          ProgressView()
+            .controlSize(.large)
+          Text(model.t("正在连接", "Connecting"))
+            .font(.system(size: 15))
+            .foregroundStyle(ZFColor.muted)
+        }
+      }
+    }
+    .padding(.init(top: 24, leading: 16, bottom: 16, trailing: 16))
+    .frame(width: 280)
+    .zfGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+  }
+
+  private var timeoutContent: some View {
+    VStack(spacing: 0) {
+      Image(systemName: "link.slash")
+        .font(.system(size: 22, weight: .regular))
+        .foregroundStyle(ZFColor.text)
+        .frame(width: 24, height: 24)
+        .padding(.top, 8)
+      Text(model.t("连接超时", "Connection timed out"))
+        .font(.system(size: 17, weight: .semibold))
+        .foregroundStyle(ZFColor.text)
+        .padding(.top, 16)
+      Text(model.t("数据已保存在本机", "Saved on this device"))
+        .font(.system(size: 14))
+        .foregroundStyle(ZFColor.muted)
+        .lineLimit(1)
+        .padding(.top, 4)
+      HStack(spacing: 8) {
+        Button(model.t("本机模式", "On this device")) { model.useLocalMode() }
+          .buttonStyle(ConnectButtonStyle(gray: true))
+        Button(model.t("重试", "Retry")) { model.retryConnect() }
+          .buttonStyle(ConnectButtonStyle(gray: false))
+      }
+      .padding(.top, 24)
     }
   }
 }
@@ -312,20 +283,5 @@ private struct ConnectButtonStyle: ButtonStyle {
       .frame(minHeight: 44)
       .background(gray ? ZFColor.grayButton : ZFColor.inkButton)
       .clipShape(RoundedRectangle(cornerRadius: 12))
-  }
-}
-
-struct BrokenLinkIcon: View {
-  var body: some View {
-    Canvas { context, size in
-      let s = min(size.width, size.height) / 24
-      var left = Path()
-      left.addArc(center: CGPoint(x: 8 * s, y: 12 * s), radius: 4 * s, startAngle: .degrees(40), endAngle: .degrees(320), clockwise: false)
-      var right = Path()
-      right.addArc(center: CGPoint(x: 16 * s, y: 12 * s), radius: 4 * s, startAngle: .degrees(220), endAngle: .degrees(140), clockwise: false)
-      let style = StrokeStyle(lineWidth: 1.7 * s, lineCap: .round)
-      context.stroke(left, with: .foreground, style: style)
-      context.stroke(right, with: .foreground, style: style)
-    }
   }
 }

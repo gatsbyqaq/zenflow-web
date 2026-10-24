@@ -41,10 +41,29 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
+  ZenFlowUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ZenFlowUITests
+    dependencies:
+      - target: ZenFlow
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.gatsbyqaq.zenflow.uitests
+        TEST_TARGET_NAME: ZenFlow
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        MARKETING_VERSION: "47"
+        CURRENT_PROJECT_VERSION: "47"
 schemes:
   ZenFlow:
     build:
       targets:
         ZenFlow: all
+        ZenFlowUITests: [test]
     run:
       config: Debug
+    test:
+      targets:
+        - ZenFlowUITests

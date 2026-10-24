@@ -76,7 +76,6 @@ struct RecordSheet: View {
         }
         .padding(16)
       }
-      .background(ZFColor.bg)
       .navigationTitle("记录行为")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -98,7 +97,9 @@ struct RecordSheet: View {
       }
       .padding(20)
       .presentationDetents([.height(240)])
+      .zfSheetGlass()
     }
+    .zfSheetGlass()
   }
 
   private var selected: [String] {
@@ -185,7 +186,6 @@ struct DaySheet: View {
         }
         .padding(16)
       }
-      .background(ZFColor.bg)
       .navigationTitle(ZFFormat.dayTitle(day))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -204,6 +204,7 @@ struct DaySheet: View {
         RecordSheet(day: day)
       }
     }
+    .zfSheetGlass()
   }
 
   private func timeline(checkin: Checkin?, relapses: [Relapse]) -> some View {
@@ -354,7 +355,6 @@ struct EditRelapseSheet: View {
         }
         .padding(16)
       }
-      .background(ZFColor.bg)
       .navigationTitle("编辑这条记录")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -375,5 +375,6 @@ struct EditRelapseSheet: View {
       other = row.other
       note = row.note
     }
+    .zfSheetGlass()
   }
 }

@@ -48,6 +48,35 @@ enum PreviewLaunch {
     return 0
     #endif
   }
+
+  /// `-ZenFlowPreviewTimeout`：直接显示连接超时卡片，不发起网络请求。
+  static var timeout: Bool { flag("-ZenFlowPreviewTimeout") }
+
+  /// `-ZenFlowPreviewRetry`：同一张卡片停在「正在连接」。
+  static var retry: Bool { flag("-ZenFlowPreviewRetry") }
+
+  /// `-ZenFlowPreviewSheet`：打开开始时间面板。
+  static var sheet: Bool { flag("-ZenFlowPreviewSheet") }
+
+  /// `-ZenFlowPreviewPage goal`：推入设置子页。
+  static var settingsPage: SettingsPage? {
+    #if targetEnvironment(simulator)
+    let args = ProcessInfo.processInfo.arguments
+    guard let index = args.firstIndex(of: "-ZenFlowPreviewPage"),
+          index + 1 < args.count else { return nil }
+    return SettingsPage(rawValue: args[index + 1])
+    #else
+    return nil
+    #endif
+  }
+
+  private static func flag(_ name: String) -> Bool {
+    #if targetEnvironment(simulator)
+    ProcessInfo.processInfo.arguments.contains(name)
+    #else
+    false
+    #endif
+  }
 }
 
 enum SettingsPage: String, Hashable {
@@ -126,7 +155,19 @@ final class AppModel {
   func bootstrap() async {
     if PreviewLaunch.local {
       enterLocal()
-      connectFace = .hidden
+      if PreviewLaunch.retry {
+        connectFace = .spinning
+      } else if PreviewLaunch.timeout {
+        connectFace = .timeout
+      } else {
+        connectFace = .hidden
+      }
+      if let page = PreviewLaunch.settingsPage {
+        settingsPage = page
+      }
+      if PreviewLaunch.sheet {
+        askStart = true
+      }
       return
     }
     guard connectTask == nil else { return }
@@ -140,6 +181,7 @@ final class AppModel {
 
   func retryConnect() {
     connectFace = .spinning
+    if PreviewLaunch.local { return }
     connectGen += 1
     connectTask?.cancel()
     let pending = pendingSignIn

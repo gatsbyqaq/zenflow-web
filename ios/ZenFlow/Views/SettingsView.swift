@@ -6,15 +6,19 @@ struct SettingsView: View {
   @Environment(AppModel.self) private var model
 
   var body: some View {
-    Group {
-      if let page = model.settingsPage {
-        SettingsDetail(page: page)
-      } else {
-        settingsRoot
-      }
+    @Bindable var model = model
+    NavigationStack {
+      settingsRoot
+        .navigationTitle(model.t("设置", "Settings"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(item: $model.settingsPage) { page in
+          SettingsDetail(page: page)
+            .navigationTitle(page.title(model.language))
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
     .background(ZFColor.bg)
-    .navigationBarBackButtonHidden(true)
   }
 
   private var settingsRoot: some View {
@@ -76,7 +80,7 @@ struct SettingsView: View {
         }
       }
       .padding(.horizontal, 16)
-      .padding(.bottom, 24)
+      .zfScrollClearance()
     }
   }
 
@@ -121,13 +125,6 @@ struct SettingsDetail: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 14) {
-        HStack {
-          Button { model.settingsPage = nil } label: {
-            Image(systemName: "chevron.left")
-            Text(model.t("设置", "Settings"))
-          }
-          Spacer()
-        }
         Text(page.title(model.language)).font(.system(size: 28, weight: .bold))
         switch page {
         case .account: AccountPage()
@@ -443,6 +440,7 @@ struct DataPage: View {
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showReset = false } } }
       }
       .presentationDetents([.medium])
+      .zfSheetGlass()
     }
     .sheet(isPresented: $showDelete) {
       NavigationStack {
@@ -462,6 +460,7 @@ struct DataPage: View {
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDelete = false } } }
       }
       .presentationDetents([.medium])
+      .zfSheetGlass()
     }
     .sheet(isPresented: $showDeleteHandle) {
       NavigationStack {
@@ -498,6 +497,7 @@ struct DataPage: View {
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDeleteHandle = false } } }
       }
       .presentationDetents([.medium])
+      .zfSheetGlass()
     }
   }
 

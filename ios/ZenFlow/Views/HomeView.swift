@@ -25,7 +25,7 @@ struct HomeView: View {
         badges
       }
       .padding(.horizontal, 16)
-      .padding(.bottom, 24)
+      .zfScrollClearance()
     }
     .background(ZFColor.bg)
   }

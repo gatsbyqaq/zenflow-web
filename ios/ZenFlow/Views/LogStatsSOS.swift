@@ -26,7 +26,7 @@ struct LogView: View {
         }
       }
       .padding(.horizontal, 16)
-      .padding(.bottom, 24)
+      .zfScrollClearance()
     }
     .background(ZFColor.bg)
   }
@@ -151,7 +151,7 @@ struct StatsView: View {
         }
       }
       .padding(.horizontal, 16)
-      .padding(.bottom, 24)
+      .zfScrollClearance()
     }
     .background(ZFColor.bg)
   }
