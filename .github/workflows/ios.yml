@@ -1,0 +1,137 @@
+name: iOS
+
+on:
+  push:
+    branches:
+      - cursor/ios-client-8629
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          best_ver=""
+          best_app=""
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "found $ver at $app"
+            top=$(printf '%s\n%s\n' "$best_ver" "$ver" | sort -V | tail -1)
+            if [ -z "$best_ver" ] || [ "$top" = "$ver" ]; then
+              best_ver="$ver"
+              best_app="$app"
+            fi
+          done
+          if [ -z "$best_app" ]; then
+            echo "no Xcode installed" >&2
+            exit 1
+          fi
+          echo "using Xcode $best_ver at $best_app"
+          sudo xcode-select -s "$best_app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ZenFlow.xcodeproj \
+            -scheme ZenFlow \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+          APP="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/ZenFlow.app"
+          test -d "$APP"
+          echo "APP_PATH=$APP" >> "$GITHUB_ENV"
+
+      - name: Test ZenFlowCore
+        working-directory: ios/ZenFlowCore
+        run: swift test
+
+      - name: Boot simulator, launch, screenshot
+        run: |
+          set -euo pipefail
+          python3 - << 'PY'
+          import json, re, subprocess
+          raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"])
+          data = json.loads(raw)
+          def key(runtime):
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          runtimes = [name for name in data["devices"] if "iOS-" in name and data["devices"][name]]
+          runtimes.sort(key=key)
+          if not runtimes:
+              raise SystemExit("no iOS simulator runtime")
+          runtime = runtimes[-1]
+          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and d.get("isAvailable", True)]
+          if not phones:
+              raise SystemExit(f"no iPhone on {runtime}")
+          phones.sort(key=lambda d: d["name"])
+          chosen = phones[-1]
+          print(f"SIM_UDID={chosen['udid']}")
+          print(f"SIM_NAME={chosen['name']}")
+          print(f"SIM_RUNTIME={runtime}")
+          open("/tmp/sim.env", "w").write(f"{chosen['udid']}\n")
+          PY
+          UDID=$(cat /tmp/sim.env)
+          echo "simulator $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP_PATH"
+          mkdir -p "$RUNNER_TEMP/shots"
+          shoot() {
+            local appearance="$1"
+            local tab="$2"
+            local name="$3"
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow -ZenFlowPreviewLocal -ZenFlowPreviewTab "$tab"
+            sleep 5
+            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/shots/${appearance}-${name}.png"
+          }
+          shoot light 0 checkin
+          shoot light 1 log
+          shoot light 2 stats
+          shoot light 3 settings
+          shoot dark 0 checkin
+          shoot dark 1 log
+          shoot dark 2 stats
+          shoot dark 3 settings
+          ls -l "$RUNNER_TEMP/shots"
+          ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/ZenFlow-simulator.app.zip"
+          mkdir -p screenshots
+          cp "$RUNNER_TEMP/shots/"*.png screenshots/
+          cp "$RUNNER_TEMP/ZenFlow-simulator.app.zip" ZenFlow-simulator.app.zip
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: screenshots/*.png
+          if-no-files-found: error
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZenFlow-simulator-app
+          path: ZenFlow-simulator.app.zip
+          if-no-files-found: error

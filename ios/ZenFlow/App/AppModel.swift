@@ -27,6 +27,29 @@ enum ConnectFace: Equatable {
   case hidden, timeout, spinning
 }
 
+/// 仅模拟器。CI 用 `-ZenFlowPreviewLocal` 跳过登录，直接打开四个标签。
+enum PreviewLaunch {
+  static var local: Bool {
+    #if targetEnvironment(simulator)
+    ProcessInfo.processInfo.arguments.contains("-ZenFlowPreviewLocal")
+    #else
+    false
+    #endif
+  }
+
+  static var tab: Int {
+    #if targetEnvironment(simulator)
+    let args = ProcessInfo.processInfo.arguments
+    guard let index = args.firstIndex(of: "-ZenFlowPreviewTab"),
+          index + 1 < args.count,
+          let value = Int(args[index + 1]) else { return 0 }
+    return min(3, max(0, value))
+    #else
+    return 0
+    #endif
+  }
+}
+
 enum SettingsPage: String, Hashable {
   case account, goal, resets, theme, reasons, data, about, language, lock
 
@@ -87,6 +110,10 @@ final class AppModel {
     language = AppLanguage.stored
     lastSync = LocalStore.lastSync()
     bootText = language.t("正在登录", "Signing in")
+    if PreviewLaunch.local {
+      localMode = true
+      gate = .ready
+    }
   }
 
   func t(_ zh: String, _ en: String) -> String { language.t(zh, en) }
@@ -97,6 +124,11 @@ final class AppModel {
   }
 
   func bootstrap() async {
+    if PreviewLaunch.local {
+      enterLocal()
+      connectFace = .hidden
+      return
+    }
     guard connectTask == nil else { return }
     bootText = t("正在登录", "Signing in")
     gate = .boot

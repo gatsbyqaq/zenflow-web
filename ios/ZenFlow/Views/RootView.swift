@@ -43,7 +43,7 @@ struct RootView: View {
 struct MainView: View {
   @Environment(AppModel.self) private var model
   @Environment(\.scenePhase) private var scenePhase
-  @State private var tab = 0
+  @State private var tab = PreviewLaunch.tab
 
   var body: some View {
     @Bindable var model = model
