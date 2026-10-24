@@ -200,8 +200,13 @@ jobs:
             local vpid=$!
             sleep 5
             kill -INT "$vpid" 2>/dev/null || true
+            local n
+            for n in 1 2 3 4 5 6 7 8; do
+              kill -0 "$vpid" 2>/dev/null || break
+              sleep 1
+            done
+            kill -9 "$vpid" 2>/dev/null || true
             set +e
-            wait "$vpid"
             wait "$xpid"
             local status=$?
             set -e
