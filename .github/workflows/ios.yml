@@ -64,7 +64,7 @@ jobs:
           for rend in Default Dark TintedLight TintedDark ClearLight ClearDark; do
             render "$rend"
           done
-          cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark.png"
+          cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark-appearance.png"
           ls -l "$RUNNER_TEMP/shots"
 
       - name: Build for iOS Simulator
