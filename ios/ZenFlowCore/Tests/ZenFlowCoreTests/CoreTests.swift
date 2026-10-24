@@ -74,7 +74,16 @@ final class CoreTests: XCTestCase {
         .init(ts: self.epoch + 9 * self.ms, types: ["porn"])
       ]
     }
-    XCTAssertEqual(Streak.historicalBest(gaps), 7 * self.ms)
+    XCTAssertEqual(Streak.historicalBest(gaps, now: self.epoch + 12 * self.ms), 7 * self.ms)
+
+    let single = base {
+      $0.relapses = [.init(ts: self.epoch + 10 * self.ms, types: ["masturbation"])]
+    }
+    XCTAssertEqual(Streak.historicalBest(single, now: self.epoch + 12 * self.ms), 10 * self.ms)
+    XCTAssertEqual(Streak.totalCleanMs(single, now: self.epoch + 12 * self.ms), 12 * self.ms)
+    XCTAssertEqual(Streak.wholeDays(0), 0)
+    XCTAssertEqual(Streak.wholeDays(self.ms * 1.9), 1)
+    XCTAssertEqual(Streak.wholeDays(-self.ms), 0)
 
     let ended = Streak.endedStreakMs(
       base { $0.relapses = [.init(id: "a", ts: self.epoch + 2 * self.ms, types: ["porn"])] },

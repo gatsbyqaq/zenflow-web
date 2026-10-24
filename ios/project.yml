@@ -11,8 +11,8 @@ packages:
     exactVersion: 2.46.0
 settings:
   SWIFT_VERSION: "5.0"
-  MARKETING_VERSION: "30"
-  CURRENT_PROJECT_VERSION: "30"
+  MARKETING_VERSION: "47"
+  CURRENT_PROJECT_VERSION: "47"
   IPHONEOS_DEPLOYMENT_TARGET: "17.0"
 targets:
   ZenFlow:
@@ -36,8 +36,8 @@ targets:
         SUPPORTS_MACCATALYST: NO
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "30"
-        CURRENT_PROJECT_VERSION: "30"
+        MARKETING_VERSION: "47"
+        CURRENT_PROJECT_VERSION: "47"
     dependencies:
       - package: Supabase
         product: Supabase

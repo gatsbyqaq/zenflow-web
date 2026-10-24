@@ -7,6 +7,6 @@ enum AppConfig {
   static let turnstileBaseURL = URL(string: "https://gatsbyqaq.github.io/")!
   static let privacyURL = URL(string: "https://gatsbyqaq.github.io/zenflow-web/privacy.html")!
   static let webURL = URL(string: "https://gatsbyqaq.github.io/zenflow-web/")!
-  static let appVersion = "30"
+  static let appVersion = "47"
   static let phoneLoginEnabled = false
 }

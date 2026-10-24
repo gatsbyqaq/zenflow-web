@@ -24,39 +24,45 @@ struct SettingsView: View {
           AvatarView(url: model.avatarURL, name: model.shownName, size: 56)
           VStack(alignment: .leading, spacing: 2) {
             Text(model.shownName).font(.system(size: 18, weight: .semibold))
-            Text(model.shownHandle.isEmpty ? model.email : model.shownHandle)
+            Text(model.localMode ? model.t("本机模式", "On this device") : (model.shownHandle.isEmpty ? model.email : model.shownHandle))
               .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
           }
         }
         .padding(.top, 8)
-        Text("设置").font(.system(size: 28, weight: .bold))
-        group("账号") {
-          row("person.crop.circle", "账号与资料", model.shownHandle.isEmpty ? (model.email.isEmpty ? "已登录" : model.email) : model.shownHandle, .account)
+        Text(model.t("设置", "Settings")).font(.system(size: 28, weight: .bold))
+        group(model.t("账号", "Account")) {
+          row("person.crop.circle", model.t("账号与资料", "Account"), model.localMode ? model.t("本机模式", "On this device") : (model.shownHandle.isEmpty ? (model.email.isEmpty ? model.t("未登录", "Not signed in") : model.email) : model.shownHandle), .account)
         }
-        group("戒色") {
-          row("target", "目标天数", "\(model.state.goalDays) 天", .goal)
-          row("flame", "重置规则", model.resetSummary(), .resets)
+        group(model.t("戒色", "Streak")) {
+          row("target", model.t("目标天数", "Goal"), model.t("\(model.state.goalDays) 天", "\(model.state.goalDays) days"), .goal)
+          row("clock", model.t("开始时间", "Start"), AppState.fmtDT(model.state.streakStart), nil)
+          row("flame", model.t("重置规则", "Reset rules"), model.resetSummary(), .resets)
         }
-        group("偏好") {
-          row("circle.lefthalf.filled", "外观", model.theme.label, .theme)
-          row("heart", "理由", "\(model.state.reasons.count) 条", .reasons)
+        group(model.t("偏好", "Preferences")) {
+          row("circle.lefthalf.filled", model.t("外观", "Appearance"), model.theme.label(model.language), .theme)
+          row("character.book.closed", model.t("语言", "Language"), model.language == .zh ? "中文" : "English", .language)
+          row("heart", model.t("理由", "Reasons"), model.t("\(model.state.reasons.count) 条", "\(model.state.reasons.count)"), .reasons)
+        }
+        group(model.t("隐私与安全", "Privacy and security")) {
+          row("lock", model.t("应用锁", "App lock"), model.lock.enabled ? model.lock.grace.label(model.language) : model.t("关闭", "Off"), .lock)
         }
         VStack(spacing: 0) {
-          row("internaldrive", "数据", "同步、导出、注销", .data)
+          row("internaldrive", model.t("数据", "Data"), model.t("同步、导出、注销", "Sync, export, delete"), .data)
           divider
-          row("info.circle", "关于", "版本与隐私", .about)
+          row("info.circle", model.t("关于", "About"), model.t("版本与隐私", "Version and privacy"), .about)
         }
         .background(ZFColor.card)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(ZFColor.line, lineWidth: 1))
+        if model.userID != nil {
         Button {
           model.askLogout = true
         } label: {
           HStack {
             Image(systemName: "rectangle.portrait.and.arrow.right")
             VStack(alignment: .leading) {
-              Text("退出登录").font(.system(size: 16, weight: .semibold))
-              Text("清除本机数据").font(.system(size: 12))
+              Text(model.t("退出登录", "Log out")).font(.system(size: 16, weight: .semibold))
+              Text(model.t("清除本机数据", "Clears data on this device")).font(.system(size: 12))
             }
             Spacer()
           }
@@ -67,6 +73,7 @@ struct SettingsView: View {
           .overlay(RoundedRectangle(cornerRadius: 12).stroke(ZFColor.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        }
       }
       .padding(.horizontal, 16)
       .padding(.bottom, 24)
@@ -83,12 +90,13 @@ struct SettingsView: View {
     }
   }
 
-  private func row(_ symbol: String, _ title: String, _ subtitle: String, _ page: SettingsPage) -> some View {
+  private func row(_ symbol: String, _ title: String, _ subtitle: String, _ page: SettingsPage?) -> some View {
     Button {
-      model.settingsPage = page
+      if page == nil { model.askStart = true }
+      else { model.settingsPage = page }
     } label: {
       HStack {
-        Image(systemName: symbol).frame(width: 28).foregroundStyle(ZFColor.primary)
+        Image(systemName: symbol).frame(width: 28).foregroundStyle(ZFColor.text)
         VStack(alignment: .leading, spacing: 2) {
           Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(ZFColor.text)
           Text(subtitle).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
@@ -116,17 +124,19 @@ struct SettingsDetail: View {
         HStack {
           Button { model.settingsPage = nil } label: {
             Image(systemName: "chevron.left")
-            Text("设置")
+            Text(model.t("设置", "Settings"))
           }
           Spacer()
         }
-        Text(page.title).font(.system(size: 28, weight: .bold))
+        Text(page.title(model.language)).font(.system(size: 28, weight: .bold))
         switch page {
         case .account: AccountPage()
         case .goal: GoalPage()
         case .resets: ResetPage()
         case .theme: ThemePage()
+        case .language: LanguagePage()
         case .reasons: ReasonsPage()
+        case .lock: LockPage()
         case .data: DataPage()
         case .about: AboutPage()
         }
@@ -296,7 +306,7 @@ struct ThemePage: View {
     ZFCard {
       Picker("外观", selection: Binding(get: { model.theme }, set: { model.setTheme($0) })) {
         ForEach([ThemeChoice.system, .light, .dark], id: \.self) { choice in
-          Text(choice.label).tag(choice)
+          Text(choice.label(model.language)).tag(choice)
         }
       }
       .pickerStyle(.segmented)
@@ -495,7 +505,7 @@ struct DataPage: View {
   private func dataRow(_ symbol: String, _ title: String, _ subtitle: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       HStack {
-        Image(systemName: symbol).frame(width: 28).foregroundStyle(ZFColor.primary)
+        Image(systemName: symbol).frame(width: 28).foregroundStyle(ZFColor.text)
         VStack(alignment: .leading) {
           Text(title).font(.system(size: 16, weight: .semibold)).foregroundStyle(ZFColor.text)
           Text(subtitle).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
@@ -593,7 +603,7 @@ struct AvatarView: View {
 
   var body: some View {
     ZStack {
-      Circle().fill(ZFColor.story)
+      Circle().fill(ZFColor.text)
       if let url {
         AsyncImage(url: url) { image in
           image.resizable().scaledToFill()
@@ -612,7 +622,67 @@ struct AvatarView: View {
   private var letter: some View {
     Text(String(name.prefix(1)).uppercased())
       .font(.system(size: size * 0.38, weight: .bold))
-      .foregroundStyle(ZFColor.text)
+      .foregroundStyle(ZFColor.bg)
+  }
+}
+
+struct LanguagePage: View {
+  @Environment(AppModel.self) private var model
+
+  var body: some View {
+    ZFCard {
+      Picker(model.t("语言", "Language"), selection: Binding(get: { model.language }, set: { model.setLanguage($0) })) {
+        Text("中文").tag(AppLanguage.zh)
+        Text("English").tag(AppLanguage.en)
+      }
+      .pickerStyle(.segmented)
+    }
+  }
+}
+
+struct LockPage: View {
+  @Environment(AppModel.self) private var model
+  @State private var busy = false
+
+  var body: some View {
+    ZFCard {
+      Toggle(isOn: Binding(
+        get: { model.lock.enabled },
+        set: { on in
+          guard !busy else { return }
+          busy = true
+          Task {
+            _ = await model.lock.setEnabled(on)
+            busy = false
+          }
+        }
+      )) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(model.t("应用锁", "App lock"))
+          Text(model.t("离开后再打开，用面容 ID 解锁。", "When you come back, unlock with Face ID."))
+            .font(.system(size: 12))
+            .foregroundStyle(ZFColor.muted)
+        }
+      }
+      .disabled(busy)
+    }
+    if model.lock.enabled {
+      ZFCard {
+        Text(model.t("锁定时机", "Lock after")).font(.system(size: 16, weight: .semibold))
+        Text(model.t("离开后再打开，超过这个时间要解锁。", "When you come back after this long, unlock again."))
+          .font(.system(size: 13))
+          .foregroundStyle(ZFColor.muted)
+        Picker(model.t("锁定时机", "Lock after"), selection: Binding(
+          get: { model.lock.grace },
+          set: { model.lock.setGrace($0) }
+        )) {
+          ForEach([LockGrace.now, .m1, .m5], id: \.self) { grace in
+            Text(grace.label(model.language)).tag(grace)
+          }
+        }
+        .pickerStyle(.segmented)
+      }
+    }
   }
 }
 

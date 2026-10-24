@@ -337,12 +337,16 @@ public struct AppState: Equatable {
     max(state.bestStreakMs, currentMs(state, now: now))
   }
 
+  public static func totalCleanMs(_ state: AppState, now: Double = Date().timeIntervalSince1970 * 1000) -> Double {
+    Streak.totalCleanMs(state.streakInput(), now: now)
+  }
+
   @discardableResult
   public static func applyStreak(_ state: inout AppState, touchSetAt: Bool, now: Double = Date().timeIntervalSince1970 * 1000) -> Bool {
     let next = Streak.computeStreakStart(state.streakInput(), now: now)
     let changed = next != state.streakStart
     state.streakStart = next
-    state.bestStreakMs = Streak.historicalBest(state.streakInput())
+    state.bestStreakMs = Streak.historicalBest(state.streakInput(), now: now)
     if touchSetAt && changed { state.streakStartSetAt = now }
     return changed
   }

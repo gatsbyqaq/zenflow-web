@@ -137,13 +137,27 @@ public enum Streak {
     return max(0, ts - prev)
   }
 
-  /// 已结束的间隔。不含「现在还在走的这一段」。
-  public static func historicalBest(_ s: Input) -> Double {
-    let times = s.relapses
-      .filter { relapseResets(types: $0.types, resetTypes: s.resetTypes) }
+  /// 只计已经过完的整天。和网页圆环、统计用同一取整。
+  public static func wholeDays(_ ms: Double) -> Int {
+    guard ms.isFinite, ms > 0 else { return 0 }
+    return Int(floor(ms / day))
+  }
+
+  public static func resettingTimes(_ s: Input, now: Double = Date().timeIntervalSince1970 * 1000) -> [Double] {
+    let limit = now + 60_000
+    return s.relapses
+      .filter { $0.ts <= limit && relapseResets(types: $0.types, resetTypes: s.resetTypes) }
       .map(\.ts)
       .sorted()
+  }
+
+  /// 已结束的间隔。不含「现在还在走的这一段」，破戒不会把最长纪录清掉。
+  public static func historicalBest(_ s: Input, now: Double = Date().timeIntervalSince1970 * 1000) -> Double {
+    let times = resettingTimes(s, now: now)
     var best = s.bestStreakMs > 0 ? s.bestStreakMs : 0
+    if let first = times.first {
+      best = max(best, max(0, first - segmentStartBefore(s, ts: first, now: now)))
+    }
     if times.count >= 2 {
       for i in 1..<times.count {
         best = max(best, times[i] - times[i - 1])
@@ -151,5 +165,21 @@ public enum Streak {
     }
     for r in s.relapses where r.streakMs > best { best = r.streakMs }
     return best
+  }
+
+  /// 每一段干净时间，加上现在还在走的这一段。破戒只结束当前段。
+  public static func totalCleanMs(_ s: Input, now: Double = Date().timeIntervalSince1970 * 1000) -> Double {
+    let created = (s.createdAt.isFinite && s.createdAt > 0) ? s.createdAt : now
+    let times = resettingTimes(s, now: now)
+    var total = 0.0
+    var cursor = created
+    for ts in times where ts > cursor {
+      total += ts - cursor
+      cursor = ts
+    }
+    var openStart = computeStreakStart(s, now: now)
+    if openStart < cursor { openStart = cursor }
+    if now > openStart { total += now - openStart }
+    return total
   }
 }

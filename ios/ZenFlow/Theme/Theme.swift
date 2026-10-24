@@ -1,14 +1,32 @@
 import SwiftUI
 import UIKit
 
+enum AppLanguage: String, Equatable, Hashable {
+  case zh, en
+
+  static let storageKey = "zenflow_lang"
+
+  static var stored: AppLanguage {
+    if let raw = UserDefaults.standard.string(forKey: storageKey), let value = AppLanguage(rawValue: raw) {
+      return value
+    }
+    let preferred = Locale.preferredLanguages.first ?? "zh"
+    return preferred.hasPrefix("zh") ? .zh : .en
+  }
+
+  func t(_ zh: String, _ en: String) -> String { self == .en ? en : zh }
+
+  var title: String { t("中文", "English") }
+}
+
 enum ThemeChoice: String, Equatable, Hashable {
   case system, light, dark
 
-  var label: String {
+  func label(_ lang: AppLanguage) -> String {
     switch self {
-    case .system: return "跟随系统"
-    case .light: return "浅色"
-    case .dark: return "深色"
+    case .system: return lang.t("跟随系统", "System")
+    case .light: return lang.t("浅色", "Light")
+    case .dark: return lang.t("深色", "Dark")
     }
   }
 
@@ -22,23 +40,24 @@ enum ThemeChoice: String, Equatable, Hashable {
 }
 
 enum ZFColor {
-  static let bg = adaptive(0xFAFAFA, 0x000000)
-  static let card = adaptive(0xFFFFFF, 0x121212)
-  static let text = adaptive(0x262626, 0xF5F5F5)
-  static let muted = adaptive(0x737373, 0xA8A8A8)
-  static let line = adaptive(0xDBDBDB, 0x262626)
-  static let field = adaptive(0xEFEFEF, 0x1C1C1C)
-  static let primary = Color(rgb: 0x0095F6)
-  static let warm = adaptive(0xED4956, 0xFF6B7A)
+  static let bg = adaptive(0xFFFFFF, 0x000000)
+  static let card = adaptive(0xF5F5F7, 0x1C1C1E)
+  static let text = adaptive(0x000000, 0xFFFFFF)
+  static let muted = adaptive(0x6E6E73, 0x8E8E93)
+  static let line = adaptive(0xE5E5EA, 0x2C2C2E)
+  static let field = adaptive(0xFFFFFF, 0x2C2C2E)
+  static let primary = text
+  static let warm = adaptive(0xED4956, 0xFF453A)
   static let mint = adaptive(0x1C9C6C, 0x3DD68C)
   static let amber = adaptive(0xE0A100, 0xF5C451)
-  static let inkButton = adaptive(0x262626, 0xF5F5F5)
-  static let inkButtonText = adaptive(0xFFFFFF, 0x000000)
+  static let inkButton = text
+  static let inkButtonText = bg
+  static let grayButton = adaptive(0xE5E5EA, 0x2C2C2E)
 
   static func type(_ id: String, dark: Bool) -> Color {
     switch id {
-    case "masturbation": return Color(rgb: dark ? 0xFF8A7A : 0xE24B4B)
-    case "porn": return Color(rgb: dark ? 0x4CB5FF : 0x0095F6)
+    case "masturbation": return Color(rgb: dark ? 0xFF453A : 0xFF2D2D)
+    case "porn": return Color(rgb: dark ? 0x6D82F0 : 0x405DE6)
     case "sex": return Color(rgb: dark ? 0xFF7EB3 : 0xD62976)
     case "fantasy": return Color(rgb: dark ? 0xFFC56B : 0xD4880F)
     case "dream": return Color(rgb: dark ? 0xC4B5FD : 0x7C5CBF)
@@ -46,14 +65,9 @@ enum ZFColor {
     }
   }
 
-  static let story = LinearGradient(
-    colors: [
-      Color(rgb: 0xFEDA75),
-      Color(rgb: 0xFA7E1E),
-      Color(rgb: 0xD62976),
-      Color(rgb: 0x962FBF),
-      Color(rgb: 0x4F5BD5)
-    ],
+  /// 只用于圆环、已解锁徽章、「我现在很想」。
+  static let ins = LinearGradient(
+    colors: [Color(rgb: 0x833AB4), Color(rgb: 0xE1306C), Color(rgb: 0xF77737)],
     startPoint: .topLeading,
     endPoint: .bottomTrailing
   )
@@ -150,14 +164,72 @@ struct PrimaryButton: View {
         if let systemImage { Image(systemName: systemImage) }
         Text(title)
       }
-      .font(.system(size: 15, weight: .semibold))
+      .font(.system(size: 16, weight: .semibold))
       .frame(maxWidth: .infinity)
-      .padding(.vertical, 12)
-      .foregroundStyle(.white)
-      .background(ZFColor.primary.opacity(disabled ? 0.45 : 1))
-      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .frame(minHeight: 52)
+      .foregroundStyle(ZFColor.inkButtonText)
+      .background(ZFColor.inkButton.opacity(disabled ? 0.3 : 1))
+      .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     .disabled(disabled)
+  }
+}
+
+struct GrayButton: View {
+  var title: String
+  var systemImage: String? = nil
+  var action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 6) {
+        if let systemImage { Image(systemName: systemImage) }
+        Text(title)
+      }
+      .font(.system(size: 16, weight: .semibold))
+      .frame(maxWidth: .infinity)
+      .frame(minHeight: 52)
+      .foregroundStyle(ZFColor.text)
+      .background(ZFColor.grayButton)
+      .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+struct GhostButton: View {
+  var title: String
+  var action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Text(title)
+        .font(.system(size: 16, weight: .semibold))
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 52)
+        .foregroundStyle(ZFColor.text)
+        .background(ZFColor.grayButton)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    .buttonStyle(.plain)
+  }
+}
+
+struct UrgeButton: View {
+  var title: String
+  var action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Text(title)
+        .font(.system(size: 17, weight: .bold))
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: 52)
+        .background(ZFColor.ins)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    .buttonStyle(.plain)
   }
 }
 

@@ -14,11 +14,51 @@ enum CloudClientError: Error {
   case message(String)
 }
 
+struct ConnectTimeout: Error {}
+
 final class CloudClient {
-  let client: SupabaseClient
+  var client: SupabaseClient
 
   init() {
-    client = SupabaseClient(supabaseURL: AppConfig.supabaseURL, supabaseKey: AppConfig.supabaseAnonKey)
+    client = Self.make()
+  }
+
+  func replaceClient() {
+    client = Self.make()
+  }
+
+  private static func make() -> SupabaseClient {
+    SupabaseClient(supabaseURL: AppConfig.supabaseURL, supabaseKey: AppConfig.supabaseAnonKey)
+  }
+
+  static func isConnectFailure(_ error: Error) -> Bool {
+    if error is ConnectTimeout || error is CancellationError { return true }
+    if let url = error as? URLError {
+      switch url.code {
+      case .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost,
+           .notConnectedToInternet, .dnsLookupFailed, .cancelled, .internationalRoamingOff,
+           .dataNotAllowed, .cannotLoadFromNetwork:
+        return true
+      default:
+        return false
+      }
+    }
+    let ns = error as NSError
+    if ns.domain == NSURLErrorDomain { return true }
+    if let auth = error as? AuthError {
+      let code = auth.errorCode.rawValue.lowercased()
+      let message = auth.message.lowercased()
+      if code == "invalid_credentials" || message.contains("invalid login") { return false }
+      if message.contains("captcha") || code.contains("captcha") { return false }
+      if message.contains("retryable") || message.contains("fetch") || message.contains("network") { return true }
+      return false
+    }
+    let blob = String(describing: error).lowercased()
+    if blob.contains("authretryablefetcherror") || blob.contains("failed to fetch") { return true }
+    for code in ["statuscode: 0", "statuscode: 502", "statuscode: 503", "statuscode: 504", "statuscode: 521", "statuscode: 540"] {
+      if blob.contains(code) { return true }
+    }
+    return false
   }
 
   func currentSession() async throws -> Session {

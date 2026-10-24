@@ -26,9 +26,9 @@ struct AuthView: View {
         VStack(spacing: 8) {
           PetalLogo(size: 64)
           Wordmark(size: 18)
-          Text(mode == "login" ? "登录" : "注册")
+          Text(mode == "login" ? model.t("登录", "Log in") : model.t("注册", "Sign up"))
             .font(.system(size: 22, weight: .bold))
-          Text("登录后会同步数据。")
+          Text(model.t("登录后会同步数据。", "Signing in syncs your data."))
             .font(.system(size: 13))
             .foregroundStyle(ZFColor.muted)
         }

@@ -5,23 +5,20 @@ struct LogView: View {
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 14) {
-        Text("记录").font(.system(size: 28, weight: .bold)).padding(.top, 8)
-        ZFCard {
-          Text("不选类型只记心情。选了类型会计入破戒。")
-            .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-          PrimaryButton(title: "记录今天", systemImage: "square.and.pencil") {
-            model.openRecord(AppState.dateKey(Clock.now()))
-          }
+      VStack(alignment: .leading, spacing: 16) {
+        MonthCalendar()
+          .padding(.top, 8)
+        GrayButton(title: model.t("记录", "Log"), systemImage: "square.and.pencil") {
+          model.openRecord(AppState.dateKey(Clock.now()))
         }
         ZFCard {
           HStack {
-            Text("历史记录").font(.system(size: 16, weight: .semibold))
+            Text(model.t("最近", "Recent")).font(.system(size: 16, weight: .semibold))
             Spacer()
-            Text("共 \(items.count) 条").font(.system(size: 12)).foregroundStyle(ZFColor.muted)
+            Text(model.t("共 \(items.count) 条", "\(items.count) entries")).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
           }
           if items.isEmpty {
-            Text("还没有记录").foregroundStyle(ZFColor.muted)
+            Text(model.t("没有记录", "No entries")).foregroundStyle(ZFColor.muted)
           }
           ForEach(items.prefix(80)) { item in
             historyRow(item)
@@ -109,14 +106,18 @@ struct StatsView: View {
     let rate = (urges + relapses) > 0 ? "\(Int((Double(urges) / Double(urges + relapses) * 100).rounded()))%" : "—"
     ScrollView {
       VStack(alignment: .leading, spacing: 14) {
-        Text("统计").font(.system(size: 28, weight: .bold)).padding(.top, 8)
+        Text(model.t("统计", "Stats")).font(.system(size: 28, weight: .bold)).padding(.top, 8)
+        let now = Clock.now()
+        let longest = Streak.wholeDays(AppState.bestMs(model.state, now: now))
+        let total = Streak.wholeDays(AppState.totalCleanMs(model.state, now: now))
+        let current = Streak.wholeDays(AppState.currentMs(model.state, now: now))
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-          stat("\(urges)", "抵御冲动")
-          stat("\(relapses)", "破戒次数")
-          stat(AppState.fmtDays(AppState.bestMs(model.state)), "最长连续（天）")
-          stat(AppState.fmtDays(AppState.currentMs(model.state)), "当前连续（天）")
-          stat("\(model.state.checkins.count)", "累计打卡")
-          stat(rate, "冲动抵御率")
+          stat("\(relapses)", model.t("破戒次数", "Relapses"))
+          stat(model.t("\(total) 天", "\(total)"), model.t("累计坚持天数", "Total days"))
+          stat(model.t("\(current) 天", "\(current)"), model.t("当前连续", "Current streak"))
+          stat(model.t("\(longest) 天", "\(longest)"), model.t("最长连续", "Longest streak"))
+          stat("\(urges)", model.t("抵御冲动", "Urges resisted"))
+          stat(rate, model.t("冲动抵御率", "Resisted"))
         }
         ZFCard {
           Text("常见触发因素").font(.system(size: 16, weight: .semibold))
@@ -258,153 +259,90 @@ struct StatsView: View {
 
 struct SOSView: View {
   @Environment(AppModel.self) private var model
-  @State private var step = 0
-  @State private var mode = "box"
+  @State private var step = 1
   @State private var breath = BreathRun()
-  @State private var actions: [Catalog.Action] = []
   @State private var logged = false
 
   var body: some View {
-    ScrollView {
-      VStack(spacing: 16) {
-        if step == 0 { start }
-        else if step == 1 { breathing }
-        else if step == 2 { actionStep }
-        else { done }
-      }
-      .padding(16)
+    ZStack {
+      ZFColor.bg.ignoresSafeArea()
+      if step == 1 { breathing }
+      else { ending }
     }
-    .background(ZFColor.bg)
+    .onAppear {
+      logged = false
+      breath.start()
+      step = 1
+    }
     .onDisappear { breath.stop() }
-  }
-
-  private var start: some View {
-    VStack(spacing: 16) {
-      Text("急救").font(.system(size: 28, weight: .bold)).frame(maxWidth: .infinity, alignment: .leading)
-      Button {
-        logged = false
-        breath.start(mode: mode)
-        step = 1
-      } label: {
-        VStack {
-          Text("SOS").font(.system(size: 28, weight: .heavy))
-          Text("现在有冲动").font(.system(size: 13))
-        }
-        .foregroundStyle(.white)
-        .frame(width: 160, height: 160)
-        .background(ZFColor.warm)
-        .clipShape(Circle())
-      }
-      ZFCard {
-        Text("先呼吸").font(.system(size: 16, weight: .semibold))
-        Text("冲动一般几分钟就会过去。").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-      }
-      ZFCard {
-        Text("选择呼吸方式").font(.system(size: 16, weight: .semibold))
-        Picker("呼吸", selection: $mode) {
-          Text("箱式呼吸 4-4-4-4").tag("box")
-          Text("4-7-8 呼吸").tag("478")
-        }
-        .pickerStyle(.segmented)
-        Text(mode == "box" ? "吸气 4 秒，屏息 4 秒，呼气 4 秒，屏息 4 秒，共 4 轮。" : "吸气 4 秒，屏息 7 秒，呼气 8 秒，共 4 轮。")
-          .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-      }
-      Text("已挡住 \(model.state.urges.count) 次")
-        .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-    }
   }
 
   private var breathing: some View {
     VStack(spacing: 18) {
       HStack {
-        Button { breath.stop(); step = 0 } label: { Image(systemName: "xmark") }
+        Button { model.showSOS = false } label: { Image(systemName: "xmark") }
+          .foregroundStyle(ZFColor.text)
         Spacer()
-        Text("第 1 步 · 呼吸").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+        Text(model.t("呼吸", "Take a breath")).font(.system(size: 13)).foregroundStyle(ZFColor.muted)
         Spacer()
-        Button("跳过") { breath.stop(); showActions() }
+        Button(model.t("跳过", "Skip")) { breath.stop(); step = 2 }
+          .foregroundStyle(ZFColor.text)
       }
       ZStack {
-        Circle().fill(ZFColor.primary.opacity(0.15)).frame(width: 220, height: 220)
         Circle()
-          .fill(ZFColor.primary)
-          .frame(width: 180, height: 180)
+          .stroke(ZFColor.text.opacity(0.2), lineWidth: 2)
+          .frame(width: 220, height: 220)
           .scaleEffect(breath.scale)
-        VStack {
-          Text(breath.phase).foregroundStyle(.white)
-          Text("\(breath.count)").font(.system(size: 42, weight: .bold)).foregroundStyle(.white)
+        VStack(spacing: 4) {
+          Text(breath.phase).font(.system(size: 17, weight: .semibold)).foregroundStyle(ZFColor.muted)
+          Text("\(breath.count)").font(.system(size: 48, weight: .semibold)).foregroundStyle(ZFColor.muted.opacity(0.45))
         }
       }
-      Text(breath.hint).foregroundStyle(ZFColor.muted)
-      ProgressView(value: breath.progress)
+      Text(model.t("跟着圆圈", "Follow the circle")).foregroundStyle(ZFColor.muted)
       Text(breath.roundText).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
     }
+    .padding(16)
     .onChange(of: breath.finished) { _, done in
-      if done { showActions() }
+      if done { step = 2 }
     }
   }
 
-  private var actionStep: some View {
-    VStack(alignment: .leading, spacing: 14) {
+  private var ending: some View {
+    let days = Streak.wholeDays(AppState.currentMs(model.state))
+    return VStack(alignment: .leading, spacing: 16) {
       HStack {
-        Button { breath.stop(); step = 0 } label: { Image(systemName: "xmark") }
+        Button { model.showSOS = false } label: { Image(systemName: "xmark") }
+          .foregroundStyle(ZFColor.text)
         Spacer()
-        Text("第 2 步 · 转移注意力").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-        Spacer().frame(width: 24)
       }
+      Text(model.t("当前连续 \(days) 天", days == 1 ? "Current streak: 1 day" : "Current streak: \(days) days"))
+        .font(.system(size: 22, weight: .bold))
       ZFCard {
-        Text("选一件马上能做的：")
-        ForEach(actions.indices, id: \.self) { index in
-          Text(actions[index].title)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(ZFColor.field)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        Button("换一批建议") { actions = Array(Catalog.actions.shuffled().prefix(3)) }
-          .frame(maxWidth: .infinity)
-      }
-      ZFCard {
-        Text("我的理由").font(.system(size: 16, weight: .semibold))
+        Text(model.t("理由", "Your reasons")).font(.system(size: 16, weight: .semibold))
         if model.state.reasons.isEmpty {
-          Text("还没有理由。到设置里添加。").foregroundStyle(ZFColor.muted)
+          Text(model.t("还没有理由。", "No reasons yet.")).foregroundStyle(ZFColor.muted)
+          Button(model.t("去添加", "Add a reason")) { model.showSOS = false; model.settingsPage = .reasons }
+            .foregroundStyle(ZFColor.text)
         }
         ForEach(model.state.reasons, id: \.self) { reason in
           Text(reason)
         }
       }
-      PrimaryButton(title: "挡住了", systemImage: "checkmark.shield") {
+      PrimaryButton(title: model.t("撑过去了", "I made it through")) {
         if !logged {
           model.recordUrge()
           logged = true
         }
-        step = 3
+        model.show(model.t("已记下", "Saved"))
+        model.showSOS = false
       }
-      Button("再呼吸一次") {
-        breath.start(mode: mode)
-        step = 1
-      }
-      .frame(maxWidth: .infinity)
-      Button("去记录") {
-        step = 0
+      GhostButton(title: model.t("没撑住", "I didn't make it this time")) {
+        model.showSOS = false
         model.openRecord(AppState.dateKey(Clock.now()))
       }
-      .frame(maxWidth: .infinity)
-      .foregroundStyle(ZFColor.muted)
+      Spacer()
     }
-  }
-
-  private var done: some View {
-    VStack(spacing: 12) {
-      Text("挡住了").font(.system(size: 32, weight: .bold))
-      Text("第 \(model.state.urges.count) 次。").foregroundStyle(ZFColor.muted)
-      PrimaryButton(title: "回到首页") { step = 0 }
-    }
-    .padding(.top, 80)
-  }
-
-  private func showActions() {
-    actions = Array(Catalog.actions.shuffled().prefix(3))
-    step = 2
+    .padding(16)
   }
 }
 
@@ -419,16 +357,17 @@ final class BreathRun {
   var finished = false
   private var task: Task<Void, Never>?
 
-  func start(mode: String) {
+  func start() {
     stop()
     finished = false
-    let phases: [(String, Int, String)]
-    if mode == "478" {
-      phases = [("吸气", 4, "in"), ("屏息", 7, "hold"), ("呼气", 8, "out")]
-    } else {
-      phases = [("吸气", 4, "in"), ("屏息", 4, "hold"), ("呼气", 4, "out"), ("屏息", 4, "hold")]
-    }
-    var seq: [(String, Int, String, Int)] = [("准备", 3, "prep", 0)]
+    let en = AppLanguage.stored == .en
+    let phases: [(String, Int, String)] = [
+      (en ? "Breathe in" : "吸气", 4, "in"),
+      (en ? "Hold" : "屏息", 4, "hold"),
+      (en ? "Breathe out" : "呼气", 4, "out"),
+      (en ? "Hold" : "屏息", 4, "hold")
+    ]
+    var seq: [(String, Int, String, Int)] = [(en ? "Ready" : "准备", 3, "prep", 0)]
     for round in 1...4 {
       for phase in phases { seq.append((phase.0, phase.1, phase.2, round)) }
     }
@@ -436,9 +375,10 @@ final class BreathRun {
     task = Task { @MainActor in
       var elapsed = 0
       for item in seq {
+        let en = AppLanguage.stored == .en
         phase = item.0
-        hint = item.2 == "in" ? "吸气" : item.2 == "out" ? "呼气" : item.2 == "hold" ? "屏住" : "准备"
-        roundText = item.3 == 0 ? "" : "第 \(item.3) / 4 轮"
+        hint = item.2 == "in" ? (en ? "Breathe in" : "吸气") : item.2 == "out" ? (en ? "Breathe out" : "呼气") : item.2 == "hold" ? (en ? "Hold" : "屏住") : (en ? "Ready" : "准备")
+        roundText = item.3 == 0 ? "" : (en ? "Round \(item.3) of 4" : "第 \(item.3) / 4 轮")
         if item.2 == "in" { scale = 1 }
         if item.2 == "out" { scale = 0.55 }
         for left in stride(from: item.1, through: 1, by: -1) {

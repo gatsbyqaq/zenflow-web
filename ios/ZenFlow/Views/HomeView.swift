@@ -2,225 +2,189 @@ import SwiftUI
 
 struct HomeView: View {
   @Environment(AppModel.self) private var model
-  @Environment(\.colorScheme) private var scheme
-  @State private var monthOffset = 0
-  @State private var showStart = false
-  @State private var startDate = Date()
 
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 14) {
+      VStack(alignment: .leading, spacing: 16) {
         HStack(spacing: 8) {
           PetalLogo(size: 28)
           Wordmark(size: 15)
           Spacer()
+          if model.localMode {
+            Text(model.t("仅本机", "On this device"))
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundStyle(ZFColor.muted)
+          }
         }
         .padding(.top, 8)
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-          ring(now: context.date)
+        Text(model.t("打卡", "Check-in"))
+          .font(.system(size: 28, weight: .bold))
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+          hero(now: context.date)
         }
-        todayCard
-        calendar
         badges
-        Button {
-          NotificationCenter.default.post(name: .zenflowOpenSOS, object: nil)
-        } label: {
-          HStack {
-            Image(systemName: "lifepreserver")
-            VStack(alignment: .leading, spacing: 2) {
-              Text("有冲动？").font(.system(size: 15, weight: .semibold))
-              Text("去急救").font(.system(size: 12)).foregroundStyle(ZFColor.muted)
-            }
-            Spacer()
-            Image(systemName: "chevron.right").foregroundStyle(ZFColor.muted)
-          }
-          .padding(14)
-          .background(ZFColor.card)
-          .overlay(RoundedRectangle(cornerRadius: 12).stroke(ZFColor.line, lineWidth: 1))
-          .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
       }
       .padding(.horizontal, 16)
       .padding(.bottom, 24)
     }
     .background(ZFColor.bg)
-    .sheet(isPresented: $showStart) {
-      NavigationStack {
-        Form {
-          DatePicker("开始时间", selection: $startDate, in: ...Date())
-          Text("可改成更早的开始时间。之后若有会重置的破戒，天数从那次算起。")
-            .font(.system(size: 13))
-            .foregroundStyle(ZFColor.muted)
-        }
-        .navigationTitle("调整开始时间")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) { Button("取消") { showStart = false } }
-          ToolbarItem(placement: .confirmationAction) {
-            Button("保存") {
-              model.setManualStart(startDate)
-              showStart = false
-            }
-          }
-        }
-      }
-      .presentationDetents([.medium])
-    }
   }
 
-  private func ring(now: Date) -> some View {
+  private func hero(now: Date) -> some View {
     let ms = AppState.currentMs(model.state, now: now.timeIntervalSince1970 * 1000)
-    let days = ms / Streak.day
-    let goal = Double(max(model.state.goalDays, 1))
-    let progress = min(1, days / goal)
-    let parts = ZFFormat.hms(from: ms)
-    return VStack(spacing: 10) {
+    let days = Streak.wholeDays(ms)
+    let goal = max(model.state.goalDays, 1)
+    let progress = min(1, Double(days) / Double(goal))
+    let best = Streak.wholeDays(AppState.bestMs(model.state, now: now.timeIntervalSince1970 * 1000))
+    return VStack(spacing: 14) {
       ZStack {
         Circle().stroke(ZFColor.line, lineWidth: 12)
         Circle()
           .trim(from: 0, to: progress)
-          .stroke(ZFColor.story, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+          .stroke(ZFColor.ins, style: StrokeStyle(lineWidth: 12, lineCap: .round))
           .rotationEffect(.degrees(-90))
         VStack(spacing: 0) {
-          Text("已戒").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-          Text(AppState.fmtDays(ms)).font(.system(size: 52, weight: .bold)).monospacedDigit()
-          Text("天").font(.system(size: 14)).foregroundStyle(ZFColor.muted)
+          Text("\(days)")
+            .font(.system(size: 56, weight: .bold))
+            .monospacedDigit()
+            .foregroundStyle(ZFColor.text)
+          Text(days == 1 ? model.t("天", "day") : model.t("天", "days"))
+            .font(.system(size: 15))
+            .foregroundStyle(ZFColor.muted)
         }
       }
-      .frame(width: 210, height: 210)
+      .frame(width: 220, height: 220)
       .frame(maxWidth: .infinity)
-      Text("目标 \(model.state.goalDays) 天")
-        .font(.system(size: 13))
-        .foregroundStyle(ZFColor.muted)
-      HStack(spacing: 10) {
-        timeChip(parts.0, "小时")
-        timeChip(parts.1, "分钟")
-        timeChip(parts.2, "秒")
+      .accessibilityLabel("\(days) \(model.t("天", "days"))")
+      UrgeButton(title: model.t("我现在很想", "I'm having an urge")) {
+        model.showSOS = true
+      }
+      GrayButton(title: model.t("记录", "Log"), systemImage: "square.and.pencil") {
+        model.openRecord(AppState.dateKey(Clock.now()))
       }
       HStack {
-        Text("开始于 \(AppState.fmtDT(model.state.streakStart))")
+        mini("\(best) \(model.t("天", "days"))", model.t("最长连续", "Longest streak"))
+        mini("\(model.state.urges.count)", model.t("抵御冲动", "Urges resisted"))
+        mini("\(model.state.checkins.count)", model.t("打卡天数", "Total days"))
+      }
+    }
+    .padding(16)
+    .background(ZFColor.card)
+    .clipShape(RoundedRectangle(cornerRadius: 16))
+  }
+
+  private func badgeName(_ item: Catalog.Milestone) -> String {
+    if model.language == .zh { return item.name }
+    switch item.days {
+    case 1: return "Start"
+    case 3: return "3 days"
+    case 7: return "1 week"
+    case 14: return "2 weeks"
+    case 30: return "1 month"
+    case 60: return "2 months"
+    default: return "90 days"
+    }
+  }
+
+  private func mini(_ value: String, _ label: String) -> some View {
+    VStack(spacing: 4) {
+      Text(value).font(.system(size: 15, weight: .semibold)).foregroundStyle(ZFColor.text)
+      Text(label).font(.system(size: 11)).foregroundStyle(ZFColor.muted).multilineTextAlignment(.center)
+    }
+    .frame(maxWidth: .infinity)
+  }
+
+  private var badges: some View {
+    let days = Double(Streak.wholeDays(AppState.currentMs(model.state)))
+    let best = Double(Streak.wholeDays(AppState.bestMs(model.state)))
+    let unlocked = Catalog.milestones.filter { days >= Double($0.days) }.count
+    return VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        Text(model.t("里程碑徽章", "Badges"))
+          .font(.system(size: 16, weight: .semibold))
+        Spacer()
+        Text("\(unlocked)/\(Catalog.milestones.count)")
           .font(.system(size: 12))
           .foregroundStyle(ZFColor.muted)
-        Spacer()
-        Button("调整开始时间") {
-          startDate = Date(timeIntervalSince1970: model.state.streakStart / 1000)
-          showStart = true
+      }
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
+        ForEach(Catalog.milestones, id: \.days) { item in
+          let on = days >= Double(item.days)
+          VStack(spacing: 4) {
+            ZStack {
+              if on {
+                Circle().fill(ZFColor.ins)
+              } else {
+                Circle().fill(ZFColor.field)
+              }
+              Image(systemName: item.symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(on ? Color.white : ZFColor.muted)
+            }
+            .frame(width: 48, height: 48)
+            Text(model.t("\(item.days) 天", "\(item.days)d"))
+              .font(.system(size: 12, weight: .bold))
+            Text(on ? badgeName(item) : (best >= Double(item.days) ? model.t("曾达成", "Reached") : badgeName(item)))
+              .font(.system(size: 11))
+              .foregroundStyle(ZFColor.muted)
+              .lineLimit(1)
+          }
+          .opacity(on ? 1 : 0.35)
         }
-        .font(.system(size: 13))
-      }
-      HStack {
-        mini("trophy", "\(AppState.fmtDays(AppState.bestMs(model.state, now: now.timeIntervalSince1970 * 1000)))天", "最佳纪录")
-        mini("checkmark.shield", "\(model.state.urges.count)", "抵御冲动")
-        mini("calendar", "\(model.state.checkins.count)", "打卡天数")
       }
     }
-  }
-
-  private func timeChip(_ value: String, _ label: String) -> some View {
-    VStack(spacing: 2) {
-      Text(value).font(.system(size: 18, weight: .bold)).monospacedDigit()
-      Text(label).font(.system(size: 11)).foregroundStyle(ZFColor.muted)
-    }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 8)
+    .padding(16)
     .background(ZFColor.card)
-    .overlay(RoundedRectangle(cornerRadius: 10).stroke(ZFColor.line, lineWidth: 1))
-    .clipShape(RoundedRectangle(cornerRadius: 10))
+    .clipShape(RoundedRectangle(cornerRadius: 16))
   }
+}
 
-  private func mini(_ symbol: String, _ value: String, _ label: String) -> some View {
-    VStack(spacing: 4) {
-      Image(systemName: symbol).foregroundStyle(ZFColor.primary)
-      Text(value).font(.system(size: 15, weight: .semibold))
-      Text(label).font(.system(size: 11)).foregroundStyle(ZFColor.muted)
-    }
-    .frame(maxWidth: .infinity)
-  }
+struct MonthCalendar: View {
+  @Environment(AppModel.self) private var model
+  @Environment(\.colorScheme) private var scheme
+  @State private var monthOffset = 0
 
-  private var todayCard: some View {
-    let key = AppState.dateKey(Clock.now())
-    let checkin = model.state.checkins[key]
-    let relapses = model.state.relapses.filter { AppState.dateKey($0.ts) == key }.sorted { $0.ts < $1.ts }
-    return ZFCard {
-      HStack {
-        Label("今天", systemImage: "calendar")
-          .font(.system(size: 16, weight: .semibold))
-        Spacer()
-        Text(ZFFormat.todayLine()).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
-      }
-      if checkin == nil && relapses.isEmpty {
-        Text("还没有记录").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-      }
-      if let checkin, let mood = Catalog.moodByValue(checkin.mood) {
-        HStack {
-          Image(systemName: mood.symbol)
-          VStack(alignment: .leading) {
-            Text("心情 · \(mood.title)").font(.system(size: 15, weight: .semibold))
-            if let note = checkin.note, !note.isEmpty {
-              Text(note).font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-            }
-          }
-        }
-      }
-      ForEach(relapses) { row in
-        Button { model.dayKey = key } label: {
-          HStack {
-            typeIcon(row.types.first)
-            VStack(alignment: .leading) {
-              Text(typeLabels(row.types)).font(.system(size: 15, weight: .semibold))
-              Text("\(AppState.fmtDT(row.ts)) · \(Streak.relapseResets(types: row.types, resetTypes: model.state.resetTypes) ? "会重置天数" : "不重置天数")")
-                .font(.system(size: 12)).foregroundStyle(ZFColor.muted)
-            }
-            Spacer()
-          }
-        }
-        .buttonStyle(.plain)
-      }
-      if checkin != nil || !relapses.isEmpty {
-        Button("查看今天的线性图") { model.dayKey = key }
-          .font(.system(size: 13))
-      }
-      PrimaryButton(title: "记录行为", systemImage: "square.and.pencil") {
-        model.openRecord(key)
-      }
-    }
-  }
-
-  private var calendar: some View {
+  var body: some View {
     let base = Calendar.current.date(byAdding: .month, value: monthOffset, to: monthStart(Date())) ?? Date()
     let cells = monthCells(base)
-    return ZFCard {
+    return VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Label("打卡日历", systemImage: "calendar")
-          .font(.system(size: 16, weight: .semibold))
+        Text(title(base)).font(.system(size: 28, weight: .bold))
         Spacer()
+        if monthOffset != 0 {
+          Button(model.t("今天", "Today")) { monthOffset = 0 }
+            .font(.system(size: 14, weight: .semibold))
+        }
         Button { monthOffset -= 1 } label: { Image(systemName: "chevron.left") }
-        Text(title(base)).font(.system(size: 14, weight: .semibold)).frame(minWidth: 92)
+          .foregroundStyle(ZFColor.text)
         Button { if monthOffset < 0 { monthOffset += 1 } } label: { Image(systemName: "chevron.right") }
+          .foregroundStyle(ZFColor.text)
           .disabled(monthOffset >= 0)
       }
       LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
-        ForEach(["一", "二", "三", "四", "五", "六", "日"], id: \.self) { day in
+        ForEach(weekdays, id: \.self) { day in
           Text(day).font(.system(size: 11)).foregroundStyle(ZFColor.muted)
         }
         ForEach(cells) { cell in
           dayCell(cell)
         }
       }
-      Text("点某一天查看或补记。")
-        .font(.system(size: 12))
-        .foregroundStyle(ZFColor.muted)
       FlowTags {
         ForEach(Catalog.lapseTypes) { type in
           HStack(spacing: 4) {
-            Image(systemName: type.symbol).font(.system(size: 11))
-            Text(type.label).font(.system(size: 11))
+            Circle().fill(ZFColor.type(type.id, dark: scheme == .dark)).frame(width: 8, height: 8)
+            Text(TypeName.of(type.id, model.language)).font(.system(size: 11))
           }
           .foregroundStyle(ZFColor.type(type.id, dark: scheme == .dark))
         }
       }
     }
+  }
+
+  private var weekdays: [String] {
+    model.language == .en
+      ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+      : ["一", "二", "三", "四", "五", "六", "日"]
   }
 
   private func dayCell(_ cell: CalCell) -> some View {
@@ -242,6 +206,11 @@ struct HomeView: View {
       }
       .frame(maxWidth: .infinity, minHeight: 36)
       .background(cellBackground(cell, today: today))
+      .overlay {
+        if cell.key == today {
+          RoundedRectangle(cornerRadius: 8).stroke(ZFColor.text, lineWidth: 1.5)
+        }
+      }
       .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     .buttonStyle(.plain)
@@ -249,62 +218,13 @@ struct HomeView: View {
   }
 
   private func cellBackground(_ cell: CalCell, today: String) -> Color {
-    guard let key = cell.key else { return .clear }
-    if key == today { return ZFColor.primary.opacity(0.12) }
-    if let mood = cell.mood { return moodColor(mood).opacity(0.22) }
+    guard let key = cell.key, !cell.types.isEmpty || cell.mood != nil else { return .clear }
+    if !cell.types.isEmpty { return .clear }
+    if let mood = cell.mood {
+      let mix = min(0.4, 0.08 * Double(mood))
+      return ZFColor.text.opacity(mix)
+    }
     return .clear
-  }
-
-  private func moodColor(_ mood: Int) -> Color {
-    switch mood {
-    case 5: return ZFColor.mint
-    case 4: return ZFColor.primary
-    case 2: return ZFColor.amber
-    case 1: return ZFColor.warm
-    default: return ZFColor.muted
-    }
-  }
-
-  private var badges: some View {
-    let days = AppState.currentMs(model.state) / Streak.day
-    let best = AppState.bestMs(model.state) / Streak.day
-    let nextDays = Catalog.milestones.first { days < Double($0.days) }?.days
-    let unlocked = Catalog.milestones.filter { days >= Double($0.days) }.count
-    return ZFCard {
-      HStack {
-        Label("里程碑徽章", systemImage: "seal")
-          .font(.system(size: 16, weight: .semibold))
-        Spacer()
-        Text("已解锁 \(unlocked)/\(Catalog.milestones.count)")
-          .font(.system(size: 12))
-          .foregroundStyle(ZFColor.muted)
-      }
-      LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
-        ForEach(Catalog.milestones, id: \.days) { item in
-          let on = days >= Double(item.days)
-          let isNext = item.days == nextDays
-          let sub = on ? item.name : (isNext ? "下一个" : (best >= Double(item.days) ? "曾达成" : item.name))
-          VStack(spacing: 3) {
-            Image(systemName: item.symbol)
-              .foregroundStyle(on ? ZFColor.primary : ZFColor.muted)
-            Text("\(item.days) 天").font(.system(size: 11, weight: .semibold))
-            Text(sub).font(.system(size: 10)).foregroundStyle(ZFColor.muted)
-          }
-          .opacity(on || isNext ? 1 : 0.55)
-        }
-      }
-    }
-  }
-
-  private func typeIcon(_ id: String?) -> some View {
-    let symbol = id.flatMap { Catalog.typeById($0)?.symbol } ?? "cloud.rain"
-    let color = id.map { ZFColor.type($0, dark: scheme == .dark) } ?? ZFColor.muted
-    return Image(systemName: symbol).foregroundStyle(color).frame(width: 28)
-  }
-
-  private func typeLabels(_ types: [String]) -> String {
-    let labels = Streak.normalizeTypes(types).compactMap { Catalog.typeById($0)?.label }
-    return labels.isEmpty ? "行为" : labels.joined(separator: "、")
   }
 
   private func monthStart(_ date: Date) -> Date {
@@ -315,7 +235,10 @@ struct HomeView: View {
 
   private func title(_ date: Date) -> String {
     let cal = Calendar.current
-    return "\(cal.component(.year, from: date))年\(cal.component(.month, from: date))月"
+    let year = cal.component(.year, from: date)
+    let month = cal.component(.month, from: date)
+    if model.language == .en { return "\(month)/\(year)" }
+    return "\(year)年\(month)月"
   }
 
   private func monthCells(_ date: Date) -> [CalCell] {
@@ -353,14 +276,23 @@ struct HomeView: View {
   }
 }
 
+enum TypeName {
+  static func of(_ id: String, _ lang: AppLanguage) -> String {
+    switch id {
+    case "masturbation": return lang.t("自慰", "Masturbation")
+    case "porn": return lang.t("看黄", "Porn")
+    case "sex": return lang.t("性行为", "Sex")
+    case "fantasy": return lang.t("意淫", "Fantasy")
+    case "dream": return lang.t("梦淫", "Dream")
+    default: return Catalog.typeById(id)?.label ?? id
+    }
+  }
+}
+
 struct CalCell: Identifiable {
   var id: String
   var label: String
   var key: String?
   var mood: Int?
   var types: [String]
-}
-
-extension Notification.Name {
-  static let zenflowOpenSOS = Notification.Name("zenflowOpenSOS")
 }

@@ -23,18 +23,24 @@ enum SyncStatus: Equatable {
   }
 }
 
-enum SettingsPage: String, Hashable {
-  case account, goal, resets, theme, reasons, data, about
+enum ConnectFace: Equatable {
+  case hidden, timeout, spinning
+}
 
-  var title: String {
+enum SettingsPage: String, Hashable {
+  case account, goal, resets, theme, reasons, data, about, language, lock
+
+  func title(_ lang: AppLanguage) -> String {
     switch self {
-    case .account: return "账号与资料"
-    case .goal: return "目标天数"
-    case .resets: return "重置规则"
-    case .theme: return "外观"
-    case .reasons: return "理由"
-    case .data: return "数据"
-    case .about: return "关于"
+    case .account: return lang.t("账号与资料", "Account")
+    case .goal: return lang.t("目标天数", "Goal")
+    case .resets: return lang.t("重置规则", "Reset rules")
+    case .theme: return lang.t("外观", "Appearance")
+    case .reasons: return lang.t("理由", "Reasons")
+    case .data: return lang.t("数据", "Data")
+    case .about: return lang.t("关于", "About")
+    case .language: return lang.t("语言", "Language")
+    case .lock: return lang.t("应用锁", "App lock")
     }
   }
 }
@@ -43,9 +49,19 @@ enum SettingsPage: String, Hashable {
 @Observable
 final class AppModel {
   var gate: Gate = .boot
-  var bootText = "正在恢复登录…"
+  var bootText = "正在登录"
   var state: AppState
   var theme: ThemeChoice
+  var language: AppLanguage
+  var localMode = false
+  var connectFace: ConnectFace = .hidden
+  var showSOS = false
+  var askStart = false
+  let lock = AppLockController()
+  private var connectGen = 0
+  private var connectTask: Task<Void, Never>?
+  private var pendingSignIn: (email: String, password: String, captcha: String)?
+  private var authMessage: String?
   var profile = RemoteProfile()
   var email = ""
   var userID: UUID?
@@ -68,32 +84,110 @@ final class AppModel {
   init() {
     state = LocalStore.loadState()
     theme = LocalStore.theme()
+    language = AppLanguage.stored
     lastSync = LocalStore.lastSync()
+    bootText = language.t("正在登录", "Signing in")
+  }
+
+  func t(_ zh: String, _ en: String) -> String { language.t(zh, en) }
+
+  func setLanguage(_ next: AppLanguage) {
+    language = next
+    UserDefaults.standard.set(next.rawValue, forKey: AppLanguage.storageKey)
   }
 
   func bootstrap() async {
-    bootText = "正在恢复登录…"
+    guard connectTask == nil else { return }
+    bootText = t("正在登录", "Signing in")
     gate = .boot
+    connectFace = .hidden
+    pendingSignIn = nil
+    connectTask = Task { await self.runConnect(retrySignIn: nil) }
+    await connectTask?.value
+  }
+
+  func retryConnect() {
+    connectFace = .spinning
+    connectGen += 1
+    connectTask?.cancel()
+    let pending = pendingSignIn
+    connectTask = Task { await self.runConnect(retrySignIn: pending) }
+  }
+
+  func useLocalMode() {
+    connectTask?.cancel()
+    connectGen += 1
+    enterLocal()
+    connectFace = .hidden
+  }
+
+  private func enterLocal() {
+    localMode = true
+    sync = .offline
+    gate = .ready
+  }
+
+  private func failConnect() {
+    enterLocal()
+    connectFace = .timeout
+  }
+
+  private func runConnect(retrySignIn: (String, String, String)?) async {
+    connectGen += 1
+    let gen = connectGen
+    cloud.replaceClient()
+    if connectFace == .hidden {
+      gate = .boot
+      bootText = t("正在登录", "Signing in")
+    } else {
+      connectFace = .spinning
+    }
+    let task = Task { @MainActor () throws in
+      if let pending = retrySignIn {
+        let session = try await self.cloud.signIn(email: pending.0, password: pending.1, captchaToken: pending.2)
+        self.email = session.user.email ?? pending.0
+        self.userID = session.user.id
+        self.profile = try await self.cloud.fetchProfile(userID: session.user.id)
+        return
+      }
+      let session = try await self.cloud.currentSession()
+      self.email = session.user.email ?? ""
+      self.userID = session.user.id
+      self.profile = try await self.cloud.fetchProfile(userID: session.user.id)
+    }
+    let sleeper = Task {
+      try? await Task.sleep(nanoseconds: 10_000_000_000)
+      task.cancel()
+    }
     do {
-      let session = try await cloud.currentSession()
-      email = session.user.email ?? ""
-      userID = session.user.id
-      bootText = "正在进入…"
-      do {
-        try await refreshProfile()
-      } catch {
-        if LocalStore.lastUid() == session.user.id.uuidString {
-          gate = .ready
-          sync = .offline
-        } else {
-          show("网络失败")
-          gate = .login
-        }
+      try await task.value
+      sleeper.cancel()
+      guard gen == connectGen else { return }
+      pendingSignIn = nil
+      localMode = false
+      connectFace = .hidden
+      routeAfterProfile()
+      if gate == .ready {
+        Task { await self.syncNow() }
       }
     } catch {
-      userID = nil
-      profile = RemoteProfile()
+      sleeper.cancel()
+      guard gen == connectGen else { return }
+      if error is CancellationError || CloudClient.isConnectFailure(error) {
+        failConnect()
+        return
+      }
+      authMessage = CloudClient.describe(error)
+      if userID != nil, LocalStore.lastUid() == userID?.uuidString, retrySignIn == nil {
+        localMode = false
+        connectFace = .hidden
+        gate = .ready
+        sync = .offline
+        return
+      }
+      connectFace = .hidden
       gate = .login
+      if retrySignIn != nil { show(authMessage ?? t("登录失败", "Couldn't sign in")) }
     }
   }
 
@@ -366,16 +460,16 @@ final class AppModel {
     let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
     if !Self.emailOK(email) { return "请输入有效的邮箱" }
     if password.isEmpty { return "请输入密码" }
-    do {
-      let session = try await cloud.signIn(email: email, password: password, captchaToken: captchaToken)
-      self.email = session.user.email ?? email
-      userID = session.user.id
-      try await refreshProfile()
-      show("登录成功")
-      return nil
-    } catch {
-      return CloudClient.describe(error)
-    }
+    pendingSignIn = (email, password, captchaToken)
+    authMessage = nil
+    connectFace = .hidden
+    connectGen += 1
+    connectTask?.cancel()
+    await runConnect(retrySignIn: pendingSignIn)
+    if connectFace == .timeout { return nil }
+    if gate == .login { return authMessage }
+    show(t("登录成功", "Signed in"))
+    return nil
   }
 
   func signUp(name: String, handle: String, email: String, password: String, confirm: String, invite: String, captchaToken: String?) async -> String? {
@@ -558,6 +652,7 @@ final class AppModel {
     profile = RemoteProfile()
     email = ""
     userID = nil
+    localMode = false
     sync = .off
     lastSync = 0
     settingsPage = nil
@@ -587,6 +682,7 @@ final class AppModel {
     profile = RemoteProfile()
     email = ""
     self.userID = nil
+    localMode = false
     sync = .off
     settingsPage = nil
     gate = .login
@@ -596,7 +692,7 @@ final class AppModel {
   }
 
   func syncNow(replaceAll: Bool = false) async {
-    guard let userID, gate == .ready, !wipeLock else { return }
+    guard let userID, gate == .ready, !wipeLock, !localMode else { return }
     if syncing {
       pending = true
       if replaceAll { self.replaceAll = true }
@@ -645,9 +741,9 @@ final class AppModel {
 
   func resetSummary() -> String {
     let on = Catalog.lapseTypes.filter { state.resetTypes[$0.id] == true }
-    if on.count == Catalog.lapseTypes.count && !on.isEmpty { return "全部重置" }
-    if on.count > 1 { return "自慰等 \(on.count) 项重置" }
-    return "仅自慰重置"
+    if on.count == Catalog.lapseTypes.count && !on.isEmpty { return t("全部重置", "All reset the streak") }
+    if on.count > 1 { return t("自慰等 \(on.count) 项重置", "Masturbation and \(on.count - 1) more") }
+    return t("仅自慰重置", "Only masturbation resets")
   }
 
   func resetHint(_ types: [String]) -> String {

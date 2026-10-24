@@ -11,6 +11,7 @@
 		DB8C89B6799DC2A59ABBB2C4 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31FF527A59B6418FB1F33DBB /* AppConfig.swift */; };
 		91005765BC821A22EA78D8C9 /* CloudClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BACA622BEF3087B6623FCD61 /* CloudClient.swift */; };
 		3BADB87205E7015414D5AE39 /* LocalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */; };
+		B8D4F02C5E3A49B1C7F26D38 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C3E91B4D2F48A0B6E15C27 /* AppLock.swift */; };
 		18144A273AE26AC1F6EA4FC3 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31636C229172CE8CD880F56 /* Theme.swift */; };
 		3DAA9933EE388D96842AD487 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF544BDFCDA4F68F0E01406 /* AuthView.swift */; };
 		52E2E89EF39CE6E59313C82C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D54DE54D98E8A970C6F7FC2 /* HomeView.swift */; };
@@ -35,6 +36,7 @@
 		31FF527A59B6418FB1F33DBB /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		BACA622BEF3087B6623FCD61 /* CloudClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudClient.swift; sourceTree = "<group>"; };
 		4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStore.swift; sourceTree = "<group>"; };
+		A7C3E91B4D2F48A0B6E15C27 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
 		C31636C229172CE8CD880F56 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		1AF544BDFCDA4F68F0E01406 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		1D54DE54D98E8A970C6F7FC2 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -103,6 +105,7 @@
 			children = (
 				BACA622BEF3087B6623FCD61 /* CloudClient.swift */,
 				4D2C6418CC5BB1A3C323F945 /* LocalStore.swift */,
+				A7C3E91B4D2F48A0B6E15C27 /* AppLock.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -263,6 +266,7 @@
 				DB8C89B6799DC2A59ABBB2C4 /* AppConfig.swift in Sources */,
 				91005765BC821A22EA78D8C9 /* CloudClient.swift in Sources */,
 				3BADB87205E7015414D5AE39 /* LocalStore.swift in Sources */,
+				B8D4F02C5E3A49B1C7F26D38 /* AppLock.swift in Sources */,
 				18144A273AE26AC1F6EA4FC3 /* Theme.swift in Sources */,
 				3DAA9933EE388D96842AD487 /* AuthView.swift in Sources */,
 				52E2E89EF39CE6E59313C82C /* HomeView.swift in Sources */,
@@ -330,13 +334,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ZenFlow/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 30;
+				MARKETING_VERSION = 47;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gatsbyqaq.zenflow;
 				PRODUCT_NAME = ZenFlow;
 				SUPPORTS_MACCATALYST = NO;
@@ -350,13 +354,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ZenFlow/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 30;
+				MARKETING_VERSION = 47;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gatsbyqaq.zenflow;
 				PRODUCT_NAME = ZenFlow;
 				SUPPORTS_MACCATALYST = NO;
