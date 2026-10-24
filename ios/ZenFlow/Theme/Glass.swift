@@ -38,7 +38,7 @@ private struct ZFGlassModifier<S: Shape>: ViewModifier {
   @ViewBuilder
   func body(content: Content) -> some View {
     if reduceTransparency {
-      content.background(ZFColor.card, in: shape)
+      content.background(ZFColor.opaqueGlass, in: shape)
     } else if #available(iOS 26, *) {
       content.glassEffect(.regular, in: shape)
     } else {

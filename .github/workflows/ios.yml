@@ -474,8 +474,8 @@ jobs:
               if (wa, ha) != (wb, hb):
                   print(a, b, "size", wa, ha, wb, hb)
                   return 999
-              y0, y1 = int(ha * 0.22), int(ha * 0.72)
-              x0, x1 = int(wa * 0.18), int(wa * 0.82)
+              y0, y1 = int(ha * 0.28), int(ha * 0.50)
+              x0, x1 = int(wa * 0.22), int(wa * 0.78)
               total = 0
               count = 0
               for y in range(y0, y1, 3):
@@ -501,11 +501,12 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$RUNNER_TEMP/ZenFlow-simulator.app.zip"
 
       - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-screenshots
           path: ${{ runner.temp }}/shots/*.png
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       - name: Upload videos
         uses: actions/upload-artifact@v4

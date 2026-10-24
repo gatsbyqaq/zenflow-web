@@ -42,6 +42,8 @@ enum ThemeChoice: String, Equatable, Hashable {
 enum ZFColor {
   static let bg = adaptive(0xFFFFFF, 0x000000)
   static let card = adaptive(0xF5F5F7, 0x1C1C1E)
+  /// 降低透明度时替换玻璃的实色。深色用系统 tertiary 表面，避免和透光玻璃混成同一块灰。
+  static let opaqueGlass = adaptive(0xF5F5F7, 0x2C2C2E)
   static let text = adaptive(0x000000, 0xFFFFFF)
   static let muted = adaptive(0x6E6E73, 0x8E8E93)
   /// 玻璃上的次级文字。浅色用系统 secondaryLabel 的底色（不带 60% 透明），保证压在粉色折射上仍 ≥ 4.5:1。
