@@ -135,9 +135,19 @@ jobs:
                       r, g, b, a = row[x * 4:x * 4 + 4]
                       if a > 200:
                           peak = max(peak, r, g, b)
-              print(path, "bright-white-samples", white, "peak", peak)
-              if white < 800:
+              def pix(x, y):
+                  row = rows[min(y, h - 1)]
+                  o = min(x, w - 1) * 4
+                  return tuple(row[o:o + 4])
+              center = pix(w // 2, h // 2)
+              corner = pix(8, 8)
+              print(path, "bright-white-samples", white, "peak", peak, "center", center, "corner", corner)
+              if white < 8000:
                   raise SystemExit(f"star not visible in {path}")
+              if not (center[3] > 200 and min(center[:3]) > 230):
+                  raise SystemExit(f"star center is not white in {path}")
+              if corner[3] > 200 and min(corner[:3]) > 230:
+                  raise SystemExit(f"star filled the whole icon in {path}")
           PY
           ls -l "$RUNNER_TEMP/shots"
 

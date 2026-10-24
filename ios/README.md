@@ -83,7 +83,7 @@ xcrun simctl list devices available
 - 底栏四个标签：打卡、记录、统计、设置，用系统 SF Symbols。iOS 26 是系统液态玻璃标签栏，向下滚动时按系统的 `tabBarMinimizeBehavior` 收起。iOS 17 仍是原来的 `tabItem`。
 - 玻璃只放在导航和控件上：标签栏、设置子页的系统返回按钮、sheet、连接超时卡片。圆环、月历、记录卡片保持实色。iOS 26 用 `.glassEffect(.regular)`，不用 `.clear`。降低透明度交给系统。iOS 17–25 用系统材质。
 - 「连接超时」卡片宽 280、圆角 16。点「重试」后卡片高度不变，内容换成转圈和「正在连接」。
-- 应用图标是 `ZenFlow/AppIcon.icon`。背景层 `Assets/bg.png`，前景星形是 `Assets/star.svg`（纯白，不透明度 1）。深色外观同样是这张亮白星。要换星形，替换 `Assets/star.svg`。透明浅色和透明深色由系统推导。iOS 26 以下用 `AppIcon.appiconset/AppIcon.png`。
+- 应用图标是 `ZenFlow/AppIcon.icon`。星形组写在背景组前面（Icon Composer 按从前到后叠放，前面的盖住后面的）。前景是 `Assets/star.svg`，填充纯白、不透明度 1、不开玻璃。深色外观同样是这张亮白星。要换星形，替换 `Assets/star.svg`。透明浅色和透明深色由系统推导。iOS 26 以下用 `AppIcon.appiconset/AppIcon.png`。
 - 打卡页是天数圆环。Ins 渐变 `#833AB4 → #E1306C → #F77737` 只出现在圆环、已解锁徽章和「我现在很想」。
 - 按钮三种：实心（字色底）、灰色、幽灵。界面里不用蓝色。看黄的标记色是浅色 `#405DE6`、深色 `#6D82F0`。
 - 五种行为：自慰、看黄、性行为、意淫、梦淫。自慰始终重置天数，另外四种可以在设置里关掉。

@@ -1,24 +1,6 @@
 {
   "groups" : [
     {
-      "name" : "Background",
-      "layers" : [
-        {
-          "image-name" : "bg.png",
-          "name" : "Background",
-          "glass" : false
-        }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0
-      },
-      "translucency" : {
-        "enabled" : false,
-        "value" : 0.5
-      }
-    },
-    {
       "name" : "Star",
       "layers" : [
         {
@@ -33,9 +15,28 @@
       ],
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0.5
+        "opacity" : 0
       },
-      "specular" : true,
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "name" : "Background",
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "bg.png",
+          "name" : "Background"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "specular" : false,
       "translucency" : {
         "enabled" : false,
         "value" : 0.5
