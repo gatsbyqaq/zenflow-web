@@ -44,7 +44,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="icon-180.png" />
-  <link rel="stylesheet" href="styles.css?v=46" />
+  <link rel="stylesheet" href="styles.css?v=47" />
   <style>/* auth-boot critical — 抢在 cloud.js 前盖住主界面，避免登录门闪烁 */
   body.auth-booting{overflow:hidden;background:var(--bg,#ffffff)}
   body.auth-booting #app > :not(#authBoot){visibility:hidden!important;pointer-events:none!important}
@@ -155,6 +155,7 @@
 <symbol id="i-trees" viewBox="0 0 24 24"><path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/><path d="M7 16v6"/><path d="M13 19v3"/><path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/></symbol>
 <symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
 <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2"/><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2"/><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3"/><path d="M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></symbol>
+<symbol id="i-unlink" viewBox="0 0 24 24"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71"/><path d="M8 2v3"/><path d="M2 8h3"/><path d="M16 19v3"/><path d="M19 16h3"/></symbol>
 <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
 <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
@@ -168,10 +169,10 @@
 <!-- ICONS:END -->
 <div id="app" class="app">
   <div id="authBoot" role="status" aria-live="polite" aria-busy="true">
-    <img src="icon.svg?v=46" alt="" class="auth-boot-logo" width="56" height="56" />
+    <img src="icon.svg?v=47" alt="" class="auth-boot-logo" width="56" height="56" />
     <p class="wordmark auth-boot-word">ZENFLOW</p>
     <div class="auth-boot-spin" aria-hidden="true"></div>
-    <p class="muted small" id="authBootText">正在恢复登录…</p>
+    <p class="muted small" id="authBootText">正在登录</p>
   </div>
   <!-- 顶/底边缘：与页面背景完全相同的纯色层（内容滚到边缘时渐隐），保证 Safari 采样到的边缘颜色始终是主题背景色 -->
   <div class="edge edge-top" aria-hidden="true"></div>
@@ -183,7 +184,7 @@
     <section class="screen active" id="screen-home" data-screen="home">
       <header class="page-head">
         <div>
-          <p class="brand"><img src="icon.svg?v=46" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
+          <p class="brand"><img src="icon.svg?v=47" alt="" class="brand-logo" /><span class="wordmark">ZENFLOW</span></p>
           <h1 class="home-screen-title">打卡</h1>
         </div>
         <span class="privacy-pill" title="所有数据只保存在本机浏览器中"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>仅本机</span>
@@ -655,7 +656,7 @@
   <!-- 导航：手机底部标签栏，桌面（≥1024px）左侧安静侧栏；深色模式只在设置里 -->
   <nav class="tabbar" id="tabbar" data-active="home" aria-label="主导航">
     <div class="side-brand d-only">
-      <img src="icon.svg?v=46" alt="" class="side-logo" />
+      <img src="icon.svg?v=47" alt="" class="side-logo" />
       <div><b class="wordmark">ZENFLOW</b></div>
     </div>
     <span class="tab-pill" aria-hidden="true"></span>
@@ -706,7 +707,7 @@
     <div class="auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <button class="icon-btn auth-close" id="authClose" type="button" data-i18n-aria="a11y.close" aria-label="关闭"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
       <div class="auth-brand">
-        <img src="icon.svg?v=46" alt="" class="auth-logo" />
+        <img src="icon.svg?v=47" alt="" class="auth-logo" />
         <p class="wordmark auth-wordmark">ZENFLOW</p>
         <h2 id="authTitle">登录</h2>
         <p class="muted small" id="authSub">登录后会同步数据。</p>
@@ -915,7 +916,7 @@
 <div class="lock-screen hidden" id="lockScreen" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <button type="button" class="lock-cancel hidden" id="lockCancel" data-i18n="lock.cancel">取消</button>
   <div class="lock-body">
-    <img src="icon.svg?v=46" alt="" class="lock-logo" width="64" height="64" />
+    <img src="icon.svg?v=47" alt="" class="lock-logo" width="64" height="64" />
     <p class="wordmark lock-word">ZENFLOW</p>
     <h2 id="lockTitle" class="lock-title"></h2>
     <div class="lock-dots" id="lockDots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -952,22 +953,43 @@
   </div>
 </div>
 
-<script src="config.js?v=46"></script>
+<div id="connectTimeout" class="connect-mask hidden">
+  <div class="connect-card" role="dialog" aria-modal="true" aria-labelledby="connectTimeoutTitle" aria-describedby="connectTimeoutSub" aria-busy="false">
+    <div id="connectFace">
+      <svg class="connect-ico" aria-hidden="true"><use href="#i-unlink"/></svg>
+      <h2 id="connectTimeoutTitle">连接超时</h2>
+      <p id="connectTimeoutSub">数据已保存在本机</p>
+      <div class="connect-actions">
+        <button class="btn btn-gray" type="button" id="connectLocal">本机模式</button>
+        <button class="btn btn-primary" type="button" id="connectRetry">重试</button>
+      </div>
+    </div>
+    <div id="connectSpin" class="connect-spin hidden" aria-hidden="true">
+      <div class="auth-boot-spin"></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js?v=47"></script>
 <script id="auth-boot-early">
 (function () {
   try {
     var c = window.ZENFLOW_CONFIG || {};
-    if (c.supabaseUrl && c.supabaseAnonKey) document.body.classList.add('auth-booting');
+    var preview = window.ZENFLOW_PREVIEW && typeof window.ZENFLOW_PREVIEW === 'object';
+    var host = (location.hostname || '').toLowerCase();
+    var sim = '';
+    if (preview && host !== 'gatsbyqaq.github.io') sim = new URLSearchParams(location.search).get('simulate') || '';
+    if ((c.supabaseUrl && c.supabaseAnonKey) || sim === 'timeout' || sim === 'retry-ok') document.body.classList.add('auth-booting');
   } catch (e) {}
 })();
 </script>
-<script src="data.js?v=46"></script>
-<script src="streak.js?v=46"></script>
-<script src="strings.js?v=46"></script>
-<script src="records.js?v=46"></script>
-<script src="lock.js?v=46"></script>
-<script src="app.js?v=46"></script>
-<script src="cloud.js?v=46"></script>
-<script src="admin.js?v=46"></script>
+<script src="data.js?v=47"></script>
+<script src="streak.js?v=47"></script>
+<script src="strings.js?v=47"></script>
+<script src="records.js?v=47"></script>
+<script src="lock.js?v=47"></script>
+<script src="app.js?v=47"></script>
+<script src="cloud.js?v=47"></script>
+<script src="admin.js?v=47"></script>
 </body>
 </html>
