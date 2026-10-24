@@ -22,9 +22,9 @@
       "name" : "Star",
       "layers" : [
         {
-          "image-name" : "star.png",
+          "image-name" : "star.svg",
           "name" : "Star",
-          "glass" : true,
+          "glass" : false,
           "opacity" : 1
         }
       ],

@@ -18,10 +18,12 @@ final class GlassUITests: XCTestCase {
     let app = launch(appearance, tab: "0")
     XCTAssertTrue(text(app, "打卡", "Check-in").waitForExistence(timeout: 12))
     markReady()
-    Thread.sleep(forTimeInterval: 0.8)
-    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
-    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.28))
-    start.press(forDuration: 0.15, thenDragTo: end)
+    Thread.sleep(forTimeInterval: 1.4)
+    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.22))
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+    Thread.sleep(forTimeInterval: 0.6)
+    start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
     Thread.sleep(forTimeInterval: 1.2)
     save(shot)
   }
@@ -31,9 +33,13 @@ final class GlassUITests: XCTestCase {
     let row = text(app, "目标天数", "Goal")
     XCTAssertTrue(row.waitForExistence(timeout: 12))
     markReady()
-    Thread.sleep(forTimeInterval: 0.8)
+    Thread.sleep(forTimeInterval: 1.2)
     row.tap()
-    Thread.sleep(forTimeInterval: 1.6)
+    Thread.sleep(forTimeInterval: 1.4)
+    let back = app.navigationBars.buttons.element(boundBy: 0)
+    XCTAssertTrue(back.waitForExistence(timeout: 4))
+    back.tap()
+    Thread.sleep(forTimeInterval: 1.2)
   }
 
   private func openSheet(_ appearance: XCUIDevice.Appearance) {
@@ -41,9 +47,15 @@ final class GlassUITests: XCTestCase {
     let row = text(app, "开始时间", "Start")
     XCTAssertTrue(row.waitForExistence(timeout: 12))
     markReady()
-    Thread.sleep(forTimeInterval: 0.8)
+    Thread.sleep(forTimeInterval: 1.2)
     row.tap()
-    Thread.sleep(forTimeInterval: 1.6)
+    let cancel = app.buttons["取消"]
+    let cancelEn = app.buttons["Cancel"]
+    let button = cancel.waitForExistence(timeout: 4) ? cancel : cancelEn
+    XCTAssertTrue(button.waitForExistence(timeout: 4))
+    Thread.sleep(forTimeInterval: 1.2)
+    button.tap()
+    Thread.sleep(forTimeInterval: 1.2)
   }
 
   private func playTimeout(_ appearance: XCUIDevice.Appearance) {

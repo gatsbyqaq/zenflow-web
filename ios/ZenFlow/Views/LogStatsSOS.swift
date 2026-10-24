@@ -28,6 +28,7 @@ struct LogView: View {
       .padding(.horizontal, 16)
       .zfScrollClearance()
     }
+    .zfScrollEdge()
     .background(ZFColor.bg)
   }
 
@@ -153,6 +154,7 @@ struct StatsView: View {
       .padding(.horizontal, 16)
       .zfScrollClearance()
     }
+    .zfScrollEdge()
     .background(ZFColor.bg)
   }
 

@@ -82,6 +82,7 @@ struct SettingsView: View {
       .padding(.horizontal, 16)
       .zfScrollClearance()
     }
+    .zfScrollEdge()
   }
 
   private func group(_ title: String, @ViewBuilder content: () -> some View) -> some View {
@@ -140,6 +141,7 @@ struct SettingsDetail: View {
       }
       .padding(16)
     }
+    .zfScrollEdge()
   }
 }
 

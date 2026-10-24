@@ -65,6 +65,73 @@ jobs:
             render "$rend"
           done
           cp "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-dark-appearance.png"
+          python3 - "$RUNNER_TEMP/shots/icon-Dark.png" "$RUNNER_TEMP/shots/icon-Default.png" << 'PY'
+          import struct, sys, zlib
+          def load(path):
+              data = open(path, "rb").read()
+              i = 8
+              idat = b""
+              w = h = None
+              while i < len(data):
+                  ln = struct.unpack(">I", data[i:i+4])[0]
+                  typ = data[i+4:i+8]
+                  chunk = data[i+8:i+8+ln]
+                  if typ == b"IHDR":
+                      w, h = struct.unpack(">II", chunk[:8])
+                  elif typ == b"IDAT":
+                      idat += chunk
+                  elif typ == b"IEND":
+                      break
+                  i += 12 + ln
+              raw = zlib.decompress(idat)
+              bpp = 4
+              stride = w * bpp + 1
+              rows = []
+              prev = bytearray(w * bpp)
+              for y in range(h):
+                  f = raw[y * stride]
+                  row = bytearray(raw[y * stride + 1:(y + 1) * stride])
+                  if f == 1:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + left) & 255
+                  elif f == 2:
+                      for x in range(len(row)):
+                          row[x] = (row[x] + prev[x]) & 255
+                  elif f == 3:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + ((left + prev[x]) // 2)) & 255
+                  elif f == 4:
+                      def paeth(a, b, c):
+                          p = a + b - c
+                          pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                          if pa <= pb and pa <= pc:
+                              return a
+                          if pb <= pc:
+                              return b
+                          return c
+                      for x in range(len(row)):
+                          a = row[x - bpp] if x >= bpp else 0
+                          b = prev[x]
+                          c = prev[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + paeth(a, b, c)) & 255
+                  rows.append(row)
+                  prev = row
+              return w, h, rows
+          for path in sys.argv[1:]:
+              w, h, rows = load(path)
+              white = 0
+              for y in range(0, h, 2):
+                  row = rows[y]
+                  for x in range(0, w, 2):
+                      r, g, b, a = row[x * 4:x * 4 + 4]
+                      if a > 200 and r > 230 and g > 230 and b > 230:
+                          white += 1
+              print(path, "bright-white-samples", white)
+              if white < 800:
+                  raise SystemExit(f"star not visible in {path}")
+          PY
           ls -l "$RUNNER_TEMP/shots"
 
       - name: Upload icon renditions
@@ -203,25 +270,26 @@ jobs:
               if ! kill -0 "$xpid" 2>/dev/null; then break; fi
               sleep 1
             done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only was not ready"
+              tail -n 120 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
             xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
             local vpid=$!
-            sleep 5
-            kill -INT "$vpid" 2>/dev/null || true
-            local n
-            for n in 1 2 3 4 5 6 7 8; do
-              kill -0 "$vpid" 2>/dev/null || break
-              sleep 1
-            done
-            kill -9 "$vpid" 2>/dev/null || true
             set +e
             wait "$xpid"
             local status=$?
             set -e
+            stop_record "$vpid"
             if [ "$status" -ne 0 ]; then
               echo "UI test $only failed"
               tail -n 120 "$RUNNER_TEMP/${only}.log" || true
               exit "$status"
             fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
           }
 
           stop_record() {
@@ -311,18 +379,101 @@ jobs:
                   data = plistlib.load(f)
           data["ReduceTransparency"] = True
           data["ReduceTransparencyEnabled"] = True
+          data["EnhancedBackgroundContrastEnabled"] = True
           with open(path, "wb") as f:
               plistlib.dump(data, f)
           print("reduce transparency", path)
           PY
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparency -bool YES
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparencyEnabled -bool YES
+          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility EnhancedBackgroundContrastEnabled -bool YES
           xcrun simctl shutdown "$UDID" || true
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceTransparency -bool YES || true
+          xcrun simctl spawn "$UDID" defaults read com.apple.Accessibility || true
           shoot light 0 tab-solid
           shoot dark 0 tab-solid
           shoot light 0 timeout-solid -ZenFlowPreviewTimeout
           shoot dark 0 timeout-solid -ZenFlowPreviewTimeout
+          python3 - "$RUNNER_TEMP/shots" << 'PY'
+          import struct, sys, zlib
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          def load(path):
+              data = path.read_bytes()
+              i = 8
+              idat = b""
+              w = h = None
+              while i < len(data):
+                  ln = struct.unpack(">I", data[i:i+4])[0]
+                  typ = data[i+4:i+8]
+                  chunk = data[i+8:i+8+ln]
+                  if typ == b"IHDR":
+                      w, h = struct.unpack(">II", chunk[:8])
+                  elif typ == b"IDAT":
+                      idat += chunk
+                  elif typ == b"IEND":
+                      break
+                  i += 12 + ln
+              raw = zlib.decompress(idat)
+              bpp = 4
+              stride = w * bpp + 1
+              rows = []
+              prev = bytearray(w * bpp)
+              for y in range(h):
+                  f = raw[y * stride]
+                  row = bytearray(raw[y * stride + 1:(y + 1) * stride])
+                  if f == 1:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + left) & 255
+                  elif f == 2:
+                      for x in range(len(row)):
+                          row[x] = (row[x] + prev[x]) & 255
+                  elif f == 3:
+                      for x in range(len(row)):
+                          left = row[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + ((left + prev[x]) // 2)) & 255
+                  elif f == 4:
+                      def paeth(a, b, c):
+                          p = a + b - c
+                          pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                          if pa <= pb and pa <= pc:
+                              return a
+                          if pb <= pc:
+                              return b
+                          return c
+                      for x in range(len(row)):
+                          a = row[x - bpp] if x >= bpp else 0
+                          b = prev[x]
+                          c = prev[x - bpp] if x >= bpp else 0
+                          row[x] = (row[x] + paeth(a, b, c)) & 255
+                  rows.append(row)
+                  prev = row
+              return w, h, rows
+          def differ(a, b):
+              wa, ha, ra = load(root / a)
+              wb, hb, rb = load(root / b)
+              if (wa, ha) != (wb, hb):
+                  print(a, b, "size", wa, ha, wb, hb)
+                  return 999
+              y0, y1 = int(ha * 0.22), int(ha * 0.72)
+              x0, x1 = int(wa * 0.18), int(wa * 0.82)
+              total = 0
+              count = 0
+              for y in range(y0, y1, 3):
+                  for x in range(x0, x1, 3):
+                      pa = ra[y][x * 4:x * 4 + 3]
+                      pb = rb[y][x * 4:x * 4 + 3]
+                      total += abs(pa[0] - pb[0]) + abs(pa[1] - pb[1]) + abs(pa[2] - pb[2])
+                      count += 3
+              mean = total / max(count, 1)
+              print(a, "vs", b, "mean", round(mean, 2))
+              return mean
+          for pair in (("light-timeout.png", "light-timeout-solid.png"), ("dark-timeout.png", "dark-timeout-solid.png")):
+              if differ(*pair) < 4:
+                  raise SystemExit("reduce transparency screenshot matches the glass one: " + pair[1])
+          PY
 
           find "$RUNNER_TEMP/videos" -name '*.mp4' -size +15M -print | tee /tmp/big-videos.txt
           if [ -s /tmp/big-videos.txt ]; then

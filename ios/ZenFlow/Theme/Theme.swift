@@ -44,6 +44,8 @@ enum ZFColor {
   static let card = adaptive(0xF5F5F7, 0x1C1C1E)
   static let text = adaptive(0x000000, 0xFFFFFF)
   static let muted = adaptive(0x6E6E73, 0x8E8E93)
+  /// 玻璃上的次级文字。浅色用系统 secondaryLabel 的底色（不带 60% 透明），保证压在粉色折射上仍 ≥ 4.5:1。
+  static let glassSecondary = adaptive(0x3C3C43, 0xEBEBF5)
   static let line = adaptive(0xE5E5EA, 0x2C2C2E)
   static let field = adaptive(0xFFFFFF, 0x2C2C2E)
   static let primary = text
@@ -57,7 +59,7 @@ enum ZFColor {
   static func type(_ id: String, dark: Bool) -> Color {
     switch id {
     case "masturbation": return Color(rgb: dark ? 0xFF453A : 0xFF2D2D)
-    case "porn": return Color(rgb: dark ? 0x6D82F0 : 0x405DE6)
+    case "porn": return Color(rgb: dark ? 0xE8894A : 0xC45C26)
     case "sex": return Color(rgb: dark ? 0xFF7EB3 : 0xD62976)
     case "fantasy": return Color(rgb: dark ? 0xFFC56B : 0xD4880F)
     case "dream": return Color(rgb: dark ? 0xC4B5FD : 0x7C5CBF)

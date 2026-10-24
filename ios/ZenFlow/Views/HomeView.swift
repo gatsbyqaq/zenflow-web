@@ -27,6 +27,7 @@ struct HomeView: View {
       .padding(.horizontal, 16)
       .zfScrollClearance()
     }
+    .zfScrollEdge()
     .background(ZFColor.bg)
   }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
   @Environment(AppModel.self) private var model
@@ -224,21 +225,20 @@ struct ConnectTimeoutCard: View {
     }
   }
 
-  /// 超时内容和「正在连接」叠在同一块里，高度跟着超时内容走，重试时不改卡片高度。
+  /// 超时内容和「正在连接」共用同一块高度。重试时不放按钮视图，避免玻璃里留下残影。
   private var card: some View {
     ZStack {
-      timeoutContent
-        .opacity(spinning ? 0 : 1)
-        .accessibilityHidden(spinning)
-        .allowsHitTesting(!spinning)
+      slot
       if spinning {
         VStack(spacing: 16) {
           ProgressView()
             .controlSize(.large)
           Text(model.t("正在连接", "Connecting"))
             .font(.system(size: 15))
-            .foregroundStyle(ZFColor.muted)
+            .foregroundStyle(ZFColor.glassSecondary)
         }
+      } else {
+        timeoutContent
       }
     }
     .padding(.init(top: 24, leading: 16, bottom: 16, trailing: 16))
@@ -246,10 +246,24 @@ struct ConnectTimeoutCard: View {
     .zfGlass(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
   }
 
+  /// 和超时内容同一套行高，重试时只留空白，不画按钮。
+  private var slot: some View {
+    let titleH = UIFont.systemFont(ofSize: 17, weight: .semibold).lineHeight
+    let subtitleH = UIFont.systemFont(ofSize: 14, weight: .regular).lineHeight
+    return VStack(spacing: 0) {
+      Color.clear.frame(height: 24).padding(.top, 8)
+      Color.clear.frame(height: titleH).padding(.top, 16)
+      Color.clear.frame(height: subtitleH).padding(.top, 4)
+      Color.clear.frame(height: 44).padding(.top, 24)
+    }
+    .accessibilityHidden(true)
+  }
+
   private var timeoutContent: some View {
     VStack(spacing: 0) {
       Image(systemName: "link.slash")
-        .font(.system(size: 22, weight: .regular))
+        .symbolRenderingMode(.monochrome)
+        .font(.system(size: 24, weight: .regular))
         .foregroundStyle(ZFColor.text)
         .frame(width: 24, height: 24)
         .padding(.top, 8)
@@ -259,7 +273,7 @@ struct ConnectTimeoutCard: View {
         .padding(.top, 16)
       Text(model.t("数据已保存在本机", "Saved on this device"))
         .font(.system(size: 14))
-        .foregroundStyle(ZFColor.muted)
+        .foregroundStyle(ZFColor.glassSecondary)
         .lineLimit(1)
         .padding(.top, 4)
       HStack(spacing: 8) {
