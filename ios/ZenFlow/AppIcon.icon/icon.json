@@ -22,9 +22,12 @@
       "name" : "Star",
       "layers" : [
         {
+          "fill" : {
+            "solid" : "extended-srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "glass" : false,
           "image-name" : "star.svg",
           "name" : "Star",
-          "glass" : false,
           "opacity" : 1
         }
       ],

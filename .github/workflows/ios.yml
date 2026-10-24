@@ -128,7 +128,14 @@ jobs:
                       r, g, b, a = row[x * 4:x * 4 + 4]
                       if a > 200 and r > 230 and g > 230 and b > 230:
                           white += 1
-              print(path, "bright-white-samples", white)
+              peak = 0
+              for y in range(0, h, 4):
+                  row = rows[y]
+                  for x in range(0, w, 4):
+                      r, g, b, a = row[x * 4:x * 4 + 4]
+                      if a > 200:
+                          peak = max(peak, r, g, b)
+              print(path, "bright-white-samples", white, "peak", peak)
               if white < 800:
                   raise SystemExit(f"star not visible in {path}")
           PY
