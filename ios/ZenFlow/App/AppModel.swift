@@ -164,7 +164,7 @@ final class AppModel {
       bootText = t("正在登录", "Signing in")
       gate = .boot
       connectFace = .hidden
-      try? await Task.sleep(nanoseconds: 2_200_000_000)
+      try? await Task.sleep(nanoseconds: 5_500_000_000)
       enterLocal()
       connectFace = .timeout
       return

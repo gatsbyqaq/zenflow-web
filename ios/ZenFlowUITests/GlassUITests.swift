@@ -51,20 +51,25 @@ final class GlassUITests: XCTestCase {
     let app = XCUIApplication()
     app.launchArguments = ["-ZenFlowPreviewLocal", "-ZenFlowPreviewTimeoutPlay"]
     app.launch()
-    XCTAssertTrue(text(app, "正在登录", "Signing in").waitForExistence(timeout: 8))
+    let signing = app.staticTexts["正在登录"]
+    let signingEn = app.staticTexts["Signing in"]
+    let seen = signing.waitForExistence(timeout: 8) || signingEn.waitForExistence(timeout: 2)
+    if !seen { print(app.debugDescription) }
+    XCTAssertTrue(seen)
     markReady()
-    let retry = button(app, "重试", "Retry")
-    XCTAssertTrue(waitHittable(retry, timeout: 8))
-    retry.tap()
-    XCTAssertTrue(text(app, "正在连接", "Connecting").waitForExistence(timeout: 4))
-    XCTAssertTrue(waitHittable(button(app, "重试", "Retry"), timeout: 8))
+    let retry = app.buttons["重试"]
+    let retryEn = app.buttons["Retry"]
+    let retryButton = retry.waitForExistence(timeout: 8) ? retry : retryEn
+    XCTAssertTrue(waitHittable(retryButton, timeout: 8))
+    retryButton.tap()
+    let connecting = app.staticTexts["正在连接"]
+    let connectingEn = app.staticTexts["Connecting"]
+    let spinning = connecting.waitForExistence(timeout: 4) || connectingEn.waitForExistence(timeout: 2)
+    if !spinning { print(app.debugDescription) }
+    XCTAssertTrue(spinning)
+    let again = retry.waitForExistence(timeout: 6) ? retry : retryEn
+    XCTAssertTrue(waitHittable(again, timeout: 8))
     Thread.sleep(forTimeInterval: 1.0)
-  }
-
-  private func button(_ app: XCUIApplication, _ zh: String, _ en: String) -> XCUIElement {
-    let zhEl = app.buttons[zh]
-    if zhEl.waitForExistence(timeout: 6) { return zhEl }
-    return app.buttons[en]
   }
 
   private func waitHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
