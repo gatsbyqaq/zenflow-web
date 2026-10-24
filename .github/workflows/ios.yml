@@ -224,35 +224,76 @@ jobs:
             fi
           }
 
+          stop_record() {
+            local vpid="$1"
+            kill -INT "$vpid" 2>/dev/null || true
+            local n
+            for n in $(seq 1 30); do
+              if ! kill -0 "$vpid" 2>/dev/null; then
+                wait "$vpid" 2>/dev/null || true
+                return 0
+              fi
+              sleep 1
+            done
+            echo "recordVideo did not finish" >&2
+            kill -9 "$vpid" 2>/dev/null || true
+            return 1
+          }
+
+          record_play() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only never showed 正在登录"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            set +e
+            wait "$xpid"
+            local status=$?
+            set -e
+            stop_record "$vpid"
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
+          }
+
+          record_play timeout-light testTimeoutLight light
+          record_play timeout-dark testTimeoutDark dark
+
           record_test scroll-light testScrollLight light
           record_test scroll-dark testScrollDark dark
           record_test settings-light testSettingsLight light
           record_test settings-dark testSettingsDark dark
           record_test sheet-light testSheetLight light
           record_test sheet-dark testSheetDark dark
-
-          record_launch() {
-            local name="$1"
-            local appearance="$2"
-            shift 2
-            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
-            sleep 0.4
-            xcrun simctl ui "$UDID" appearance "$appearance"
-            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
-            local vpid=$!
-            sleep 0.4
-            xcrun simctl launch "$UDID" com.gatsbyqaq.zenflow "$@"
-            sleep 2.8
-            kill -INT "$vpid" 2>/dev/null || true
-            local n
-            for n in 1 2 3 4 5 6 7 8; do
-              kill -0 "$vpid" 2>/dev/null || break
-              sleep 1
-            done
-            kill -9 "$vpid" 2>/dev/null || true
-          }
-          record_launch timeout-light light -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
-          record_launch timeout-dark dark -ZenFlowPreviewLocal -ZenFlowPreviewTimeout
 
           cp /tmp/zenflow-shots/*.png "$RUNNER_TEMP/shots/" 2>/dev/null || true
           test -s "$RUNNER_TEMP/shots/light-tab-min.png"
@@ -310,4 +351,174 @@ jobs:
         with:
           name: ZenFlow-simulator-app
           path: ${{ runner.temp }}/ZenFlow-simulator.app.zip
+          if-no-files-found: error
+
+  timeout-videos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          set -euo pipefail
+          best_ver=""
+          best_app=""
+          for app in /Applications/Xcode*.app; do
+            [ -d "$app" ] || continue
+            ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString)
+            echo "found $ver at $app"
+            top=$(printf '%s\n%s\n' "$best_ver" "$ver" | sort -V | tail -1)
+            if [ -z "$best_ver" ] || [ "$top" = "$ver" ]; then
+              best_ver="$ver"
+              best_app="$app"
+            fi
+          done
+          if [ -z "$best_app" ]; then
+            echo "no Xcode installed" >&2
+            exit 1
+          fi
+          echo "using Xcode $best_ver at $best_app"
+          sudo xcode-select -s "$best_app/Contents/Developer"
+          xcodebuild -version
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ZenFlow.xcodeproj \
+            -scheme ZenFlow \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Record timeout dialog
+        run: |
+          set -euo pipefail
+          python3 - << 'PY'
+          import json, re, subprocess
+          raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"])
+          data = json.loads(raw)
+          def key(runtime):
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          runtimes = [name for name in data["devices"] if re.search(r"iOS-26-", name) and data["devices"][name]]
+          runtimes.sort(key=key)
+          if not runtimes:
+              raise SystemExit("no iOS 26 simulator runtime")
+          runtime = runtimes[-1]
+          phones = [d for d in data["devices"][runtime] if "iPhone" in d.get("name", "") and "SE" not in d.get("name", "") and d.get("isAvailable", True)]
+          if not phones:
+              raise SystemExit(f"no iPhone on {runtime}")
+          def rank(d):
+              name = d["name"]
+              penalty = 0
+              if "Pro" in name: penalty += 1
+              if "Max" in name: penalty += 1
+              if "Plus" in name: penalty += 1
+              if "mini" in name: penalty += 2
+              return (penalty, name)
+          phones.sort(key=rank)
+          chosen = phones[0]
+          print(f"SIM_NAME={chosen['name']} {runtime}")
+          open("/tmp/sim.env", "w").write(chosen["udid"] + "\n")
+          PY
+          UDID=$(cat /tmp/sim.env)
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          python3 - "$UDID" << 'PY'
+          import os, plistlib, sys
+          udid = sys.argv[1]
+          base = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences")
+          os.makedirs(base, exist_ok=True)
+          path = os.path.join(base, ".GlobalPreferences.plist")
+          data = {}
+          if os.path.exists(path):
+              with open(path, "rb") as f:
+                  data = plistlib.load(f)
+          data["AppleLanguages"] = ["zh-Hans", "en"]
+          data["AppleLocale"] = "zh_CN"
+          with open(path, "wb") as f:
+              plistlib.dump(data, f)
+          PY
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          mkdir -p "$RUNNER_TEMP/videos"
+
+          stop_record() {
+            local vpid="$1"
+            kill -INT "$vpid" 2>/dev/null || true
+            local n
+            for n in $(seq 1 30); do
+              if ! kill -0 "$vpid" 2>/dev/null; then
+                wait "$vpid" 2>/dev/null || true
+                return 0
+              fi
+              sleep 1
+            done
+            echo "recordVideo did not finish" >&2
+            kill -9 "$vpid" 2>/dev/null || true
+            return 1
+          }
+
+          record_play() {
+            local name="$1"
+            local only="$2"
+            local appearance="$3"
+            xcrun simctl terminate "$UDID" com.gatsbyqaq.zenflow || true
+            xcrun simctl ui "$UDID" appearance "$appearance"
+            rm -f /tmp/zenflow-ready
+            xcodebuild test \
+              -project "$GITHUB_WORKSPACE/ios/ZenFlow.xcodeproj" \
+              -scheme ZenFlow \
+              -destination "id=$UDID" \
+              -derivedDataPath "$RUNNER_TEMP/dd" \
+              -only-testing:"ZenFlowUITests/GlassUITests/$only" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              > "$RUNNER_TEMP/${only}.log" 2>&1 &
+            local xpid=$!
+            local i
+            for i in $(seq 1 420); do
+              if [ -f /tmp/zenflow-ready ]; then break; fi
+              if ! kill -0 "$xpid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if [ ! -f /tmp/zenflow-ready ]; then
+              echo "UI test $only never showed 正在登录"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              kill -INT "$xpid" 2>/dev/null || true
+              wait "$xpid" 2>/dev/null || true
+              exit 1
+            fi
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "$RUNNER_TEMP/videos/${name}.mp4" &
+            local vpid=$!
+            set +e
+            wait "$xpid"
+            local status=$?
+            set -e
+            stop_record "$vpid"
+            if [ "$status" -ne 0 ]; then
+              echo "UI test $only failed"
+              tail -n 160 "$RUNNER_TEMP/${only}.log" || true
+              exit "$status"
+            fi
+            python3 -c 'import sys; p=sys.argv[1]; d=open(p,"rb").read(); ok=len(d)>=20000 and b"ftyp" in d[:64] and b"moov" in d and len(d)<=15*1024*1024; print(p, len(d)); raise SystemExit(0 if ok else 1)' "$RUNNER_TEMP/videos/${name}.mp4"
+          }
+
+          record_play timeout-light testTimeoutLight light
+          record_play timeout-dark testTimeoutDark dark
+          ls -l "$RUNNER_TEMP/videos"
+
+      - name: Upload timeout videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-timeout-videos
+          path: ${{ runner.temp }}/videos/timeout-*.mp4
           if-no-files-found: error

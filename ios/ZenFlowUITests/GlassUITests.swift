@@ -11,6 +11,8 @@ final class GlassUITests: XCTestCase {
   func testSettingsDark() { openSettings(.dark) }
   func testSheetLight() { openSheet(.light) }
   func testSheetDark() { openSheet(.dark) }
+  func testTimeoutLight() { playTimeout(.light) }
+  func testTimeoutDark() { playTimeout(.dark) }
 
   private func scroll(_ appearance: XCUIDevice.Appearance, _ shot: String) {
     let app = launch(appearance, tab: "0")
@@ -42,6 +44,36 @@ final class GlassUITests: XCTestCase {
     Thread.sleep(forTimeInterval: 0.8)
     row.tap()
     Thread.sleep(forTimeInterval: 1.6)
+  }
+
+  private func playTimeout(_ appearance: XCUIDevice.Appearance) {
+    XCUIDevice.shared.appearance = appearance
+    let app = XCUIApplication()
+    app.launchArguments = ["-ZenFlowPreviewLocal", "-ZenFlowPreviewTimeoutPlay"]
+    app.launch()
+    XCTAssertTrue(text(app, "正在登录", "Signing in").waitForExistence(timeout: 8))
+    markReady()
+    let retry = button(app, "重试", "Retry")
+    XCTAssertTrue(waitHittable(retry, timeout: 8))
+    retry.tap()
+    XCTAssertTrue(text(app, "正在连接", "Connecting").waitForExistence(timeout: 4))
+    XCTAssertTrue(waitHittable(button(app, "重试", "Retry"), timeout: 8))
+    Thread.sleep(forTimeInterval: 1.0)
+  }
+
+  private func button(_ app: XCUIApplication, _ zh: String, _ en: String) -> XCUIElement {
+    let zhEl = app.buttons[zh]
+    if zhEl.waitForExistence(timeout: 6) { return zhEl }
+    return app.buttons[en]
+  }
+
+  private func waitHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let end = Date().addingTimeInterval(timeout)
+    while Date() < end {
+      if element.exists && element.isHittable { return true }
+      Thread.sleep(forTimeInterval: 0.1)
+    }
+    return element.exists && element.isHittable
   }
 
   private func launch(_ appearance: XCUIDevice.Appearance, tab: String) -> XCUIApplication {

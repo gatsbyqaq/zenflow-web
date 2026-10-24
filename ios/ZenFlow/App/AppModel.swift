@@ -52,6 +52,10 @@ enum PreviewLaunch {
   /// `-ZenFlowPreviewTimeout`：直接显示连接超时卡片，不发起网络请求。
   static var timeout: Bool { flag("-ZenFlowPreviewTimeout") }
 
+  /// `-ZenFlowPreviewTimeoutPlay`：先显示「正在登录」，再弹出超时卡片。
+  /// 点「重试」后同一张卡片换成「正在连接」，再回到超时。不发起网络请求。
+  static var timeoutPlay: Bool { flag("-ZenFlowPreviewTimeoutPlay") }
+
   /// `-ZenFlowPreviewRetry`：同一张卡片停在「正在连接」。
   static var retry: Bool { flag("-ZenFlowPreviewRetry") }
 
@@ -139,7 +143,10 @@ final class AppModel {
     language = AppLanguage.stored
     lastSync = LocalStore.lastSync()
     bootText = language.t("正在登录", "Signing in")
-    if PreviewLaunch.local {
+    if PreviewLaunch.timeoutPlay {
+      localMode = true
+      gate = .boot
+    } else if PreviewLaunch.local {
       localMode = true
       gate = .ready
     }
@@ -153,6 +160,15 @@ final class AppModel {
   }
 
   func bootstrap() async {
+    if PreviewLaunch.timeoutPlay {
+      bootText = t("正在登录", "Signing in")
+      gate = .boot
+      connectFace = .hidden
+      try? await Task.sleep(nanoseconds: 2_200_000_000)
+      enterLocal()
+      connectFace = .timeout
+      return
+    }
     if PreviewLaunch.local {
       enterLocal()
       if PreviewLaunch.retry {
@@ -181,6 +197,21 @@ final class AppModel {
 
   func retryConnect() {
     connectFace = .spinning
+    if PreviewLaunch.timeoutPlay {
+      connectGen += 1
+      let gen = connectGen
+      connectTask?.cancel()
+      connectTask = Task { @MainActor in
+        do {
+          try await Task.sleep(nanoseconds: 1_800_000_000)
+        } catch {
+          return
+        }
+        guard gen == self.connectGen, self.connectFace == .spinning else { return }
+        self.connectFace = .timeout
+      }
+      return
+    }
     if PreviewLaunch.local { return }
     connectGen += 1
     connectTask?.cancel()
