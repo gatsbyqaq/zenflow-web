@@ -975,7 +975,11 @@
 (function () {
   try {
     var c = window.ZENFLOW_CONFIG || {};
-    if (c.supabaseUrl && c.supabaseAnonKey) document.body.classList.add('auth-booting');
+    var preview = window.ZENFLOW_PREVIEW && typeof window.ZENFLOW_PREVIEW === 'object';
+    var host = (location.hostname || '').toLowerCase();
+    var sim = '';
+    if (preview && host !== 'gatsbyqaq.github.io') sim = new URLSearchParams(location.search).get('simulate') || '';
+    if ((c.supabaseUrl && c.supabaseAnonKey) || sim === 'timeout' || sim === 'retry-ok') document.body.classList.add('auth-booting');
   } catch (e) {}
 })();
 </script>

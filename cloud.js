@@ -101,6 +101,23 @@
     if (typeof n === 'number' && isFinite(n) && n >= 0) return n;
     return 10000;
   }
+  // 只在预览 worker 注入 ZENFLOW_PREVIEW 时生效。正式站没有这个标志，gatsbyqaq.github.io 再保险。
+  function previewSimulate(flag, hostname, search) {
+    if (!flag || typeof flag !== 'object') return '';
+    if (String(hostname || '').toLowerCase() === 'gatsbyqaq.github.io') return '';
+    var q = '';
+    try {
+      q = new URLSearchParams(String(search || '').replace(/^\?/, '')).get('simulate') || '';
+    } catch (e) { return ''; }
+    if (q === 'timeout' || q === 'retry-ok') return q;
+    return '';
+  }
+  function currentSimulate() {
+    var host = '';
+    var search = '';
+    try { host = location.hostname; search = location.search; } catch (e) {}
+    return previewSimulate(window.ZENFLOW_PREVIEW, host, search);
+  }
   function isConnectFailure(err) {
     if (!err) return false;
     var name = err.name || '';
@@ -2375,9 +2392,33 @@
       failConnect();
     });
   }
+  function beginSimulate(retry) {
+    var mode = currentSimulate();
+    if (!mode) return false;
+    connectPhase = 'pending';
+    remoteAuthLive = false;
+    clearTimeout(connectTimer);
+    if (retry) setConnectFace('spin');
+    else showBootSplash('正在登录');
+    var wait = (retry && mode === 'retry-ok') ? 2000 : connectTimeoutMs();
+    connectTimer = setTimeout(function () {
+      if (connectPhase !== 'pending') return;
+      if (retry && mode === 'retry-ok') {
+        connectPhase = 'ready';
+        clearTimeout(connectTimer);
+        connectTimer = null;
+        closeConnectCard();
+        enterLocalMode();
+        return;
+      }
+      failConnect();
+    }, wait);
+    return true;
+  }
   if ($('connectLocal')) $('connectLocal').addEventListener('click', function () { closeConnectCard(); });
   if ($('connectRetry')) $('connectRetry').addEventListener('click', function () {
     if (connectPhase === 'pending') return;
+    if (beginSimulate(true)) return;
     attemptConnect(true);
   });
   window.addEventListener('online', function () { if (user() && connectPhase === 'ready') syncNow(); });
@@ -2397,6 +2438,7 @@
   });
   setInterval(function () { if (user() && connectPhase === 'ready' && sync.status === 'error') syncNow(); }, 60000);
 
+  if (beginSimulate(false)) return;
   if (!configured) {
     authReady = true; profileReady = true;
     connectPhase = 'ready';

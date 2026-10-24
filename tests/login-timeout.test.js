@@ -29,8 +29,8 @@ function extract(name) {
   throw new Error('unclosed ' + name);
 }
 
-var bundle = ['errText', 'connectTimeoutMs', 'isConnectFailure'].map(extract).join('\n');
-var ctx = new Function('window', bundle + '\nreturn { connectTimeoutMs: connectTimeoutMs, isConnectFailure: isConnectFailure };')(global.window = global.window || {});
+var bundle = ['errText', 'connectTimeoutMs', 'isConnectFailure', 'previewSimulate'].map(extract).join('\n');
+var ctx = new Function('window', bundle + '\nreturn { connectTimeoutMs: connectTimeoutMs, isConnectFailure: isConnectFailure, previewSimulate: previewSimulate };')(global.window = global.window || {});
 assert.strictEqual(ctx.connectTimeoutMs(), 10000);
 global.window.ZF_CONNECT_TIMEOUT_MS = 250;
 assert.strictEqual(ctx.connectTimeoutMs(), 250);
@@ -44,6 +44,17 @@ assert.strictEqual(ctx.isConnectFailure({ status: 540, message: 'paused' }), tru
 assert.strictEqual(ctx.isConnectFailure({ name: 'AuthApiError', status: 400, message: 'Invalid Refresh Token' }), false);
 assert.ok(src.indexOf('new AbortController') >= 0);
 assert.ok(src.indexOf('正在登录') >= 0);
+var flag = { preview: true, forcedLocal: true };
+assert.strictEqual(ctx.previewSimulate(flag, 'gatsbyqaq.github.io', '?simulate=timeout'), '');
+assert.strictEqual(ctx.previewSimulate(flag, 'gatsbyqaq.github.io', '?branch=cursor/login-timeout-v47&simulate=timeout'), '');
+assert.strictEqual(ctx.previewSimulate(flag, 'gatsbyqaq.github.io', '?simulate=retry-ok'), '');
+assert.strictEqual(ctx.previewSimulate(null, 'zenflow-preview.pages.dev', '?simulate=timeout'), '');
+assert.strictEqual(ctx.previewSimulate(undefined, 'zenflow-preview.pages.dev', '?branch=x&simulate=retry-ok'), '');
+assert.strictEqual(ctx.previewSimulate('yes', 'zenflow-preview.pages.dev', '?simulate=timeout'), '');
+assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?branch=cursor/login-timeout-v47&simulate=timeout'), 'timeout');
+assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?simulate=retry-ok&branch=cursor/login-timeout-v47'), 'retry-ok');
+assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?simulate=other'), '');
+assert.strictEqual(ctx.previewSimulate(flag, '127.0.0.1', '?simulate=timeout'), 'timeout');
 
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
@@ -119,16 +130,18 @@ function session(expired) {
         body: JSON.stringify({ error: 'invalid_grant', error_description: 'Invalid Refresh Token', msg: 'Invalid Refresh Token' })
       }).catch(function () {});
     });
-    await page.evaluateOnNewDocument(function (ms, sess) {
+    await page.evaluateOnNewDocument(function (ms, sess, preview) {
       window.ZF_CONNECT_TIMEOUT_MS = ms;
+      if (preview) window.ZENFLOW_PREVIEW = { preview: true, forcedLocal: true };
       try { localStorage.setItem('zenflow_auth', JSON.stringify(sess)); } catch (e) {}
-    }, opts.timeoutMs, opts.session);
+    }, opts.timeoutMs, opts.session, !!opts.preview);
     if (opts.reduced) {
       await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
     }
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
     var started = Date.now();
-    await page.goto('http://127.0.0.1:' + port + '/?t=' + started, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    var search = opts.search || ('?t=' + started);
+    await page.goto('http://127.0.0.1:' + port + '/' + search, { waitUntil: 'domcontentloaded', timeout: 20000 });
     page._zf = { gate: gate, hung: hung, started: started };
     return page;
   }
@@ -308,6 +321,85 @@ function session(expired) {
     note(motion.maskTransition.indexOf('opacity') >= 0, 'reduced motion still fades', motion.maskTransition);
     await release(reduced);
     await reduced.close();
+
+    var prod = await open({
+      mode: 'auth400',
+      timeoutMs: 10000,
+      session: session(true),
+      search: '?simulate=timeout&branch=cursor/login-timeout-v47'
+    });
+    var prodT = Date.now();
+    await prod.waitForFunction(function () {
+      var mask = document.getElementById('connectTimeout');
+      return document.body.classList.contains('auth-gated') && mask && mask.classList.contains('hidden') &&
+        !document.body.classList.contains('auth-booting');
+    }, { timeout: 4000 });
+    note(Date.now() - prodT < 3500, 'production ignores simulate=timeout', String(Date.now() - prodT));
+    await release(prod);
+    await prod.close();
+
+    var sim = await open({
+      mode: 'auth400',
+      timeoutMs: 450,
+      session: session(true),
+      preview: true,
+      search: '?branch=cursor/login-timeout-v47&simulate=timeout'
+    });
+    var early = await sim.evaluate(function () {
+      var mask = document.getElementById('connectTimeout');
+      return {
+        booting: document.body.classList.contains('auth-booting'),
+        text: document.getElementById('authBootText').textContent,
+        cardHidden: mask.classList.contains('hidden'),
+        gated: document.body.classList.contains('auth-gated')
+      };
+    });
+    note(early.booting && early.text === '正在登录' && early.cardHidden && !early.gated, 'simulate starts on 正在登录', JSON.stringify(early));
+    await sleep(180);
+    var mid = await sim.evaluate(function () {
+      return document.getElementById('connectTimeout').classList.contains('hidden') && !document.body.classList.contains('auth-gated');
+    });
+    note(mid, 'simulate waits out the real timer');
+    await waitCard(sim, 4000);
+    var simLocal = await sim.evaluate(function () {
+      return window.ZFCloud.status().localMode === true && !document.body.classList.contains('auth-gated');
+    });
+    note(simLocal, 'simulate timeout uses the real card');
+    await sim.evaluate(function () { document.querySelector('.connect-card').dataset.mark = 'sim'; });
+    await sim.click('#connectRetry');
+    await sim.waitForFunction(function () {
+      var spin = document.getElementById('connectSpin');
+      return spin && !spin.classList.contains('hidden') && document.querySelector('.connect-card').dataset.mark === 'sim';
+    }, { timeout: 2000 });
+    await waitCard(sim, 4000);
+    note(true, 'simulate retry times out again in place');
+    await release(sim);
+    await sim.close();
+
+    var okSim = await open({
+      mode: 'auth400',
+      timeoutMs: 400,
+      session: session(true),
+      preview: true,
+      search: '?branch=cursor/login-timeout-v47&simulate=retry-ok'
+    });
+    await waitCard(okSim, 4000);
+    await okSim.click('#connectRetry');
+    await sleep(700);
+    var still = await okSim.evaluate(function () {
+      var mask = document.getElementById('connectTimeout');
+      var spin = document.getElementById('connectSpin');
+      return mask.classList.contains('is-open') && spin && !spin.classList.contains('hidden');
+    });
+    note(still, 'retry-ok stays on the spinner before 2s');
+    await okSim.waitForFunction(function () {
+      var mask = document.getElementById('connectTimeout');
+      return mask.classList.contains('hidden') && window.ZFCloud.status().localMode === true &&
+        !document.body.classList.contains('auth-gated') && !document.body.classList.contains('auth-booting');
+    }, { timeout: 4000 });
+    note(true, 'retry-ok closes the card after ~2s');
+    await release(okSim);
+    await okSim.close();
   } finally {
     await browser.close();
     server.close();
