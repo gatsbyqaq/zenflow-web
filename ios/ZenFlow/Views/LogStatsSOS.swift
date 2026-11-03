@@ -361,11 +361,11 @@ struct SOSView: View {
           .font(.system(size: 15))
         }
       }
-      Color.clear.frame(height: 1).id("sos-end")
+      Color.clear.frame(height: 48).id("sos-end")
     }
     .padding(.horizontal, 16)
     .padding(.top, 16)
-    .padding(.bottom, 48)
+    .padding(.bottom, 16)
     }
     .onAppear {
       #if targetEnvironment(simulator)
