@@ -460,7 +460,7 @@
             <div class="avatar-edit-actions">
               <button class="btn btn-ghost btn-sm" type="button" id="btnAvatarChange"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>更换</button>
               <button class="btn btn-ghost btn-sm hidden" type="button" id="btnAvatarRemove">移除</button>
-              <input type="file" id="avatarFile" class="hidden" accept="image/png,image/jpeg,image/webp,image/gif" />
+              <input type="file" id="avatarFile" class="hidden" accept="image/png,image/jpeg,image/webp" />
             </div>
           </div>
           <label class="field"><span>昵称</span>
@@ -481,6 +481,12 @@
             <button class="btn btn-primary" type="button" id="btnSaveProfile">保存资料</button>
           </div>
           <p class="muted small" id="profileModeHint"></p>
+        </div>
+        <div class="set-group hidden" id="accountDeleteRow">
+          <button class="set-row set-row-danger" type="button" id="btnDeleteAccount">
+            <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-trash-2"/></svg></span>
+            <span class="set-row-text"><b>注销账号</b><small id="accountDeleteSub" class="hidden"></small></span>
+          </button>
         </div>
       </div>
 
@@ -598,9 +604,9 @@
           </button>
         </div>
         <div class="set-group hidden" id="privacyDeleteRow">
-          <button class="set-row set-row-danger" type="button" id="btnDeleteAccount">
+          <button class="set-row set-row-danger" type="button" id="btnDeleteAccountJump">
             <span class="row-ic ri-warm"><svg class="ic" aria-hidden="true"><use href="#i-trash-2"/></svg></span>
-            <span class="set-row-text"><b>注销账号</b><small>永久删除账号和云端数据</small></span>
+            <span class="set-row-text"><b>注销账号</b><small>前往账号与资料</small></span>
           </button>
         </div>
       </div>
@@ -953,6 +959,11 @@
   </div>
 </div>
 
+<div id="deleteMask" class="sheet-mask hidden">
+  <div class="sheet delete-sheet" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+    <div id="deleteBody"></div>
+  </div>
+</div>
 <div id="connectTimeout" class="connect-mask hidden">
   <div class="connect-card" role="dialog" aria-modal="true" aria-labelledby="connectTimeoutTitle" aria-describedby="connectTimeoutSub" aria-busy="false">
     <div id="connectFace">
@@ -966,6 +977,7 @@
     </div>
     <div id="connectSpin" class="connect-spin hidden" aria-hidden="true">
       <div class="auth-boot-spin"></div>
+      <p id="connectSpinText" aria-live="polite">正在连接</p>
     </div>
   </div>
 </div>
@@ -989,7 +1001,8 @@
 <script src="records.js?v=47"></script>
 <script src="lock.js?v=47"></script>
 <script src="app.js?v=47"></script>
-<script src="cloud.js?v=47"></script>
+<script src="sync-merge.js?v=48"></script>
+<script src="cloud.js?v=48"></script>
 <script src="admin.js?v=47"></script>
 </body>
 </html>

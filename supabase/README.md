@@ -107,8 +107,13 @@ select code, expires_at from public.create_invites(5, 0, '朋友');  -- 0 = 永�
 
 | 文件 | 作用 |
 |---|---|
-| `schema.sql` | 表、RLS、邀请码 RPC、注册触发器、云同步表 |
-| `seed_invites.sql` | 生成首批邀请码 + 设管理员的示例 |
+| `schema.sql` | 早期一键脚本。新库还要按文件名顺序跑 `migrations/` |
+| `migrations/20261006061536_profiles_handle_avatar.sql` | 线上已有：@ID、头像、`update_my_profile` |
+| `migrations/20261006084259_delete_my_account.sql` | 线上已有的注销函数（含邀请码可复用的缺陷） |
+| `migrations/20261104090000_security_prd.sql` | 待应用到生产：邀请码单次与 60 位熵、限速、收回 anon EXECUTE、版本化同步、审计、注销时删头像行 |
+| `functions/invite-check` | 待部署：Turnstile 通过后才校验邀请码 |
+| `functions/delete-account` | 待部署：用 Storage API 删头像，再注销 |
+| `seed_invites.sql` | 生成首批邀请码（30 天）+ 设管理员的示例 |
 | `../config.js` | 前端配置（占位，由你填写） |
 | `../cloud.js` | 登录 / 注册 / 同步客户端 |
 | `../vendor/supabase.js` | `@supabase/supabase-js` UMD（MIT） |

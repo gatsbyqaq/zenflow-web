@@ -1,6 +1,6 @@
 -- 生成首批邀请码（在 SQL Editor 中运行；结果表格里的 code 就是邀请码）
--- 参数：数量、有效天数（0 = 永不过期）、备注
-select code, expires_at from public.create_invites(5, 0, '首批（管理员）');
+-- 参数：数量、有效天数（最长 30 天，0 也会按 30 天）。
+select code, expires_at from public.create_invites(5, 30, '首批（管理员）');
 
 -- 注册第一个账号后，把自己设为管理员（之后可在网页 设置 → 账号 中直接生成邀请码）：
 -- update public.profiles set is_admin = true
