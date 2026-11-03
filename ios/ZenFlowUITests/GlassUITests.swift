@@ -65,23 +65,48 @@ final class GlassUITests: XCTestCase {
     app.launch()
     let signing = app.staticTexts["正在登录"]
     let signingEn = app.staticTexts["Signing in"]
-    let seen = signing.waitForExistence(timeout: 8) || signingEn.waitForExistence(timeout: 2)
-    if !seen { print(app.debugDescription) }
-    XCTAssertTrue(seen)
-    markReady()
     let retry = app.buttons["重试"]
     let retryEn = app.buttons["Retry"]
-    let retryButton = retry.waitForExistence(timeout: 8) ? retry : retryEn
-    XCTAssertTrue(waitHittable(retryButton, timeout: 8))
+    let card = app.staticTexts["连接超时"]
+    let cardEn = app.staticTexts["Connection timed out"]
+    // 慢模拟器上 launch() 回来时，5.5 秒的「正在登录」可能已经换成卡片。
+    // 两种语言短间隔轮询，避免把整段闪屏耗在另一种语言上。
+    let deadline = Date().addingTimeInterval(25)
+    var sawSplash = false
+    var sawCard = false
+    while Date() < deadline {
+      if signing.exists || signingEn.exists { sawSplash = true; break }
+      if retry.exists || retryEn.exists || card.exists || cardEn.exists { sawCard = true; break }
+      Thread.sleep(forTimeInterval: 0.2)
+    }
+    if !sawSplash && !sawCard {
+      print(app.debugDescription)
+      XCTFail("timeout simulation did not show the splash or the card")
+      return
+    }
+    markReady()
+    if sawSplash {
+      Thread.sleep(forTimeInterval: 1.2)
+    }
+    let retryButton = firstExisting([retry, retryEn], timeout: 12)
+    XCTAssertTrue(waitHittable(retryButton, timeout: 12))
     retryButton.tap()
     let connecting = app.staticTexts["正在连接"]
     let connectingEn = app.staticTexts["Connecting"]
-    let spinning = connecting.waitForExistence(timeout: 4) || connectingEn.waitForExistence(timeout: 2)
-    if !spinning { print(app.debugDescription) }
-    XCTAssertTrue(spinning)
-    let again = retry.waitForExistence(timeout: 6) ? retry : retryEn
+    XCTAssertTrue(firstExisting([connecting, connectingEn], timeout: 8).exists)
+    let again = firstExisting([retry, retryEn], timeout: 8)
     XCTAssertTrue(waitHittable(again, timeout: 8))
     Thread.sleep(forTimeInterval: 1.0)
+  }
+
+  /// 几种文案里先出现的那个。不要对第一种用满整段超时。
+  private func firstExisting(_ elements: [XCUIElement], timeout: TimeInterval) -> XCUIElement {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if let found = elements.first(where: { $0.exists }) { return found }
+      Thread.sleep(forTimeInterval: 0.2)
+    }
+    return elements.first(where: { $0.exists }) ?? elements[0]
   }
 
   private func waitHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {

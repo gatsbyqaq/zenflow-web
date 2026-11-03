@@ -353,7 +353,7 @@ jobs:
               sleep 1
             done
             if [ ! -f /tmp/zenflow-ready ]; then
-              echo "UI test $only never showed 正在登录"
+              echo "UI test $only did not reach the timeout splash or card"
               tail -n 160 "$RUNNER_TEMP/${only}.log" || true
               kill -INT "$xpid" 2>/dev/null || true
               wait "$xpid" 2>/dev/null || true
@@ -664,7 +664,7 @@ jobs:
               sleep 1
             done
             if [ ! -f /tmp/zenflow-ready ]; then
-              echo "UI test $only never showed 正在登录"
+              echo "UI test $only did not reach the timeout splash or card"
               tail -n 160 "$RUNNER_TEMP/${only}.log" || true
               kill -INT "$xpid" 2>/dev/null || true
               wait "$xpid" 2>/dev/null || true
