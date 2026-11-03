@@ -96,6 +96,50 @@
     if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url)) return 'Project URL 格式不正确，例如 https://xxxx.supabase.co';
     return '';
   }
+  function connectTimeoutMs() {
+    var n = window.ZF_CONNECT_TIMEOUT_MS;
+    if (typeof n === 'number' && isFinite(n) && n >= 0) return n;
+    return 10000;
+  }
+  // 只在预览 worker 注入 ZENFLOW_PREVIEW 时生效。正式站没有这个标志，gatsbyqaq.github.io 再保险。
+  function previewSimulate(flag, hostname, search) {
+    var host = String(hostname || '').toLowerCase();
+    if (host === 'gatsbyqaq.github.io') return '';
+    var local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    if (!local && (!flag || typeof flag !== 'object')) return '';
+    var q = '';
+    try {
+      q = new URLSearchParams(String(search || '').replace(/^\?/, '')).get('simulate') || '';
+    } catch (e) { return ''; }
+    if (q === 'timeout' || q === 'retry-ok') return q;
+    return '';
+  }
+  function currentSimulate() {
+    var host = '';
+    var search = '';
+    try { host = location.hostname; search = location.search; } catch (e) {}
+    return previewSimulate(window.ZENFLOW_PREVIEW, host, search);
+  }
+  function isConnectFailure(err) {
+    if (!err) return false;
+    var name = err.name || '';
+    if (err.code === 'CONNECT_TIMEOUT' || name === 'AbortError' || name === 'TimeoutError' || name === 'AuthRetryableFetchError') return true;
+    var status = err.status || err.statusCode;
+    if (status === 0 || status === 502 || status === 503 || status === 504 || status === 521 || status === 540) return true;
+    var m = errText(err);
+    if (/Failed to fetch|NetworkError|Load failed|network|timeout|aborted|ECONN|ENOTFOUND|fetch failed/i.test(m)) return true;
+    return false;
+  }
+  function anySignal(signals) {
+    var ctrl = new AbortController();
+    function onAbort() { if (!ctrl.signal.aborted) ctrl.abort(); }
+    signals.forEach(function (s) {
+      if (!s) return;
+      if (s.aborted) { onAbort(); return; }
+      s.addEventListener('abort', onAbort);
+    });
+    return ctrl.signal;
+  }
   var cfg = readConfig();
   var cfgError = cfg.url || cfg.key ? (urlProblem(cfg.url) || keyProblem(cfg.key)) : '';
   var configured = !!(cfg.url && cfg.key && !cfgError);
@@ -105,7 +149,36 @@
   var gateMode = 'none'; // none | boot | login | invite
   var authReady = false; // getSession 已确认
   var profileReady = false; // 有 session 时 profile/invite_ok 已解析
+  var localMode = false; // 启动连接超时或失败后，先用本机数据
+  var connectPhase = 'idle'; // idle | pending | local | ready
+  var remoteAuthLive = false;
+  var clientHolder = null;
+  var authUnsub = null;
+  var connectTimer = null;
+  var connectGen = 0;
+  var sessionResolved = false;
   var sync = { status: 'off', at: +localStorage.getItem(LAST_SYNC_KEY) || 0, error: '' };
+  var clockOffset = 0;
+  var UNSYNCED_KEY = 'zenflow_unsynced';
+  var CONFLICT_KEY = 'zenflow_conflict_backup';
+  function correctedNow() {
+    return Date.now() + clockOffset;
+  }
+  function unsyncedCount() {
+    try { return Math.max(0, +localStorage.getItem(UNSYNCED_KEY) || 0); } catch (e) { return 0; }
+  }
+  function setUnsynced(n) {
+    try { localStorage.setItem(UNSYNCED_KEY, String(Math.max(0, n))); } catch (e) {}
+  }
+  function rememberConflicts(rows) {
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem(CONFLICT_KEY) || '[]') || []; } catch (e) { list = []; }
+    var at = correctedNow();
+    rows.forEach(function (row) { list.push({ at: at, kind: row.kind, id: row.id, discarded: row.discarded }); });
+    var cutoff = at - 30 * 24 * 60 * 60 * 1000;
+    list = list.filter(function (row) { return row && row.at >= cutoff; }).slice(-200);
+    try { localStorage.setItem(CONFLICT_KEY, JSON.stringify(list)); } catch (e) {}
+  }
   var syncing = false, pending = false, pushTimer = null, replaceAllPending = false, wipeLock = false, suppressSignedOut = false;
   var loadError = '';
   function appUrl() { return location.origin + location.pathname; }
@@ -128,6 +201,20 @@
   function ckScore(c) { return Math.max(+c.ts || 0, +c.editedAt || 0); }
   function merge(a, b) {
     a = Z.sanitize(a); b = Z.sanitize(b);
+    if (window.ZFMerge && window.ZFMerge.mergeRecords) {
+      var packed = window.ZFMerge.mergeRecords(a, b, correctedNow());
+      if (packed.discarded && packed.discarded.length) rememberConflicts(packed.discarded);
+      var mergedState = packed.state;
+      if (window.ZFStreak) {
+        var computed = window.ZFStreak.computeStreakStart(mergedState);
+        if (computed !== mergedState.streakStart) {
+          mergedState.streakStart = computed;
+          mergedState.streakStartSetAt = Math.max(mergedState.streakStartSetAt || 0, correctedNow());
+        }
+        mergedState.bestStreakMs = window.ZFStreak.historicalBest(mergedState);
+      }
+      return mergedState;
+    }
     var removed = {
       ids: mergeTomb(a.removed.ids, b.removed.ids),
       reasons: mergeTomb(a.removed.reasons, b.removed.reasons),
@@ -198,7 +285,7 @@
     return new Promise(function (res, rej) {
       if (window.supabase && window.supabase.createClient) return res();
       var s = document.createElement('script');
-      s.src = 'vendor/supabase.js?v=46'; s.async = true;
+      s.src = 'vendor/supabase.js?v=47'; s.async = true;
       s.onload = function () { window.supabase && window.supabase.createClient ? res() : rej(new Error('Supabase 库加载异常')); };
       s.onerror = function () { rej(new Error('无法加载 Supabase 库（离线？）')); };
       document.head.appendChild(s);
@@ -216,7 +303,7 @@
     var code = err && (err.code || err.error_code) || '';
     if (/HANDLE_TAKEN/.test(m)) return '@ID 已被占用';
     if (/HANDLE_INVALID/.test(m)) return '@ID 需为 3–20 位小写字母、数字或下划线';
-    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效、已过期或已使用';
+    if (/Database error saving new user|INVITE_INVALID/i.test(m)) return '邀请码无效或已过期';
     if (/Invalid login credentials/i.test(m) || code === 'invalid_credentials') return '邮箱或密码不正确';
     if (/Email not confirmed/i.test(m)) return '邮箱还没确认';
     if (/already registered|already been registered|user_already_exists/i.test(m + code)) return '邮箱已注册，请登录';
@@ -234,7 +321,7 @@
     if (/NOT_AUTHENTICATED/.test(m)) return '请先登录';
     if (/payload too large|exceeded the maximum|file size|entity too large/i.test(m)) return '图片超过 2MB';
     if (/mime type|invalid_mime|content type.*not allowed/i.test(m)) return '只支持 PNG、JPG、WebP 或 GIF';
-    if (/INVITE_INVALID/.test(m)) return '邀请码无效、已过期或已被使用';
+    if (/INVITE_INVALID/.test(m)) return '邀请码无效或已过期';
     if (/CANNOT_DEMOTE_SELF/.test(m)) return '不能取消自己的管理员身份';
     if (/CANNOT_BAN_SELF/.test(m)) return '不能禁用自己的账号';
     if (/REVOKE_FAILED/.test(m)) return '邀请码不存在或已被使用，无法作废';
@@ -256,9 +343,12 @@
     var replaceAll = opts.replaceAll || replaceAllPending; replaceAllPending = false;
     try {
       var uid = user().id;
+      var clock = await sb.rpc('server_now');
+      if (clock && !clock.error && clock.data) clockOffset = new Date(clock.data).getTime() - Date.now();
       var r = await sb.from('user_data').select('data,updated_at').eq('user_id', uid).maybeSingle();
       if (r.error) throw r.error;
       var remote = r.data && r.data.data ? Z.sanitize(r.data.data) : null;
+      var expectedAt = r.data ? r.data.updated_at : null;
       var local = Z.sanitize(Z.getState());
       if (wipeLock) return;
       var lastUid = null, pullRemote = false;
@@ -270,9 +360,29 @@
       if (stable(merged) !== stable(local)) Z.replaceState(merged);
       if (wipeLock) return;
       if (!remote || stable(Z.sanitize(merged)) !== stable(remote)) {
-        var w = await sb.from('user_data').upsert({ user_id: uid, data: Z.sanitize(merged) }, { onConflict: 'user_id' });
-        if (w.error) throw w.error;
+        var saved = false;
+        var payload = Z.sanitize(merged);
+        for (var attempt = 0; attempt < 5; attempt++) {
+          var w = await sb.rpc('save_user_data', { p_data: payload, p_expected: expectedAt });
+          if (!w.error) { saved = true; break; }
+          var msg = errText(w.error);
+          if (!/SYNC_CONFLICT/.test(msg) && !/save_user_data/.test(msg) && w.error.code !== 'PGRST202') throw w.error;
+          if (w.error.code === 'PGRST202' || /Could not find the function/.test(msg)) {
+            var legacy = await sb.from('user_data').upsert({ user_id: uid, data: payload }, { onConflict: 'user_id' });
+            if (legacy.error) throw legacy.error;
+            saved = true;
+            break;
+          }
+          var again = await sb.from('user_data').select('data,updated_at').eq('user_id', uid).maybeSingle();
+          if (again.error) throw again.error;
+          var fresh = again.data && again.data.data ? Z.sanitize(again.data.data) : null;
+          expectedAt = again.data ? again.data.updated_at : null;
+          payload = Z.sanitize(merge(payload, fresh || Z.defaultState()));
+          if (stable(payload) !== stable(Z.getState())) Z.replaceState(payload);
+        }
+        if (!saved) throw new Error('SYNC_CONFLICT');
       }
+      setUnsynced(0);
       localStorage.setItem(LAST_UID_KEY, uid);
       try { localStorage.removeItem(PULL_REMOTE_KEY); } catch (e) {}
       setSync('ok');
@@ -291,8 +401,10 @@
 
   /* ---------------- 顶部/侧边栏状态 ---------------- */
   function syncLabel() {
-    if (!configured || !user()) return { icon: 'cloud-off', text: '本机模式', cls: '' };
+    if (!configured || !user() || localMode) return { icon: 'cloud-off', text: '本机模式', cls: '' };
     if (sync.status === 'syncing') return { icon: 'refresh-cw', text: '同步中', cls: 'busy' };
+    var n = unsyncedCount();
+    if (n > 0) return { icon: 'cloud-off', text: '未同步 ' + n + ' 项', cls: 'err' };
     if (sync.status === 'error') return { icon: 'circle-alert', text: '同步失败', cls: 'err' };
     if (sync.status === 'offline') return { icon: 'cloud-off', text: '离线', cls: 'err' };
     return { icon: 'cloud-check', text: '已同步', cls: 'ok' };
@@ -381,7 +493,23 @@
     if (pill) { pill.className = 'sync-pill ' + L.cls; pill.innerHTML = ic(L.icon) + esc(L.text); }
     var logged = configured && user();
     var pp = document.querySelector('#screen-home .privacy-pill');
-    if (pp) { pp.innerHTML = ic(logged ? 'cloud-check' : 'lock') + (logged ? '云同步' : '仅本机'); pp.title = logged ? '已登录，数据会同步' : '数据只在这台设备'; pp.classList.toggle('synced', !!logged); }
+    var signedIn = !!(logged && !localMode);
+    if (pp) { pp.innerHTML = ic(signedIn ? 'cloud-check' : 'lock') + (signedIn ? '云同步' : '仅本机'); pp.title = signedIn ? '已登录，数据会同步' : '数据只在这台设备'; pp.classList.toggle('synced', signedIn); }
+    var del = $('accountDeleteRow');
+    if (del) del.classList.toggle('hidden', !signedIn);
+    var jump = $('privacyDeleteRow');
+    if (jump) jump.classList.toggle('hidden', !signedIn);
+    var delBtn = $('btnDeleteAccount');
+    if (delBtn) {
+      var admin = !!(profile && profile.is_admin);
+      delBtn.disabled = admin;
+      delBtn.setAttribute('aria-disabled', admin ? 'true' : 'false');
+      var sub = $('accountDeleteSub');
+      if (sub) {
+        sub.textContent = admin ? '需先取消管理员身份' : '';
+        sub.classList.toggle('hidden', !admin);
+      }
+    }
     renderSideUser();
     if (window.ZenFlowCore && window.ZenFlowCore.updateSettingsChrome) window.ZenFlowCore.updateSettingsChrome();
     renderDataSync();
@@ -464,16 +592,19 @@
       return '<li><code>' + esc(v.code) + '</code>' + st + (!used && !expired ? '<button class="icon-btn" data-copy="' + esc(v.code) + '" aria-label="复制 ' + esc(v.code) + '" title="复制">' + ic('copy') + '</button>' : '<span class="inv-sp"></span>') + '</li>';
     }).join('') + '</ul>';
   }
-  async function loadProfile() {
-    profile = null; invites = null; profileReady = false;
-    if (!user()) { profileReady = true; updateGate(); return; }
+  async function loadProfile(opts) {
+    opts = opts || {};
+    profile = null; invites = null;
+    if (!opts.quiet) profileReady = false;
+    if (!user()) { profileReady = true; if (!opts.quiet) updateGate(); return; }
     var r = await sb.from('profiles').select('display_name,handle,avatar_url,is_admin,created_at,invite_ok').eq('id', user().id).maybeSingle();
+    if (r.error && opts.quiet && isConnectFailure(r.error)) throw r.error;
     if (!r.error) profile = r.data;
     if (!profile) profile = { display_name: null, handle: null, avatar_url: null, is_admin: false, invite_ok: false };
     profileReady = true;
     renderAccount();
     renderChrome();
-    updateGate();
+    if (!opts.quiet) updateGate();
     if (inviteOk() && profile.is_admin) loadInvites();
     if (inviteOk() && window.ZFAdmin && window.ZFAdmin.onProfile) window.ZFAdmin.onProfile();
   }
@@ -795,7 +926,7 @@
   }
   function setBootText(t) {
     var el = $('authBootText');
-    if (el) el.textContent = t || '正在恢复登录…';
+    if (el) el.textContent = t || '正在登录';
   }
   var bootFinished = false; // 已经进入主界面后，切回标签页不得再盖启动闪屏
   function showBootSplash(text) {
@@ -804,7 +935,7 @@
     document.body.classList.add('auth-booting');
     document.body.classList.remove('auth-gated');
     document.body.classList.remove('auth-ready');
-    setBootText(text || (peekPersistedSession() ? '正在恢复登录…' : '正在加载…'));
+    setBootText(text || '正在登录');
     if ($('authMask') && !$('authMask').classList.contains('hidden')) {
       // 启动闪屏期间不要露出登录表单
       $('authMask').classList.add('hidden');
@@ -893,6 +1024,11 @@
     }
   }
   function updateGate() {
+    if (localMode) {
+      authReady = true; profileReady = true;
+      clearGate();
+      return;
+    }
     if (!configured) {
       authReady = true; profileReady = true;
       clearGate();
@@ -961,19 +1097,37 @@
       return !!r.data;
     }
     function schedule() {
-      applyValue();
-      paint('', '');
-      clearTimeout(timer);
-      timer = setTimeout(check, 350);
+      var h = applyValue();
+      var problem = handleProblem(h);
+      if (!h) paint('', '');
+      else if (problem) paint('bad', ic('circle-alert') + (h.length < 3 ? '至少 3 位' : '格式不对'));
+      else paint('', '');
     }
     input.addEventListener('compositionstart', function () { input.dataset.composing = '1'; });
     input.addEventListener('compositionend', function () { delete input.dataset.composing; schedule(); });
     input.addEventListener('input', function () { if (input.dataset.composing) return; schedule(); });
-    input.addEventListener('blur', function () { clearTimeout(timer); check(); });
+    input.addEventListener('blur', schedule);
     return { check: check, paint: paint };
   }
 
   var inviteCheckSeq = 0;
+  async function lookupInvite(code) {
+    var token = window.turnstileToken || '';
+    if (sb.functions && sb.functions.invoke) {
+      try {
+        var edge = await sb.functions.invoke('invite-check', { body: { code: code, token: token } });
+        var msg = edge && edge.error ? String(edge.error.message || edge.error) : '';
+        var missing = /404|not found|Failed to send|FunctionsFetchError|FunctionsRelayError/i.test(msg);
+        if (!missing) {
+          if (edge.error || !edge.data || edge.data.ok !== true) return false;
+          return true;
+        }
+      } catch (e) {}
+    }
+    var r = await sb.rpc('validate_invite', { p_code: code });
+    if (r.error) return false;
+    return !!r.data;
+  }
   async function checkInvite() {
     var code = normInvite($('regInvite').value), el = $('inviteState');
     el.className = 'invite-state'; el.innerHTML = '';
@@ -981,12 +1135,11 @@
     if (!/^[A-Z0-9-]{6,32}$/.test(code)) { el.className = 'invite-state bad'; el.innerHTML = ic('circle-alert') + '格式不对'; return false; }
     var seq = ++inviteCheckSeq;
     el.className = 'invite-state'; el.innerHTML = ic('loader-circle', 'spin');
-    var r = await sb.rpc('validate_invite', { p_code: code });
+    var ok = await lookupInvite(code);
     if (seq !== inviteCheckSeq) return null;
-    if (r.error) { el.innerHTML = ''; return null; }
-    el.className = 'invite-state ' + (r.data ? 'good' : 'bad');
-    el.innerHTML = r.data ? ic('circle-check') + '可用' : ic('circle-alert') + '无效或已使用';
-    return !!r.data;
+    el.className = 'invite-state ' + (ok ? 'good' : 'bad');
+    el.innerHTML = ok ? ic('circle-check') + '可用' : ic('circle-alert') + '邀请码无效或已过期';
+    return ok;
   }
 
   async function checkGateInvite() {
@@ -995,11 +1148,10 @@
     if (!code || !sb) return null;
     if (!/^[A-Z0-9-]{6,32}$/.test(code)) { el.className = 'invite-state bad'; el.innerHTML = ic('circle-alert') + '格式不对'; return false; }
     el.innerHTML = ic('loader-circle', 'spin');
-    var r = await sb.rpc('validate_invite', { p_code: code });
-    if (r.error) { el.innerHTML = ''; return null; }
-    el.className = 'invite-state ' + (r.data ? 'good' : 'bad');
-    el.innerHTML = r.data ? ic('circle-check') + '可用' : ic('circle-alert') + '无效或已使用';
-    return !!r.data;
+    var ok = await lookupInvite(code);
+    el.className = 'invite-state ' + (ok ? 'good' : 'bad');
+    el.innerHTML = ok ? ic('circle-check') + '可用' : ic('circle-alert') + '邀请码无效或已过期';
+    return ok;
   }
 
   async function checkPhoneInvite() {
@@ -1008,11 +1160,10 @@
     if (!code || !sb) return null;
     if (!/^[A-Z0-9-]{6,32}$/.test(code)) { el.className = 'invite-state bad'; el.innerHTML = ic('circle-alert') + '格式不对'; return false; }
     el.innerHTML = ic('loader-circle', 'spin');
-    var r = await sb.rpc('validate_invite', { p_code: code });
-    if (r.error) { el.innerHTML = ''; return null; }
-    el.className = 'invite-state ' + (r.data ? 'good' : 'bad');
-    el.innerHTML = r.data ? ic('circle-check') + '可用' : ic('circle-alert') + '无效或已使用';
-    return !!r.data;
+    var ok = await lookupInvite(code);
+    el.className = 'invite-state ' + (ok ? 'good' : 'bad');
+    el.innerHTML = ok ? ic('circle-check') + '可用' : ic('circle-alert') + '邀请码无效或已过期';
+    return ok;
   }
 
   async function doCompleteInvite(e) {
@@ -1594,7 +1745,12 @@
       return;
     }
     var ext = blob.type === 'image/jpeg' ? 'jpg' : (blob.type === 'image/png' ? 'png' : 'webp');
-    var path = user().id + '/avatar-' + Date.now() + '.' + ext;
+    var rand = '';
+    var bytes = new Uint8Array(16);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (var bi = 0; bi < bytes.length; bi++) bytes[bi] = Math.floor(Math.random() * 256);
+    for (var ri = 0; ri < bytes.length; ri++) rand += (bytes[ri] < 16 ? '0' : '') + bytes[ri].toString(16);
+    var path = user().id + '/' + rand + '.webp';
     var up = await sb.storage.from('avatars').upload(path, blob, { contentType: blob.type || 'image/webp', cacheControl: '3600', upsert: false });
     if (up.error) throw up.error;
     var pub = sb.storage.from('avatars').getPublicUrl(path);
@@ -1756,12 +1912,35 @@
     var other = $('phoneCcOther'); if (other) other.classList.add('hidden');
   }
   function confirmLogout() {
+    var n = unsyncedCount();
+    if (!n) {
+      Z.openModal({
+        title: '退出登录',
+        ok: '退出登录',
+        danger: true,
+        html: '<p>退出后会清除这台设备上的数据，云端数据保留。</p>',
+        onOk: function () { doLogout(); }
+      });
+      return;
+    }
     Z.openModal({
-      title: '退出登录',
-      ok: '退出登录',
+      title: '有未同步的更改',
+      ok: '仍然继续',
       danger: true,
-      html: '<p>退出后会清除这台设备上的数据，云端数据保留。</p>',
-      onOk: function () { doLogout(); }
+      html: '<p>有 ' + n + ' 项还没同步。可以先导出，或仍然退出。</p><button class="btn btn-gray btn-block" type="button" id="btnExportBeforeLogout">导出数据</button>',
+      onOk: function () {
+        syncNow().then(function () {
+          if (!unsyncedCount()) { doLogout(); return; }
+          Z.openModal({
+            title: '有未同步的更改',
+            ok: '仍然继续',
+            danger: true,
+            html: '<p>同步没有完成。退出会丢掉这台设备上还没上传的更改。</p>',
+            onOk: function () { doLogout(); }
+          });
+        });
+        return false;
+      }
     });
   }
   async function doLogout(opts) {
@@ -1868,7 +2047,7 @@
       }
     }
     var out = {
-      app: 'ZenFlow',
+      app: 'Zenflow',
       exportedAt: new Date().toISOString(),
       source: source,
       profile: profileExport(),
@@ -1901,52 +2080,150 @@
       if (names.length) await bucket.remove(names);
     } catch (e) {}
   }
-  function confirmDeleteAccount() {
-    Z.openModal({
-      title: '注销账号',
-      ok: '继续',
-      danger: true,
-      html: '<p>会永久删除账号和全部云端数据，不能恢复。</p><button class="btn btn-ghost btn-block" type="button" id="btnExportBeforeDelete">先导出数据</button>',
-      onOk: function () { setTimeout(confirmDeleteHandle, 0); }
-    });
+  var deleteStep = 'info';
+  var deleteKeepLocal = true;
+  var deleteExported = false;
+  function deleteHandleExpected() {
+    return normalizeHandleInput((profile && profile.handle) || '');
   }
-  function confirmDeleteHandle() {
-    var handle = (profile && profile.handle) || '';
-    Z.openModal({
-      title: '确认注销',
-      ok: '注销',
-      danger: true,
-      html: '<p>输入你的 @ID。</p><input type="text" id="deleteHandleConfirm" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="@ID" />',
-      onOk: function () {
-        var typed = normalizeHandleInput($('deleteHandleConfirm') && $('deleteHandleConfirm').value);
-        if (!handle || typed !== handle) { Z.toast('@ID 不正确'); return false; }
-        deleteMyAccount();
-      }
-    });
+  function openDeleteAccount() {
+    if (!user() || localMode) return;
+    if (profile && profile.is_admin) return;
+    deleteStep = 'info';
+    deleteKeepLocal = true;
+    var mask = $('deleteMask');
+    if (!mask) return;
+    mask.classList.remove('hidden');
+    Z.lockScroll();
+    paintDeleteStep();
   }
-  async function deleteMyAccount() {
-    if (wipeLock) return;
-    if (!sb || !user()) { Z.toast('请先登录'); return; }
+  function closeDeleteAccount() {
+    if (deleteStep === 'busy') return;
+    var mask = $('deleteMask');
+    if (mask) mask.classList.add('hidden');
+    Z.unlockScroll();
+  }
+  function paintDeleteStep() {
+    var body = $('deleteBody');
+    if (!body) return;
+    var handle = deleteHandleExpected();
+    var unsynced = unsyncedCount();
+    var html = '';
+    if (deleteStep === 'info') {
+      html = '<h2 id="deleteTitle">注销账号</h2>'
+        + '<p>以下内容会永久删除，无法恢复：</p>'
+        + '<ul class="delete-list">'
+        + '<li>' + ic('circle-user-round') + '账号：邮箱或手机号、密码、@ID、昵称</li>'
+        + '<li>' + ic('camera') + '头像图片</li>'
+        + '<li>' + ic('cloud-off') + '云端记录：心情、破戒、抵御冲动、理由、目标</li>'
+        + '<li>' + ic('log-out') + '所有设备上的登录</li>'
+        + '<li>' + ic('smartphone') + '旧版 iOS 客户端数据（如有）</li>'
+        + '</ul>'
+        + '<p class="muted small">已用的邀请码不会恢复。@ID 会被释放。其他设备上的本机数据不会被删除。</p>'
+        + '<div class="seg" role="radiogroup" aria-label="本机数据">'
+        + '<button type="button" class="seg-btn' + (deleteKeepLocal ? ' sel' : '') + '" id="deleteKeep">保留本机数据</button>'
+        + '<button type="button" class="seg-btn' + (deleteKeepLocal ? '' : ' sel') + '" id="deleteClear">清除本机数据</button>'
+        + '</div>'
+        + (unsynced ? '<p class="small" id="deleteUnsynced">' + (deleteKeepLocal ? '有未同步的更改' : '未同步的更改也会被清除') + '</p>' : '')
+        + '<div class="connect-actions">'
+        + '<button class="btn btn-gray" type="button" id="btnExportBeforeDelete">先导出数据' + (deleteExported ? ' ' + ic('check') : '') + '</button>'
+        + '<button class="btn btn-primary" type="button" id="deleteContinue">继续</button>'
+        + '</div>';
+    } else if (deleteStep === 'confirm') {
+      var phrase = handle ? ('输入 @' + handle + ' 确认') : '输入「注销」确认';
+      html = '<h2 id="deleteTitle">确认注销</h2><p>' + phrase + '</p>'
+        + '<input type="text" id="deleteHandleConfirm" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="' + (handle ? '@ID' : '注销') + '" />'
+        + '<div class="connect-actions">'
+        + '<button class="btn btn-gray" type="button" id="deleteBack">取消</button>'
+        + '<button class="btn btn-danger" type="button" id="deleteGo" disabled aria-disabled="true">注销账号</button>'
+        + '</div>';
+    } else if (deleteStep === 'busy') {
+      html = '<div class="connect-spin" style="position:static;min-height:120px"><div class="auth-boot-spin"></div><p>正在注销</p></div>';
+    } else if (deleteStep === 'done') {
+      html = '<div class="delete-done">' + ic('check') + '<h2 id="deleteTitle">账号已注销</h2><p>云端数据已删除</p>'
+        + '<button class="btn btn-primary btn-block" type="button" id="deleteDone">完成</button></div>';
+    } else {
+      var err = deleteStep.error || {};
+      html = '<div class="delete-done">' + ic('unlink') + '<h2 id="deleteTitle">' + (err.title || '注销失败') + '</h2><p>' + (err.sub || '账号未注销') + '</p>'
+        + (err.code ? '<p class="muted small">' + esc(err.code) + '</p>' : '')
+        + '<div class="connect-actions"><button class="btn btn-gray" type="button" id="deleteCloseErr">取消</button>'
+        + (err.action === 'login' ? '<button class="btn btn-primary" type="button" id="deleteLogin">登录</button>' : '<button class="btn btn-primary" type="button" id="deleteRetry">重试</button>')
+        + '</div></div>';
+    }
+    body.innerHTML = html;
+    var mask = $('deleteMask');
+    if (mask) mask.setAttribute('aria-labelledby', 'deleteTitle');
+  }
+  async function runDeleteAccount() {
+    if (wipeLock || !sb || !user()) return;
+    deleteStep = 'busy';
+    paintDeleteStep();
+    var keep = deleteKeepLocal;
     wipeLock = true;
     suppressSignedOut = true;
     clearTimeout(pushTimer);
-    pending = false;
-    replaceAllPending = false;
-    try {
-      await removeMyAvatarFiles(user().id);
-      var r = await sb.rpc('delete_my_account');
-      if (r.error) throw r.error;
-    } catch (err) {
+    var timer = setTimeout(function () {
+      if (deleteStep !== 'busy') return;
+      deleteStep = { error: { title: '连接失败', sub: '账号未注销' } };
       wipeLock = false;
       suppressSignedOut = false;
-      Z.toast(cn(err));
-      return;
+      paintDeleteStep();
+    }, 30000);
+    try {
+      var edge = (sb.functions && sb.functions.invoke) ? await sb.functions.invoke('delete-account', { body: {} }) : { error: new Error('not found') };
+      var missed = edge && edge.error && /404|not found|Failed to send|FunctionsFetchError|FunctionsRelayError/i.test(String(edge.error.message || edge.error));
+      if (!missed && edge && edge.error) throw edge.error;
+      if (missed) {
+        await removeMyAvatarFiles(user().id);
+        var r = await sb.rpc('delete_my_account');
+        if (r.error) throw r.error;
+      }
+      clearTimeout(timer);
+      try { await sb.auth.signOut(); } catch (e) {}
+      session = null;
+      profile = null;
+      try { localStorage.removeItem(LAST_UID_KEY); localStorage.removeItem(LAST_SYNC_KEY); } catch (e) {}
+      setUnsynced(0);
+      if (!keep) {
+        await wipeDeviceStores();
+        if (Z.wipeLocal) Z.wipeLocal();
+        if (window.ZFLockUI && window.ZFLockUI.afterWipe) window.ZFLockUI.afterWipe();
+      }
+      localMode = true;
+      wipeLock = false;
+      suppressSignedOut = false;
+      deleteStep = 'done';
+      paintDeleteStep();
+      renderChrome();
+      renderAccount();
+    } catch (err) {
+      clearTimeout(timer);
+      wipeLock = false;
+      suppressSignedOut = false;
+      var m = errText(err);
+      var error = { title: '注销失败', sub: '账号未注销', code: (err && err.code) || '' };
+      if (/ADMIN_CANNOT_DELETE/.test(m)) error = { title: '管理员账号不能注销', sub: '', action: 'ok' };
+      else if (/NOT_AUTHENTICATED|JWT|session/i.test(m)) error = { title: '登录已过期', sub: '账号未注销', action: 'login' };
+      else if (/Failed to fetch|Network|timeout/i.test(m)) error = { title: '连接失败', sub: '账号未注销' };
+      deleteStep = { error: error };
+      paintDeleteStep();
     }
-    await doLogout({ toast: '账号已注销', keepLock: true });
+  }
+  function deleteTypedOk(value) {
+    var handle = deleteHandleExpected();
+    if (!handle) return String(value || '').trim() === '注销';
+    return normalizeHandleInput(value) === handle;
   }
 
   /* ---------------- 事件 ---------------- */
+  document.addEventListener('input', function (e) {
+    if (!e.target || e.target.id !== 'deleteHandleConfirm') return;
+    var ok = deleteTypedOk(e.target.value);
+    var btn = $('deleteGo');
+    if (btn) { btn.disabled = !ok; btn.setAttribute('aria-disabled', ok ? 'false' : 'true'); }
+  });
   document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'deleteMask' && deleteStep !== 'busy') closeDeleteAccount();
     var t = e.target.closest('button'); if (!t) return;
     switch (t.id) {
       case 'btnOpenAdmin': if (window.ZFAdmin) window.ZFAdmin.open(); break;
@@ -1959,12 +2236,47 @@
         confirmLogout();
         break;
       case 'btnExportAccount':
-      case 'btnExportBeforeDelete':
         exportAccountData();
         break;
-      case 'btnDeleteAccount':
-        confirmDeleteAccount();
+      case 'btnExportBeforeDelete':
+        exportAccountData().then(function () { deleteExported = true; paintDeleteStep(); });
         break;
+      case 'btnDeleteAccount':
+      case 'btnDeleteAccountJump':
+        if (t.id === 'btnDeleteAccountJump') {
+          if (window.ZenFlow && window.ZenFlow.go) window.ZenFlow.go('settings');
+        if (window.ZenFlow && window.ZenFlow.showSettings) window.ZenFlow.showSettings('account');
+          setTimeout(function () {
+            var row = $('accountDeleteRow');
+            if (row) row.scrollIntoView({ block: 'nearest' });
+          }, 50);
+          break;
+        }
+        openDeleteAccount();
+        break;
+      case 'deleteKeep':
+        deleteKeepLocal = true; paintDeleteStep(); break;
+      case 'deleteClear':
+        deleteKeepLocal = false; paintDeleteStep(); break;
+      case 'deleteContinue':
+        deleteStep = 'confirm'; paintDeleteStep();
+        setTimeout(function () { var inp = $('deleteHandleConfirm'); if (inp) inp.focus(); }, 30);
+        break;
+      case 'deleteBack':
+        deleteStep = 'info'; paintDeleteStep(); break;
+      case 'deleteGo':
+        if (!t.disabled) runDeleteAccount();
+        break;
+      case 'deleteDone':
+        closeDeleteAccount();
+        if (window.ZenFlow && window.ZenFlow.go) window.ZenFlow.go('home');
+        break;
+      case 'deleteCloseErr':
+        closeDeleteAccount(); break;
+      case 'deleteRetry':
+        runDeleteAccount(); break;
+      case 'deleteLogin':
+        closeDeleteAccount(); openAuth('login'); break;
       case 'btnNewInvites':
         t.disabled = true;
         sb.rpc('create_invites', { p_count: 3, p_days: 30, p_note: null }).then(function (r) {
@@ -2137,29 +2449,23 @@
     merge: merge, stable: stable, keyProblem: keyProblem, cn: cn,
     configured: function () { return configured; },
     userId: function () { return user() && user().id; },
-    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode }; },
-    onLocalChange: function (replaceAll) { if (!user() || needsInvite()) return; if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush(); },
+    status: function () { return { configured: configured, loggedIn: !!user(), email: user() && user().email, phone: user() && user().phone, sync: sync.status, profile: profile, inviteOk: inviteOk(), gated: isGated(), authReady: authReady, profileReady: profileReady, gateMode: gateMode, localMode: localMode, connectPhase: connectPhase }; },
+    onLocalChange: function (replaceAll) {
+      if (!user() || needsInvite() || localMode) return;
+      setUnsynced(unsyncedCount() + 1);
+      renderChrome();
+      if (replaceAll) { replaceAllPending = true; schedulePush(200); } else schedulePush();
+    },
     syncNow: syncNow, openAuth: openAuth, logout: function (opts) { return doLogout(opts || {}); }, client: function () { return sb; },
+    correctedNow: correctedNow,
+    unsyncedCount: unsyncedCount,
     refreshChrome: renderChrome,
     cropOpen: cropOpen,
     closeCrop: closeCrop
   };
   renderChrome(); renderAccount();
-  if (!configured) {
-    authReady = true; profileReady = true;
-    document.body.classList.remove('auth-booting');
-    document.body.classList.add('auth-ready');
-    return;
-  }
-  // 云端已配置：启动闪屏（非登录表单），直到 getSession + invite_ok 解析完成
-  showBootSplash();
-  // 若 localStorage 已有会话，优先进入「恢复登录」文案；无会话也不提前亮登录门
-  var peeked = peekPersistedSession();
-  if (peeked) setBootText('正在恢复登录…');
 
-  var sessionResolved = false;
-  function markSession(s, from) {
-    // getSession 与 INITIAL_SESSION 可能先后到达；只采纳第一次，避免闪屏被登录门打断或重复拉 profile
+  function markSession(s) {
     if (sessionResolved) return;
     sessionResolved = true;
     authReady = true;
@@ -2174,68 +2480,235 @@
     updateGate();
     loadProfile().then(function () { if (inviteOk()) syncNow(); });
   }
-
-  loadLib().then(function () {
+  function applyAuthEvent(event, s) {
+    if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
+    if (event === 'SIGNED_OUT') {
+      if (wipeLock || suppressSignedOut) return;
+      session = null; profile = null; invites = null; profileReady = true; authReady = true;
+      localMode = false;
+      bootFinished = false;
+      setSync('off'); renderAccount(); renderChrome(); updateGate();
+      Z.toast && Z.toast('已退出登录');
+      return;
+    }
+    // 标签页重新可见时，supabase-js 可能对同一会话再发 SIGNED_IN。
+    // 会话已确认且仍是同一用户时，只更新内存中的 session，不再盖启动闪屏。
+    if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+      markSession(s);
+      return;
+    }
+    if (sessionResolved && s && s.user) {
+      suppressSignedOut = false;
+      var prevId = user() && user().id;
+      session = s;
+      if (prevId && prevId === s.user.id) return;
+      bootFinished = false;
+      profileReady = false;
+      renderAccount(); updateGate();
+      loadProfile().then(function () { if (inviteOk()) syncNow(); });
+    } else if (sessionResolved && !s && event !== 'INITIAL_SESSION') {
+      markSession(null);
+    }
+  }
+  function mountClient(withGuard, gen) {
+    if (authUnsub) { try { authUnsub(); } catch (e) {} authUnsub = null; }
+    var holder = { ctrl: withGuard && typeof AbortController === 'function' ? new AbortController() : null };
+    clientHolder = holder;
     sb = window.supabase.createClient(cfg.url, cfg.key, {
+      global: {
+        fetch: function (input, init) {
+          var next = Object.assign({}, init || {});
+          if (holder.ctrl) next.signal = next.signal ? anySignal([next.signal, holder.ctrl.signal]) : holder.ctrl.signal;
+          return fetch(input, next).then(function (res) { return res; }, function (err) {
+            if (gen === connectGen && connectPhase === 'pending' && holder.ctrl && isConnectFailure(err)) failConnect();
+            throw err;
+          });
+        }
+      },
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'zenflow_auth', flowType: 'implicit' }
     });
-    function applyAuthEvent(event, s) {
-      if (event === 'PASSWORD_RECOVERY') setTimeout(promptNewPassword, 300);
-      if (event === 'SIGNED_OUT') {
-        if (wipeLock || suppressSignedOut) return;
-        session = null; profile = null; invites = null; profileReady = true; authReady = true;
-        bootFinished = false;
-        setSync('off'); renderAccount(); renderChrome(); updateGate();
-        Z.toast && Z.toast('已退出登录');
-        return;
-      }
-      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED
-      // 标签页重新可见时，supabase-js 的 _recoverAndRefresh 会对同一会话再发一次 SIGNED_IN。
-      // 会话已确认且仍是同一用户时，只更新内存中的 session，绝不重新进入「正在恢复登录」。
-      if (!sessionResolved && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
-        markSession(s, event);
-        return;
-      }
-      if (sessionResolved && s && s.user) {
-        suppressSignedOut = false;
-        var prevId = user() && user().id;
-        session = s;
-        if (prevId && prevId === s.user.id) return;
-        bootFinished = false;
-        profileReady = false;
-        renderAccount(); updateGate();
-        loadProfile().then(function () { if (inviteOk()) syncNow(); });
-      } else if (sessionResolved && !s && event !== 'INITIAL_SESSION') {
-        markSession(null, event);
-      }
+    var sub = sb.auth.onAuthStateChange(function (event, s) {
+      if (!remoteAuthLive || connectPhase === 'pending') return;
+      applyAuthEvent(event, s);
+    });
+    if (sub && sub.data && sub.data.subscription) {
+      authUnsub = function () { sub.data.subscription.unsubscribe(); };
     }
-    sb.auth.onAuthStateChange(applyAuthEvent);
-    // 与 onAuthStateChange 并行：尽快确认会话（避免只等 INITIAL_SESSION）
-    sb.auth.getSession().then(function (r) {
-      if (sessionResolved) return;
-      markSession(r.data && r.data.session, 'getSession');
-    }).catch(function () {
-      if (sessionResolved) return;
-      markSession(null, 'getSession-error');
+    return holder;
+  }
+  function setConnectFace(face) {
+    var card = document.querySelector('#connectTimeout .connect-card');
+    var content = $('connectFace');
+    var spin = $('connectSpin');
+    var showTimeout = face !== 'spin';
+    if (content) {
+      content.classList.toggle('connect-face-hold', !showTimeout);
+      content.setAttribute('aria-hidden', showTimeout ? 'false' : 'true');
+    }
+    if (spin) {
+      spin.classList.toggle('hidden', showTimeout);
+      spin.setAttribute('aria-hidden', showTimeout ? 'true' : 'false');
+    }
+    if (card) card.setAttribute('aria-busy', showTimeout ? 'false' : 'true');
+  }
+  function presentConnectCard() {
+    var mask = $('connectTimeout');
+    if (!mask) return;
+    setConnectFace('timeout');
+    if (!mask.classList.contains('hidden')) return;
+    mask.classList.remove('hidden');
+    mask.classList.remove('is-open');
+    void mask.offsetWidth;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { mask.classList.add('is-open'); });
     });
-    window.addEventListener('online', function () { if (user()) syncNow(); });
-    // 切回标签页只补同步，不重走启动闪屏（闪屏只属于冷启动 / 真正的会话恢复）
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState !== 'visible') return;
-      if (bootFinished) {
-        document.body.classList.remove('auth-booting');
-        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+  }
+  function closeConnectCard() {
+    var mask = $('connectTimeout');
+    if (!mask || mask.classList.contains('hidden')) return;
+    mask.classList.remove('is-open');
+    var ms = 300;
+    try {
+      var raw = getComputedStyle(mask).transitionDuration || '';
+      var n = parseFloat(raw);
+      if (isFinite(n)) ms = raw.indexOf('ms') >= 0 ? n : n * 1000;
+    } catch (e) {}
+    setTimeout(function () {
+      if (!mask.classList.contains('is-open')) mask.classList.add('hidden');
+    }, (ms || 300) + 40);
+  }
+  function enterLocalMode() {
+    localMode = true;
+    authReady = true;
+    profileReady = true;
+    session = null;
+    profile = null;
+    invites = null;
+    setSync('offline');
+    updateGate();
+    renderAccount();
+    renderChrome();
+  }
+  function failConnect() {
+    if (connectPhase !== 'pending') return;
+    connectPhase = 'local';
+    remoteAuthLive = false;
+    clearTimeout(connectTimer);
+    connectTimer = null;
+    if (clientHolder && clientHolder.ctrl) {
+      try { clientHolder.ctrl.abort(); } catch (e) {}
+    }
+    var mask = $('connectTimeout');
+    var already = mask && !mask.classList.contains('hidden');
+    enterLocalMode();
+    if (already) setConnectFace('timeout');
+    else presentConnectCard();
+  }
+  function completeConnect(s) {
+    if (connectPhase !== 'pending') return;
+    connectPhase = 'ready';
+    remoteAuthLive = true;
+    localMode = false;
+    clearTimeout(connectTimer);
+    connectTimer = null;
+    if (clientHolder) clientHolder.ctrl = null;
+    closeConnectCard();
+    document.body.classList.remove('auth-booting');
+    sessionResolved = true;
+    authReady = true;
+    session = s || null;
+    if (!session) {
+      profile = null; profileReady = true; invites = null; setSync('off');
+      renderAccount(); updateGate();
+      return;
+    }
+    profileReady = true;
+    renderAccount();
+    updateGate();
+    if (inviteOk()) syncNow();
+  }
+  function attemptConnect(retry) {
+    var gen = ++connectGen;
+    connectPhase = 'pending';
+    remoteAuthLive = true;
+    if (!retry) localMode = false;
+    clearTimeout(connectTimer);
+    connectTimer = setTimeout(failConnect, connectTimeoutMs());
+    if (retry) setConnectFace('spin');
+    else showBootSplash('正在登录');
+    loadLib().then(function () {
+      if (gen !== connectGen || connectPhase !== 'pending') return;
+      mountClient(true, gen);
+      return sb.auth.getSession().then(function (r) {
+        if (connectPhase !== 'pending') return;
+        if (r && r.error && isConnectFailure(r.error)) throw r.error;
+        var s = r && r.data && r.data.session;
+        if (!s) { completeConnect(null); return; }
+        session = s;
+        return loadProfile({ quiet: true }).then(function () {
+          if (connectPhase !== 'pending') return;
+          completeConnect(s);
+        });
+      });
+    }).catch(function (e) {
+      if (connectPhase !== 'pending') return;
+      loadError = e && e.message ? e.message : '';
+      failConnect();
+    });
+  }
+  function beginSimulate(retry) {
+    var mode = currentSimulate();
+    if (!mode) return false;
+    connectPhase = 'pending';
+    remoteAuthLive = false;
+    clearTimeout(connectTimer);
+    if (retry) setConnectFace('spin');
+    else showBootSplash('正在登录');
+    var wait = (retry && mode === 'retry-ok') ? 2000 : connectTimeoutMs();
+    connectTimer = setTimeout(function () {
+      if (connectPhase !== 'pending') return;
+      if (retry && mode === 'retry-ok') {
+        connectPhase = 'ready';
+        clearTimeout(connectTimer);
+        connectTimer = null;
+        closeConnectCard();
+        enterLocalMode();
+        return;
       }
-      if (user() && Date.now() - sync.at > 60000) syncNow();
-    });
-    window.addEventListener('pageshow', function (e) {
-      if (e.persisted && bootFinished) {
-        document.body.classList.remove('auth-booting');
-        if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
-      }
-    });
-    setInterval(function () { if (user() && sync.status === 'error') syncNow(); }, 60000);
-  }).catch(function (e) {
-    loadError = e.message; authReady = true; profileReady = true; renderAccount(); updateGate();
+      failConnect();
+    }, wait);
+    return true;
+  }
+  if ($('connectLocal')) $('connectLocal').addEventListener('click', function () { closeConnectCard(); });
+  if ($('connectRetry')) $('connectRetry').addEventListener('click', function () {
+    if (connectPhase === 'pending') return;
+    if (beginSimulate(true)) return;
+    attemptConnect(true);
   });
+  window.addEventListener('online', function () { if (user() && connectPhase === 'ready') syncNow(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    if (bootFinished) {
+      document.body.classList.remove('auth-booting');
+      if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+    }
+    if (user() && connectPhase === 'ready' && Date.now() - sync.at > 60000) syncNow();
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted && bootFinished) {
+      document.body.classList.remove('auth-booting');
+      if (!document.body.classList.contains('auth-gated')) document.body.classList.add('auth-ready');
+    }
+  });
+  setInterval(function () { if (user() && connectPhase === 'ready' && sync.status === 'error') syncNow(); }, 60000);
+
+  if (beginSimulate(false)) return;
+  if (!configured) {
+    authReady = true; profileReady = true;
+    connectPhase = 'ready';
+    document.body.classList.remove('auth-booting');
+    document.body.classList.add('auth-ready');
+    return;
+  }
+  attemptConnect(false);
 })();
