@@ -238,26 +238,28 @@ struct AccountPage: View {
         }
       }
     }
-    if model.userID != nil && !model.localMode {
-      Button { showDelete = true } label: {
-        HStack(spacing: 10) {
-          Image(systemName: "trash")
-          Text(model.t("注销账号", "Delete account"))
-            .font(.system(size: 17, weight: .semibold))
-          Spacer()
+    Group {
+      if model.userID != nil && !model.localMode {
+        Button { showDelete = true } label: {
+          HStack(spacing: 10) {
+            Image(systemName: "trash")
+            Text(model.t("注销账号", "Delete account"))
+              .font(.system(size: 17, weight: .semibold))
+            Spacer()
+          }
+          .foregroundStyle(model.profile.isAdmin ? ZFColor.muted : ZFColor.warm)
+          .opacity(model.profile.isAdmin ? 0.4 : 1)
+          .padding(14)
+          .frame(minHeight: 52)
+          .background(ZFColor.card)
+          .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .foregroundStyle(model.profile.isAdmin ? ZFColor.muted : ZFColor.warm)
-        .opacity(model.profile.isAdmin ? 0.4 : 1)
-        .padding(14)
-        .frame(minHeight: 52)
-        .background(ZFColor.card)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-      }
-      .buttonStyle(.plain)
-      .disabled(model.profile.isAdmin)
-      if model.profile.isAdmin {
-        Text(model.t("需先取消管理员身份", "Remove admin role first"))
-          .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+        .buttonStyle(.plain)
+        .disabled(model.profile.isAdmin)
+        if model.profile.isAdmin {
+          Text(model.t("需先取消管理员身份", "Remove admin role first"))
+            .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+        }
       }
     }
     .sheet(isPresented: $showDelete) {
