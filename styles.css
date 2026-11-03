@@ -1123,6 +1123,7 @@ body.auth-ready #authBoot{display:none!important}
 @media (prefers-reduced-motion:reduce){
   .connect-card,.connect-mask.is-open .connect-card{transform:none!important;transition:none!important}
   .connect-mask{transition:opacity var(--motion-reduced) var(--ease)}
+  .auth-boot-spin,.connect-spin .auth-boot-spin{animation:none}
 }
 #formInviteGate .field{margin-top:12px}
 

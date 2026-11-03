@@ -55,6 +55,11 @@ assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?bran
 assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?simulate=retry-ok&branch=cursor/login-timeout-v47'), 'retry-ok');
 assert.strictEqual(ctx.previewSimulate(flag, 'zenflow-preview.pages.dev', '?simulate=other'), '');
 assert.strictEqual(ctx.previewSimulate(flag, '127.0.0.1', '?simulate=timeout'), 'timeout');
+assert.strictEqual(ctx.previewSimulate(null, '127.0.0.1', '?simulate=timeout'), 'timeout');
+assert.strictEqual(ctx.previewSimulate(null, 'localhost', '?simulate=retry-ok'), 'retry-ok');
+assert.strictEqual(ctx.previewSimulate(undefined, '[::1]', '?simulate=timeout'), 'timeout');
+assert.strictEqual(ctx.previewSimulate(null, 'localhost', '?simulate=other'), '');
+assert.strictEqual(ctx.previewSimulate(null, 'gatsbyqaq.github.io', '?simulate=timeout'), '');
 
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 

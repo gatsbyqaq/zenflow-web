@@ -1,6 +1,6 @@
-# ZenFlow · Supabase 接入指南
+# Zenflow · Supabase 接入指南
 
-ZenFlow 网页本身是静态托管的（GitHub Pages），**账号 / 邀请码 / 云同步**由你自己的 [Supabase](https://supabase.com) 项目提供。仓库里**没有**任何密钥。
+Zenflow 网页本身是静态托管的（GitHub Pages），**账号 / 邀请码 / 云同步**由你自己的 [Supabase](https://supabase.com) 项目提供。仓库里**没有**任何密钥。
 
 本机检查过：`gatsbyqaq/ZenFlow`（SwiftUI）的 `worktree-zenflow-supabase` 分支实际用的是 Apple 登录 + 本地邮箱密码（Keychain），**没有**现成的 Supabase 项目 URL 或 schema 可复用，所以这里是一套新的、独立的网页端方案。
 

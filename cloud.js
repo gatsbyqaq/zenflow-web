@@ -103,8 +103,10 @@
   }
   // 只在预览 worker 注入 ZENFLOW_PREVIEW 时生效。正式站没有这个标志，gatsbyqaq.github.io 再保险。
   function previewSimulate(flag, hostname, search) {
-    if (!flag || typeof flag !== 'object') return '';
-    if (String(hostname || '').toLowerCase() === 'gatsbyqaq.github.io') return '';
+    var host = String(hostname || '').toLowerCase();
+    if (host === 'gatsbyqaq.github.io') return '';
+    var local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    if (!local && (!flag || typeof flag !== 'object')) return '';
     var q = '';
     try {
       q = new URLSearchParams(String(search || '').replace(/^\?/, '')).get('simulate') || '';
@@ -2045,7 +2047,7 @@
       }
     }
     var out = {
-      app: 'ZenFlow',
+      app: 'Zenflow',
       exportedAt: new Date().toISOString(),
       source: source,
       profile: profileExport(),

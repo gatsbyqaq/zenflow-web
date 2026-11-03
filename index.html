@@ -989,8 +989,9 @@
     var c = window.ZENFLOW_CONFIG || {};
     var preview = window.ZENFLOW_PREVIEW && typeof window.ZENFLOW_PREVIEW === 'object';
     var host = (location.hostname || '').toLowerCase();
+    var local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
     var sim = '';
-    if (preview && host !== 'gatsbyqaq.github.io') sim = new URLSearchParams(location.search).get('simulate') || '';
+    if ((preview || local) && host !== 'gatsbyqaq.github.io') sim = new URLSearchParams(location.search).get('simulate') || '';
     if ((c.supabaseUrl && c.supabaseAnonKey) || sim === 'timeout' || sim === 'retry-ok') document.body.classList.add('auth-booting');
   } catch (e) {}
 })();
