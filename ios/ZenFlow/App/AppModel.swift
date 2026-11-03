@@ -768,10 +768,14 @@ final class AppModel {
     show(signedOut ? "已退出" : "已退出本机")
   }
 
-  func deleteAccount(typedHandle: String) async -> String? {
-    guard let userID else { return "请先登录" }
+  func deleteAccount(typedHandle: String, keepLocal: Bool = false) async -> String? {
+    guard let userID else { return t("请先登录", "Sign in first") }
     let typed = HandleRules.normalize(typedHandle)
-    guard let handle = profile.handle, !handle.isEmpty, typed == handle else { return "@ID 不正确" }
+    let handle = profile.handle ?? ""
+    let confirmed = handle.isEmpty
+      ? (typedHandle.trimmingCharacters(in: .whitespacesAndNewlines) == (language == .en ? "delete" : "注销"))
+      : typed == handle
+    guard confirmed else { return t("@ID 不正确", "@ID does not match") }
     wipeLock = true
     pushTask?.cancel()
     do {
@@ -781,18 +785,20 @@ final class AppModel {
       wipeLock = false
       return CloudClient.describe(error)
     }
-    LocalStore.wipeDevice()
-    state = AppState.fresh()
-    theme = .system
+    if !keepLocal {
+      LocalStore.wipeDevice()
+      state = AppState.fresh()
+      theme = .system
+    }
     profile = RemoteProfile()
     email = ""
     self.userID = nil
-    localMode = false
+    localMode = true
     sync = .off
     settingsPage = nil
-    gate = .login
+    gate = .ready
     wipeLock = false
-    show("账号已注销")
+    show(t("账号已注销", "Account deleted"))
     return nil
   }
 

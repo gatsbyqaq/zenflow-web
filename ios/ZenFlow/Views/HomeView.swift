@@ -283,9 +283,34 @@ enum TypeName {
     case "masturbation": return lang.t("自慰", "Masturbation")
     case "porn": return lang.t("看黄", "Porn")
     case "sex": return lang.t("性行为", "Sex")
-    case "fantasy": return lang.t("意淫", "Fantasy")
-    case "dream": return lang.t("梦淫", "Dream")
+    case "fantasy": return lang.t("意淫", "Sexual fantasy")
+    case "dream": return lang.t("梦淫", "Wet dream")
     default: return Catalog.typeById(id)?.label ?? id
+    }
+  }
+
+  static func mood(_ value: Int, _ lang: AppLanguage) -> String {
+    switch value {
+    case 5: return lang.t("很好", "Great")
+    case 4: return lang.t("不错", "Good")
+    case 3: return lang.t("一般", "Okay")
+    case 2: return lang.t("低落", "Low")
+    case 1: return lang.t("挣扎", "Struggling")
+    default: return ""
+    }
+  }
+
+  static func trigger(_ stored: String, _ lang: AppLanguage) -> String {
+    if lang != .en { return stored }
+    switch stored {
+    case "无聊": return "Bored"
+    case "压力": return "Stressed"
+    case "熬夜": return "Up late"
+    case "独处": return "Alone"
+    case "刷手机": return "Scrolling"
+    case "情绪低落": return "Feeling down"
+    case "其他": return "Other"
+    default: return stored
     }
   }
 }

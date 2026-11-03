@@ -19,7 +19,7 @@ struct RecordSheet: View {
           Text((day == AppState.dateKey(Clock.now()) ? "今天 · " : "") + ZFFormat.dayTitle(day))
             .font(.system(size: 13))
             .foregroundStyle(ZFColor.muted)
-          Text("心情").font(.system(size: 13, weight: .semibold))
+          Text(model.t("心情", "Mood")).font(.system(size: 13, weight: .semibold))
           HStack {
             ForEach(Catalog.moods, id: \.value) { item in
               Button {
@@ -27,7 +27,7 @@ struct RecordSheet: View {
               } label: {
                 VStack(spacing: 4) {
                   Image(systemName: item.symbol)
-                  Text(item.title).font(.system(size: 11))
+                  Text(TypeName.mood(item.value, model.language)).font(.system(size: 11))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -38,10 +38,10 @@ struct RecordSheet: View {
               .buttonStyle(.plain)
             }
           }
-          Text("行为（可多选）").font(.system(size: 13, weight: .semibold))
+          Text(model.t("行为（可多选）", "Behaviors")).font(.system(size: 13, weight: .semibold))
           FlowTags {
             ForEach(Catalog.lapseTypes) { type in
-              TagButton(title: type.label, selected: types.contains(type.id), tint: ZFColor.type(type.id, dark: scheme == .dark)) {
+              TagButton(title: TypeName.of(type.id, model.language), selected: types.contains(type.id), tint: ZFColor.type(type.id, dark: scheme == .dark)) {
                 if types.contains(type.id) { types.remove(type.id) } else { types.insert(type.id) }
               }
             }
@@ -49,22 +49,22 @@ struct RecordSheet: View {
           Text("时间").font(.system(size: 13, weight: .semibold))
           DatePicker("时间", selection: $time, displayedComponents: .hourAndMinute)
             .labelsHidden()
-          Text("触发因素").font(.system(size: 13, weight: .semibold))
+          Text(model.t("触发因素", "Triggers")).font(.system(size: 13, weight: .semibold))
           FlowTags {
             ForEach(Catalog.triggers, id: \.self) { name in
-              TagButton(title: name, selected: triggers.contains(name)) {
+              TagButton(title: TypeName.trigger(name, model.language), selected: triggers.contains(name)) {
                 if triggers.contains(name) { triggers.remove(name) } else { triggers.insert(name) }
               }
             }
           }
           if triggers.contains("其他") {
-            TextField("其他触发因素", text: $other)
+            TextField(model.t("其他触发因素", "Other trigger"), text: $other)
               .padding(10)
               .background(ZFColor.field)
               .clipShape(RoundedRectangle(cornerRadius: 8))
           }
-          Text("备注").font(.system(size: 13, weight: .semibold))
-          TextField("可选", text: $note, axis: .vertical)
+          Text(model.t("备注", "Note")).font(.system(size: 13, weight: .semibold))
+          TextField(model.t("可选", "Optional"), text: $note, axis: .vertical)
             .lineLimit(3...6)
             .padding(10)
             .background(ZFColor.field)
@@ -325,24 +325,24 @@ struct EditRelapseSheet: View {
           Text("保存后按当前规则重算连续天数。")
             .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
           DatePicker("发生时间", selection: $time, in: ...Date())
-          Text("类型（可多选）").font(.system(size: 13, weight: .semibold))
+          Text(model.t("类型（可多选）", "Behaviors")).font(.system(size: 13, weight: .semibold))
           FlowTags {
             ForEach(Catalog.lapseTypes) { type in
-              TagButton(title: type.label, selected: types.contains(type.id), tint: ZFColor.type(type.id, dark: scheme == .dark)) {
+              TagButton(title: TypeName.of(type.id, model.language), selected: types.contains(type.id), tint: ZFColor.type(type.id, dark: scheme == .dark)) {
                 if types.contains(type.id) { types.remove(type.id) } else { types.insert(type.id) }
               }
             }
           }
-          Text("触发因素（可多选）").font(.system(size: 13, weight: .semibold))
+          Text(model.t("触发因素（可多选）", "Triggers")).font(.system(size: 13, weight: .semibold))
           FlowTags {
             ForEach(Catalog.triggers, id: \.self) { name in
-              TagButton(title: name, selected: triggers.contains(name)) {
+              TagButton(title: TypeName.trigger(name, model.language), selected: triggers.contains(name)) {
                 if triggers.contains(name) { triggers.remove(name) } else { triggers.insert(name) }
               }
             }
           }
           if triggers.contains("其他") {
-            TextField("其他触发因素", text: $other)
+            TextField(model.t("其他触发因素", "Other trigger"), text: $other)
               .padding(10)
               .background(ZFColor.field)
               .clipShape(RoundedRectangle(cornerRadius: 8))

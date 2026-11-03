@@ -121,7 +121,7 @@ struct StatsView: View {
           stat(rate, model.t("冲动抵御率", "Resisted"))
         }
         ZFCard {
-          Text("常见触发因素").font(.system(size: 16, weight: .semibold))
+          Text(model.t("常见触发因素", "Common triggers")).font(.system(size: 16, weight: .semibold))
           if triggerRows.isEmpty {
             Text("还没有数据").foregroundStyle(ZFColor.muted)
           } else {

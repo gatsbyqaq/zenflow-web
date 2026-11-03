@@ -156,10 +156,15 @@ struct AccountPage: View {
   @State private var cropImage: UIImage?
   @State private var showCrop = false
 
+  @State private var showDelete = false
+  @State private var typedHandle = ""
+  @State private var deleteMessage = ""
+  @State private var keepLocal = true
+
   var body: some View {
     ZFCard {
       HStack {
-        Text("账号").font(.system(size: 16, weight: .semibold))
+        Text(model.t("账号", "Account")).font(.system(size: 16, weight: .semibold))
         Spacer()
         Text(model.sync.label).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
       }
@@ -232,6 +237,72 @@ struct AccountPage: View {
           Task { message = await model.uploadAvatar(data) ?? "" }
         }
       }
+    }
+    if model.userID != nil && !model.localMode {
+      Button { showDelete = true } label: {
+        HStack(spacing: 10) {
+          Image(systemName: "trash")
+          Text(model.t("注销账号", "Delete account"))
+            .font(.system(size: 17, weight: .semibold))
+          Spacer()
+        }
+        .foregroundStyle(model.profile.isAdmin ? ZFColor.muted : ZFColor.warm)
+        .opacity(model.profile.isAdmin ? 0.4 : 1)
+        .padding(14)
+        .frame(minHeight: 52)
+        .background(ZFColor.card)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+      }
+      .buttonStyle(.plain)
+      .disabled(model.profile.isAdmin)
+      if model.profile.isAdmin {
+        Text(model.t("需先取消管理员身份", "Remove admin role first"))
+          .font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+      }
+    }
+    .sheet(isPresented: $showDelete) {
+      NavigationStack {
+        VStack(alignment: .leading, spacing: 12) {
+          Text(model.t("以下内容会永久删除，无法恢复：", "The following will be permanently deleted and cannot be recovered:"))
+          Text(model.t("账号、头像、云端记录、所有设备上的登录、旧版 iOS 数据。已用的邀请码不会恢复。", "Account, avatar, cloud records, sign-in on all devices, and old iOS data. Used invite codes are not restored."))
+            .font(.system(size: 15))
+          Picker(model.t("本机数据", "Local data"), selection: $keepLocal) {
+            Text(model.t("保留本机数据", "Keep local data")).tag(true)
+            Text(model.t("清除本机数据", "Clear local data")).tag(false)
+          }
+          .pickerStyle(.segmented)
+          Text(model.profile.handle.map { model.t("输入 @\($0) 确认", "Type @\($0) to confirm") } ?? model.t("输入「注销」确认", "Type \"delete\" to confirm"))
+          TextField(model.profile.handle == nil ? model.t("注销", "delete") : "@ID", text: $typedHandle)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .padding(10)
+            .background(ZFColor.field)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+          if !deleteMessage.isEmpty {
+            Text(deleteMessage).font(.system(size: 13)).foregroundStyle(ZFColor.warm)
+          }
+          Button(model.t("注销账号", "Delete account")) {
+            Task {
+              if let error = await model.deleteAccount(typedHandle: typedHandle, keepLocal: keepLocal) {
+                deleteMessage = error
+              } else {
+                showDelete = false
+              }
+            }
+          }
+          .frame(maxWidth: .infinity, minHeight: 44)
+          .foregroundStyle(.white)
+          .background(ZFColor.warm)
+          .clipShape(RoundedRectangle(cornerRadius: 12))
+          Spacer()
+        }
+        .padding(20)
+        .navigationTitle(model.t("注销账号", "Delete account"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("取消", "Cancel")) { showDelete = false } } }
+      }
+      .presentationDetents([.large])
+      .zfSheetGlass()
     }
   }
 }
@@ -386,11 +457,11 @@ struct DataPage: View {
     .clipShape(RoundedRectangle(cornerRadius: 12))
     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ZFColor.line, lineWidth: 1))
 
-    Button { showDelete = true } label: {
+    Button { model.settingsPage = .account } label: {
       HStack {
         VStack(alignment: .leading) {
-          Text("注销账号").font(.system(size: 16, weight: .semibold))
-          Text("永久删除账号和云端数据").font(.system(size: 12))
+          Text(model.t("注销账号", "Delete account")).font(.system(size: 16, weight: .semibold))
+          Text(model.t("在账号与资料里", "In Account")).font(.system(size: 12))
         }
         Spacer()
       }
@@ -560,31 +631,32 @@ struct AboutPage: View {
 
 struct PrivacyView: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(AppModel.self) private var model
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 12) {
         PetalLogo(size: 48)
         Wordmark(size: 16)
-        Text("隐私说明").font(.system(size: 28, weight: .bold))
-        Text("2026-10-06").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
-        section("存了什么", "邮箱、昵称、@ID、头像，以及你的打卡、破戒、抵御、目标和理由。")
-        section("存在哪里", "登录后存在 Supabase 云端数据库。这台设备上还有一份本机副本。")
-        section("谁能看", "打卡、破戒和理由只有你自己能看。管理员的用户列表只有账号信息：邮箱、昵称、@ID、头像地址、是否管理员、是否禁用、注册时间、最近登录、最近同步。不包含这些记录。")
-        section("验证码", "登录、注册和重置密码使用 Cloudflare Turnstile。")
-        section("不做的事", "没有广告，不做行为追踪，不出售数据。")
-        section("导出和删除", "设置 → 数据可以下载 JSON。注销账号会删除云端账号和数据，不能恢复。退出登录只清除这台设备，云端还在。")
+        Text(model.t("隐私说明", "Privacy")).font(.system(size: 28, weight: .bold))
+        Text("2026-11-04").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+        section(model.t("存了什么", "What is stored"), model.t("邮箱、昵称、@ID、头像，以及你的打卡、破戒、抵御、目标和理由。", "Email, name, @ID, avatar, and your check-ins, relapses, urges, goal, and reasons."))
+        section(model.t("存在哪里", "Where"), model.t("登录后存在 Supabase。头像在公开存储桶，知道地址的人可以看到。这台设备上还有一份本机副本。", "After sign-in, data is in Supabase. The avatar is in a public bucket: anyone with the URL can open it. This device also keeps a local copy."))
+        section(model.t("谁能看", "Who can see it"), model.t("记录只有你自己能看。管理员只能看到账号列表，看不到记录内容。", "Only you can see your records. Admins see the account list, not the records."))
+        section(model.t("验证码", "Verification"), model.t("登录和注册使用 Cloudflare Turnstile。", "Sign-in and sign-up use Cloudflare Turnstile."))
+        section(model.t("不做的事", "What we don't do"), model.t("没有广告，不做行为追踪，不出售数据。", "No ads, no tracking, no selling data."))
+        section(model.t("导出和删除", "Export and deletion"), model.t("设置 → 数据可以下载 JSON。设置 → 账号与资料 → 注销账号会删除云端账号、记录和头像，已用的邀请码不会恢复。本机数据可以选择保留。", "Settings → Data downloads JSON. Settings → Account → Delete account removes the cloud account, records, and avatar. Used invite codes stay used. You can keep local data."))
         Link("在浏览器打开", destination: AppConfig.privacyURL)
           .padding(.top, 8)
       }
       .padding(20)
     }
     .background(ZFColor.bg)
-    .navigationTitle("隐私说明")
+    .navigationTitle(model.t("隐私说明", "Privacy"))
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
-        Button("关闭") { dismiss() }
+        Button(model.t("关闭", "Close")) { dismiss() }
       }
     }
   }
