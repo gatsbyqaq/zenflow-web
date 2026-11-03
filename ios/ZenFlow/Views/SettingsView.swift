@@ -14,7 +14,7 @@ struct SettingsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(item: $model.settingsPage) { page in
           SettingsDetail(page: page)
-            .navigationTitle(page.title(model.language))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -405,7 +405,7 @@ struct ReasonsPage: View {
         }
       }
       HStack {
-        TextField(model.t("写一条", "Add a reason"), text: $text)
+        TextField("", text: $text, prompt: Text(model.t("写一条", "Add a reason")).foregroundStyle(ZFColor.placeholder))
           .padding(10)
           .background(ZFColor.field)
           .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -463,12 +463,11 @@ struct DataPage: View {
     Button { model.settingsPage = .account } label: {
       HStack {
         VStack(alignment: .leading) {
-          Text(model.t("注销账号", "Delete account")).font(.system(size: 16, weight: .semibold))
-          Text(model.t("在账号与资料里", "In Account")).font(.system(size: 12))
+          Text(model.t("注销账号", "Delete account")).font(.system(size: 16, weight: .semibold)).foregroundStyle(ZFColor.dangerText)
+          Text(model.t("在账号与资料里", "Open Account")).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
         }
         Spacer()
       }
-      .foregroundStyle(ZFColor.warm)
       .padding(14)
       .background(ZFColor.card)
       .clipShape(RoundedRectangle(cornerRadius: 12))
