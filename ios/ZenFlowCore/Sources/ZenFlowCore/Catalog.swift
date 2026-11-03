@@ -58,7 +58,7 @@ public enum Catalog {
     .init(symbol: "figure.strengthtraining.traditional", zh: "做 20 个俯卧撑", en: "Do 20 push-ups"),
     .init(symbol: "figure.mixed.cardio", zh: "做 30 个开合跳", en: "Do 30 jumping jacks"),
     .init(symbol: "figure.walk", zh: "出门走 10 分钟", en: "Walk outside for 10 minutes"),
-    .init(symbol: "cup.and.saucer", zh: "喝一杯水", en: "Drink a glass of water"),
+    .init(symbol: "waterbottle", zh: "喝一杯水", en: "Drink a glass of water"),
     .init(symbol: "message", zh: "给朋友发条消息", en: "Send a friend a message"),
     .init(symbol: "book", zh: "读 5 页书", en: "Read 5 pages"),
     .init(symbol: "sparkles", zh: "整理 5 分钟", en: "Tidy for 5 minutes"),

@@ -52,8 +52,8 @@ enum ZFColor {
   static let field = adaptive(0xFFFFFF, 0x2C2C2E)
   static let primary = text
   static let warm = adaptive(0xED4956, 0xFF453A)
-  /// 数据页红色正文。浅色压在 #F5F5F7 上约 4.9:1，深色压在 #1C1C1E 上约 5.0:1。
-  static let dangerText = adaptive(0xD70015, 0xFF453A)
+  /// 数据页红色正文。卡片底色是 #1C1C1E；深色改用更亮的红，压在 #2C2C2E 上也有约 4.9:1。
+  static let dangerText = adaptive(0xD70015, 0xFF6961)
   /// 输入占位。浅色压在白底约 5.1:1，深色压在 #2C2C2E 上约 4.9:1。
   static let placeholder = adaptive(0x6E6E73, 0x98989D)
   static let mint = adaptive(0x1C9C6C, 0x3DD68C)

@@ -267,6 +267,7 @@ jobs:
           shoot light 3 en-goal -ZenFlowPreviewPage goal -ZenFlowPreviewLang en
           shoot light 3 en-reasons -ZenFlowPreviewPage reasons -ZenFlowPreviewLang en
           shoot light 3 en-data -ZenFlowPreviewPage data -ZenFlowPreviewLang en
+          shoot dark 3 en-data-dark -ZenFlowPreviewPage data -ZenFlowPreviewLang en
           shoot light 0 en-sos -ZenFlowPreviewLang en -ZenFlowPreviewSOS
 
           record_test() {

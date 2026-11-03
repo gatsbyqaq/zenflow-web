@@ -317,8 +317,7 @@ struct SOSView: View {
 
   private var ending: some View {
     let days = Streak.wholeDays(AppState.currentMs(model.state))
-    return ScrollViewReader { proxy in
-    ScrollView {
+    return ScrollView {
     VStack(alignment: .leading, spacing: 16) {
       HStack {
         Button { model.showSOS = false } label: { Image(systemName: "xmark") }
@@ -361,21 +360,18 @@ struct SOSView: View {
           .font(.system(size: 15))
         }
       }
-      Color.clear.frame(height: 48).id("sos-end")
+      Color.clear.frame(height: 48)
     }
     .padding(.horizontal, 16)
-    .padding(.top, 16)
+    .padding(.top, 12)
     .padding(.bottom, 16)
     }
-    .onAppear {
-      #if targetEnvironment(simulator)
-      if ProcessInfo.processInfo.arguments.contains("-ZenFlowPreviewSOS") {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-          proxy.scrollTo("sos-end", anchor: .bottom)
-        }
-      }
-      #endif
-    }
+    .background(ZFColor.bg)
+    .safeAreaInset(edge: .top, spacing: 0) {
+      Color.clear
+        .frame(height: 8)
+        .frame(maxWidth: .infinity)
+        .background(ZFColor.bg.ignoresSafeArea(edges: .top))
     }
   }
 }
