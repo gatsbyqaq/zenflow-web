@@ -32,45 +32,45 @@
 <body>
   <p><a class="back" href="index.html#settings/account"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>返回应用</a></p>
   <h1>Zenflow 隐私说明</h1>
-  <p class="muted">2026-11-04 · 联系：仓库维护者 <span class="keep">gatsbyqaq(GitHub)</span></p>
+  <p class="muted">2026-11-04 · 联系：仓库维护者 <span class="keep">gatsbyqaq（GitHub）</span></p>
 
   <h2>1. 总览</h2>
   <p>Zenflow 是私人戒色自律应用。可以不登录，数据只留在本机；也可以注册账号，把数据同步到云端。没有广告，没有第三方统计。</p>
 
   <h2>2. 保存在本机的内容</h2>
-  <p>保存在浏览器 <code>localStorage</code>(iOS 版为 App 沙盒)。键名以 <code>zenflow_</code> 开头，主要包括：</p>
+  <p>保存在浏览器 <code>localStorage</code>（iOS 版为 App 沙盒）。键名以 <code>zenflow_</code> 开头，主要包括：</p>
   <table>
     <thead>
     <tr><th>内容</th><th>说明</th></tr>
     </thead>
     <tbody>
-    <tr><td>打卡与记录</td><td><code>zenflow_state</code>：计时起点、目标、破戒(时间、类型、触发因素、备注)、抵御冲动、每日心情和备注、理由、<code>updatedAt</code>、删除标记</td></tr>
+    <tr><td>打卡与记录</td><td><code>zenflow_state</code>：计时起点、目标、破戒（时间、类型、触发因素、备注）、抵御冲动、每日心情和备注、理由、<code>updatedAt</code>、删除标记</td></tr>
     <tr><td>偏好</td><td><code>zenflow_theme</code> 外观、<code>zenflow_lang</code> 语言。这两项不同步</td></tr>
-    <tr><td>应用锁</td><td><code>zenflow_lock</code> 只保存加盐哈希，不上传。选择“清除本机数据”或退出登录时会一起清掉</td></tr>
+    <tr><td>应用锁</td><td><code>zenflow_lock</code> 只保存加盐哈希，不上传。选择「清除本机数据」或退出登录时会一起清掉</td></tr>
     <tr><td>登录会话</td><td>Supabase 存在本机的会话令牌，退出或注销时清除</td></tr>
     <tr><td>同步辅助</td><td><code>zenflow_cloud_uid</code>、<code>zenflow_last_sync</code>、<code>zenflow_unsynced</code>、<code>zenflow_conflict_backup</code></td></tr>
     <tr><td>离线缓存</td><td>Service Worker 缓存页面文件，不含你的记录</td></tr>
     </tbody>
   </table>
 
-  <h2>3. 保存在云端(Supabase)的内容</h2>
+  <h2>3. 保存在云端（Supabase）的内容</h2>
   <p>仅在你注册并登录后产生。项目 <code>ordgebjytixmbwabpsrj</code>。</p>
   <table>
     <thead>
     <tr><th>位置</th><th>字段</th><th>用途</th></tr>
     </thead>
     <tbody>
-    <tr><td>登录账号</td><td>邮箱(或手机号)、密码哈希、创建/最近登录时间、禁用状态</td><td>登录</td></tr>
-    <tr><td><code>profiles</code></td><td>昵称、@ID(3–20 位小写字母、数字、下划线)、头像地址、是否管理员、邀请状态、创建时间</td><td>显示资料、防重复。<span class="keep">行级安全</span>只允许本人读取</td></tr>
-    <tr><td><code>user_data</code></td><td>一行 JSON(上限约 2 MB)和 <code>updated_at</code></td><td>多设备同步。只有本人能读写，管理员函数不返回这份内容</td></tr>
-    <tr><td>存储桶 <code>avatars</code></td><td>头像(约 256px，png/jpeg/webp，≤ 2 MB)</td><td>头像显示</td></tr>
+    <tr><td>登录账号</td><td>邮箱（或手机号）、密码哈希、创建/最近登录时间、禁用状态</td><td>登录</td></tr>
+    <tr><td><code>profiles</code></td><td>昵称、@ID（3–20 位小写字母、数字、下划线）、头像地址、是否管理员、邀请状态、创建时间</td><td>显示资料、防重复。<span class="keep">行级安全</span>只允许本人读取</td></tr>
+    <tr><td><code>user_data</code></td><td>一行 JSON（上限约 2 MB）和 <code>updated_at</code></td><td>多设备同步。只有本人能读写，管理员函数不返回这份内容</td></tr>
+    <tr><td>存储桶 <code>avatars</code></td><td>头像（约 256px，png/jpeg/webp，≤ 2 MB）</td><td>头像显示</td></tr>
     <tr><td><code>invites</code></td><td>邀请码、创建者、使用者、使用时间、到期时间</td><td>邀请注册</td></tr>
     <tr><td>旧版 iOS 表</td><td><code>ios_profiles_legacy</code>、<code>ios_habit_records_legacy</code></td><td>历史遗留。2026-11-03 只读统计这两张表都是 0 行</td></tr>
     </tbody>
   </table>
   <p>头像说明：<code>avatars</code> 仍是公开存储桶。文件放在你的账号目录下，文件名是 128 位随机串，不容易猜到，但任何拿到地址的人都能打开图片。请不要用能识别你的照片。</p>
-  <p>管理员可以看到账号列表(邮箱、昵称、@ID、头像地址、管理员/禁用状态、注册、最近登录、最近同步)和邀请码使用情况，可以禁用账号和作废邀请码。看不到你的记录内容。</p>
-  <p>登录和注册页使用 Cloudflare Turnstile(Cloudflare 会收到验证所需的浏览器信息)。网页端已接站点密钥。Supabase Auth 控制台的 Captcha 开关在本次只读检查里无法从数据库读到，安全提示显示“泄露密码保护”目前是关的。</p>
+  <p>管理员可以看到账号列表（邮箱、昵称、@ID、头像地址、管理员/禁用状态、注册、最近登录、最近同步）和邀请码使用情况，可以禁用账号和作废邀请码。看不到你的记录内容。</p>
+  <p>登录和注册页使用 Cloudflare Turnstile（Cloudflare 会收到验证所需的浏览器信息）。网页端已接站点密钥。Supabase Auth 控制台的 Captcha 开关在本次只读检查里无法从数据库读到，安全提示显示「泄露密码保护」目前是关的。</p>
 
   <h2>4. 不会做的事</h2>
   <p>不出售数据，不做广告，不接第三方统计。</p>
@@ -81,21 +81,21 @@
     <li>云端数据：直到你注销账号。</li>
     <li>备份：项目目前是免费计划。免费计划不提供时间点恢复；项目超过约 7 天没有活动会被暂停，数据仍在，恢复后可以继续用。付费计划的每日备份保留 7 天。注销后，若备份里还有副本，会按该计划自己的周期过期。本次没有升级项目。</li>
     <li>登录日志：删除 <code>auth.users</code> 会级联删除该用户的会话和刷新令牌。Supabase 自己的审计日志是否另留 IP，控制台没有单独开关，本次不能从业务表里关掉。</li>
-    <li>邀请码尝试日志(迁移应用之后)：30 天，只存 IP 的哈希和邀请码前缀。</li>
+    <li>邀请码尝试日志（迁移应用之后）：30 天，只存 IP 的哈希和邀请码前缀。</li>
     <li>冲突备份：本机保留 30 天，可随 JSON 导出。</li>
   </ul>
 
   <h2>6. 查看、导出与删除</h2>
   <ul>
     <li>导出：设置 → 数据 → 导出 JSON。</li>
-    <li>注销：<a href="index.html#settings/account">设置 → 账号与资料 → 注销账号</a>。未登录会先到登录页。需要输入你的 @ID；没有 @ID 的旧账号输入“注销”。2026-11-03 线上 3 个资料行都有 @ID。</li>
+    <li>注销：<a href="index.html#settings/account">设置 → 账号与资料 → 注销账号</a>。未登录会先到登录页。需要输入你的 @ID；没有 @ID 的旧账号输入「注销」。2026-11-03 线上 3 个资料行都有 @ID。</li>
     <li>注销会删除：登录账号、<code>profiles</code>、<code>user_data</code>、头像文件、旧版 iOS 表里你的行、所有设备上的登录状态。已用邀请码保持已用，不会重新可用。@ID 会被释放。</li>
-    <li>注销不会删除：其他设备上的本机数据；你在这台设备上可以选择保留或清除本机数据(清除时包含应用锁)。你导出的文件和备份里尚未过期的副本也不会被这次操作擦掉。</li>
+    <li>注销不会删除：其他设备上的本机数据；你在这台设备上可以选择保留或清除本机数据（清除时包含应用锁）。你导出的文件和备份里尚未过期的副本也不会被这次操作擦掉。</li>
     <li>注销无法撤销。目前只有一名管理员，不能在应用里自己注销；需要先用 SQL 取消管理员身份，或由另一名管理员取消。</li>
   </ul>
 
   <h2>7. 本机模式</h2>
-  <p>不登录，或连接超时后选“本机模式”，数据不上传。之后登录时，本机数据会按记录时间和墓碑与云端合并，不会整份覆盖。</p>
+  <p>不登录，或连接超时后选「本机模式」，数据不上传。之后登录时，本机数据会按记录时间和墓碑与云端合并，不会整份覆盖。</p>
 
   <h2>8. 联系</h2>
   <p>GitHub：<a href="https://github.com/gatsbyqaq/zenflow-web">gatsbyqaq/zenflow-web</a></p>
