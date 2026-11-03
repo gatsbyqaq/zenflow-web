@@ -138,7 +138,7 @@ public struct ZenFlowExport: Equatable {
   public var note: String?
 
   public init(
-    app: String = "ZenFlow",
+    app: String = "Zenflow",
     exportedAt: String,
     source: String,
     profile: ProfileSnapshot,

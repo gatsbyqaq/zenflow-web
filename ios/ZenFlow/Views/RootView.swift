@@ -65,10 +65,10 @@ struct MainView: View {
     }
     .sheet(isPresented: Binding(get: { model.pendingImport != nil }, set: { if !$0 { model.pendingImport = nil } })) {
       VStack(alignment: .leading, spacing: 14) {
-        Text("导入数据？").font(.system(size: 20, weight: .bold))
+        Text(model.t("导入数据？", "Import data?")).font(.system(size: 20, weight: .bold))
         Text(model.pendingImport?.summary ?? "")
-        PrimaryButton(title: "覆盖导入") { model.confirmImport() }
-        Button("取消") { model.pendingImport = nil }.frame(maxWidth: .infinity)
+        PrimaryButton(title: model.t("覆盖导入", "Replace")) { model.confirmImport() }
+        Button(model.t("取消", "Cancel")) { model.pendingImport = nil }.frame(maxWidth: .infinity)
         Spacer()
       }
       .padding(20)

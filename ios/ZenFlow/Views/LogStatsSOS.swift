@@ -275,6 +275,12 @@ struct SOSView: View {
       logged = false
       breath.start()
       step = 1
+      #if targetEnvironment(simulator)
+      if ProcessInfo.processInfo.arguments.contains("-ZenFlowPreviewSOS") {
+        breath.stop()
+        step = 2
+      }
+      #endif
     }
     .onDisappear { breath.stop() }
   }
@@ -311,7 +317,8 @@ struct SOSView: View {
 
   private var ending: some View {
     let days = Streak.wholeDays(AppState.currentMs(model.state))
-    return VStack(alignment: .leading, spacing: 16) {
+    return ScrollView {
+    VStack(alignment: .leading, spacing: 16) {
       HStack {
         Button { model.showSOS = false } label: { Image(systemName: "xmark") }
           .foregroundStyle(ZFColor.text)
@@ -342,9 +349,20 @@ struct SOSView: View {
         model.showSOS = false
         model.openRecord(AppState.dateKey(Clock.now()))
       }
-      Spacer()
+      VStack(alignment: .leading, spacing: 12) {
+        Text(model.t("做一件小事", "Do one small thing")).font(.system(size: 16, weight: .semibold))
+        ForEach(Catalog.actions, id: \.zh) { action in
+          HStack(spacing: 10) {
+            Image(systemName: action.symbol).frame(width: 24)
+            Text(model.language == .en ? action.en : action.zh)
+            Spacer()
+          }
+          .font(.system(size: 15))
+        }
+      }
     }
     .padding(16)
+    }
   }
 }
 

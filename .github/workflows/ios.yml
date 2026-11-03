@@ -264,6 +264,10 @@ jobs:
           shoot dark 0 timeout -ZenFlowPreviewTimeout
           shoot light 0 timeout-retry -ZenFlowPreviewRetry
           shoot dark 0 timeout-retry -ZenFlowPreviewRetry
+          shoot light 3 en-goal -ZenFlowPreviewPage goal -ZenFlowPreviewLang en
+          shoot light 3 en-reasons -ZenFlowPreviewPage reasons -ZenFlowPreviewLang en
+          shoot light 3 en-data -ZenFlowPreviewPage data -ZenFlowPreviewLang en
+          shoot light 0 en-sos -ZenFlowPreviewLang en -ZenFlowPreviewSOS
 
           record_test() {
             local name="$1"

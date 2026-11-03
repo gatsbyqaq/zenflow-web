@@ -12,13 +12,15 @@ enum Gate: Equatable {
 enum SyncStatus: Equatable {
   case off, syncing, ok, offline, error(String)
 
-  var label: String {
+  func label(_ language: AppLanguage) -> String {
     switch self {
-    case .off: return "未登录"
-    case .syncing: return "正在同步"
-    case .ok: return "已同步"
-    case .offline: return "离线"
-    case let .error(text): return text.isEmpty ? "失败" : "失败：\(text)"
+    case .off: return language.t("未登录", "Not signed in")
+    case .syncing: return language.t("正在同步", "Syncing")
+    case .ok: return language.t("已同步", "Synced")
+    case .offline: return language.t("离线", "Offline")
+    case let .error(text):
+      if text.isEmpty { return language.t("失败", "Failed") }
+      return language.t("失败：\(text)", "Failed: \(text)")
     }
   }
 }
@@ -61,6 +63,22 @@ enum PreviewLaunch {
 
   /// `-ZenFlowPreviewSheet`：打开开始时间面板。
   static var sheet: Bool { flag("-ZenFlowPreviewSheet") }
+
+  /// `-ZenFlowPreviewLang en`：界面用英文。
+  static var english: Bool { flag("-ZenFlowPreviewLang") && langArg == "en" }
+
+  /// `-ZenFlowPreviewSOS`：打开「我现在很想」的清单，跳过呼吸。
+  static var sos: Bool { flag("-ZenFlowPreviewSOS") }
+
+  private static var langArg: String {
+    #if targetEnvironment(simulator)
+    let args = ProcessInfo.processInfo.arguments
+    guard let index = args.firstIndex(of: "-ZenFlowPreviewLang"), index + 1 < args.count else { return "" }
+    return args[index + 1]
+    #else
+    return ""
+    #endif
+  }
 
   /// `-ZenFlowPreviewPage goal`：推入设置子页。
   static var settingsPage: SettingsPage? {
@@ -140,7 +158,7 @@ final class AppModel {
   init() {
     state = LocalStore.loadState()
     theme = LocalStore.theme()
-    language = AppLanguage.stored
+    language = PreviewLaunch.english ? .en : AppLanguage.stored
     lastSync = LocalStore.lastSync()
     bootText = language.t("正在登录", "Signing in")
     if PreviewLaunch.timeoutPlay {
@@ -183,6 +201,9 @@ final class AppModel {
       }
       if PreviewLaunch.sheet {
         askStart = true
+      }
+      if PreviewLaunch.sos {
+        showSOS = true
       }
       return
     }
@@ -425,12 +446,19 @@ final class AppModel {
     show(changed ? "已更新，天数已重算" : "已更新")
   }
 
+  func daysLabel(_ n: Int) -> String {
+    language == .en ? (n == 1 ? "1 day" : "\(n) days") : "\(n) 天"
+  }
+
   func setGoal(_ days: Int) {
-    guard (1...3650).contains(days) else { show("请输入 1–3650 之间的天数"); return }
+    guard (1...3650).contains(days) else {
+      show(t("请输入 1–3650 之间的天数", "Enter a number from 1 to 3650"))
+      return
+    }
     state.goalDays = days
     state.goalSetAt = Clock.now()
     persist()
-    show("目标已设为 \(days) 天")
+    show(t("目标已设为 \(days) 天", "Goal set to \(daysLabel(days))"))
   }
 
   func setManualStart(_ date: Date) {
@@ -455,11 +483,11 @@ final class AppModel {
 
   func addReason(_ text: String) {
     let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if value.isEmpty { show("请输入内容"); return }
+    if value.isEmpty { show(t("请输入内容", "Enter a reason")); return }
     state.reasons.append(value)
     if (state.removed.reasons[value] ?? 0) > 0 { state.removed.reasons[value] = -Clock.now() }
     persist()
-    show("已添加")
+    show(t("已添加", "Added"))
   }
 
   func removeReason(at index: Int) {
@@ -489,12 +517,23 @@ final class AppModel {
       pendingImport = PendingImport(
         state: parsed.state,
         theme: parsed.theme.flatMap(ThemeChoice.init(rawValue:)),
-        summary: "\(parsed.state.checkins.count) 次打卡，\(parsed.state.urges.count) 次抵御，\(parsed.state.relapses.count) 条破戒。会覆盖当前记录。"
+        summary: importSummary(moods: parsed.state.checkins.count, urges: parsed.state.urges.count, relapses: parsed.state.relapses.count)
       )
       return nil
     } catch {
-      return "导入失败：\((error as? LocalizedError)?.errorDescription ?? "文件无法解析")"
+      let detail = (error as? LocalizedError)?.errorDescription ?? t("文件无法解析", "The file couldn't be read")
+      return t("导入失败：\(detail)", "Import failed: \(detail)")
     }
+  }
+
+  private func importSummary(moods: Int, urges: Int, relapses: Int) -> String {
+    if language == .en {
+      let moodText = moods == 1 ? "1 mood" : "\(moods) moods"
+      let urgeText = urges == 1 ? "1 urge resisted" : "\(urges) urges resisted"
+      let relapseText = relapses == 1 ? "1 relapse" : "\(relapses) relapses"
+      return "\(moodText), \(urgeText), \(relapseText). This replaces the current records."
+    }
+    return "\(moods) 条心情，\(urges) 次抵御冲动，\(relapses) 条破戒。会覆盖当前记录。"
   }
 
   func confirmImport() {
@@ -506,7 +545,7 @@ final class AppModel {
     recordDay = nil
     dayKey = nil
     persist(replaceAll: true)
-    show("导入成功")
+    show(t("导入成功", "Imported"))
   }
 
   func resetAll() {
@@ -514,7 +553,7 @@ final class AppModel {
     recordDay = nil
     dayKey = nil
     persist(replaceAll: true)
-    show("已重置")
+    show(t("已重置", "Reset"))
   }
 
   func exportPack() async -> ZenFlowExport {

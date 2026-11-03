@@ -38,14 +38,14 @@ struct SettingsView: View {
           row("person.crop.circle", model.t("账号与资料", "Account"), model.localMode ? model.t("本机模式", "On this device") : (model.shownHandle.isEmpty ? (model.email.isEmpty ? model.t("未登录", "Not signed in") : model.email) : model.shownHandle), .account)
         }
         group(model.t("戒色", "Streak")) {
-          row("target", model.t("目标天数", "Goal"), model.t("\(model.state.goalDays) 天", "\(model.state.goalDays) days"), .goal)
+          row("target", model.t("目标天数", "Goal"), model.daysLabel(model.state.goalDays), .goal)
           row("clock", model.t("开始时间", "Start"), AppState.fmtDT(model.state.streakStart), nil)
           row("flame", model.t("重置规则", "Reset rules"), model.resetSummary(), .resets)
         }
         group(model.t("偏好", "Preferences")) {
           row("circle.lefthalf.filled", model.t("外观", "Appearance"), model.theme.label(model.language), .theme)
           row("character.book.closed", model.t("语言", "Language"), model.language == .zh ? "中文" : "English", .language)
-          row("heart", model.t("理由", "Reasons"), model.t("\(model.state.reasons.count) 条", "\(model.state.reasons.count)"), .reasons)
+          row("heart", model.t("理由", "Reasons"), model.language == .en ? (model.state.reasons.count == 1 ? "1 reason" : "\(model.state.reasons.count) reasons") : "\(model.state.reasons.count) 条", .reasons)
         }
         group(model.t("隐私与安全", "Privacy and security")) {
           row("lock", model.t("应用锁", "App lock"), model.lock.enabled ? model.lock.grace.label(model.language) : model.t("关闭", "Off"), .lock)
@@ -166,7 +166,7 @@ struct AccountPage: View {
       HStack {
         Text(model.t("账号", "Account")).font(.system(size: 16, weight: .semibold))
         Spacer()
-        Text(model.sync.label).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
+        Text(model.sync.label(model.language)).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
       }
       Text(model.email).font(.system(size: 14))
       if model.lastSync > 0 {
@@ -313,22 +313,22 @@ struct GoalPage: View {
 
   var body: some View {
     ZFCard {
-      Text("默认 30 天。").font(.system(size: 13)).foregroundStyle(ZFColor.muted)
+      Text(model.t("默认 30 天。", "Default is 30 days.")).font(.system(size: 13)).foregroundStyle(ZFColor.muted)
       FlowTags {
         ForEach(Catalog.goalPresets, id: \.self) { days in
-          TagButton(title: "\(days) 天", selected: model.state.goalDays == days) {
+          TagButton(title: model.daysLabel(days), selected: model.state.goalDays == days) {
             model.setGoal(days)
             text = "\(days)"
           }
         }
       }
       HStack {
-        TextField("天数", text: $text)
+        TextField(model.t("天数", "Days"), text: $text)
           .keyboardType(.numberPad)
           .padding(10)
           .background(ZFColor.field)
           .clipShape(RoundedRectangle(cornerRadius: 8))
-        Button("保存") {
+        Button(model.t("保存", "Save")) {
           model.setGoal(Int(text) ?? 0)
         }
         .buttonStyle(.borderedProminent)
@@ -391,7 +391,7 @@ struct ReasonsPage: View {
   var body: some View {
     ZFCard {
       if model.state.reasons.isEmpty {
-        Text("还没有理由").foregroundStyle(ZFColor.muted)
+        Text(model.t("还没有理由。", "No reasons yet.")).foregroundStyle(ZFColor.muted)
       }
       ForEach(Array(model.state.reasons.enumerated()), id: \.offset) { index, reason in
         HStack {
@@ -399,14 +399,15 @@ struct ReasonsPage: View {
           Spacer()
           Button { model.removeReason(at: index) } label: { Image(systemName: "xmark") }
             .foregroundStyle(ZFColor.warm)
+            .accessibilityLabel(model.t("删除这条理由", "Delete this reason"))
         }
       }
       HStack {
-        TextField("写一条", text: $text)
+        TextField(model.t("写一条", "Add a reason"), text: $text)
           .padding(10)
           .background(ZFColor.field)
           .clipShape(RoundedRectangle(cornerRadius: 8))
-        Button("添加") {
+        Button(model.t("添加", "Add")) {
           model.addReason(text)
           text = ""
         }
@@ -433,11 +434,11 @@ struct DataPage: View {
     VStack(spacing: 0) {
       HStack {
         VStack(alignment: .leading) {
-          Text("同步").font(.system(size: 16, weight: .semibold))
-          Text(model.sync.label).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
+          Text(model.t("同步", "Sync")).font(.system(size: 16, weight: .semibold))
+          Text(model.sync.label(model.language)).font(.system(size: 12)).foregroundStyle(ZFColor.muted)
         }
         Spacer()
-        Button("立即同步") { Task { await model.syncNow() } }
+        Button(model.t("立即同步", "Sync now")) { Task { await model.syncNow() } }
           .font(.system(size: 14, weight: .semibold))
       }
       .padding(14)
@@ -447,11 +448,11 @@ struct DataPage: View {
     .overlay(RoundedRectangle(cornerRadius: 12).stroke(ZFColor.line, lineWidth: 1))
 
     VStack(spacing: 0) {
-      dataRow("square.and.arrow.up", "导出数据", "下载 JSON") { Task { await export() } }
+      dataRow("square.and.arrow.up", model.t("导出数据", "Export data"), model.t("下载 JSON", "Download JSON")) { Task { await export() } }
       Rectangle().fill(ZFColor.line).frame(height: 1).padding(.leading, 16)
-      dataRow("square.and.arrow.down", "导入数据", "覆盖当前记录") { importing = true }
+      dataRow("square.and.arrow.down", model.t("导入数据", "Import data"), model.t("覆盖当前记录", "Replace current records")) { importing = true }
       Rectangle().fill(ZFColor.line).frame(height: 1).padding(.leading, 16)
-      dataRow("arrow.counterclockwise", "重置本机数据", "清空打卡和记录") { showReset = true }
+      dataRow("arrow.counterclockwise", model.t("重置本机数据", "Reset on this device"), model.t("清空打卡和记录", "Clears check-ins and the log")) { showReset = true }
     }
     .background(ZFColor.card)
     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -491,14 +492,15 @@ struct DataPage: View {
     .sheet(isPresented: $showReset) {
       NavigationStack {
         VStack(alignment: .leading, spacing: 12) {
-          Text("会清空打卡、记录和理由。登录时会覆盖云端。输入「重置」确认。")
-          TextField("重置", text: $resetText)
+          Text(model.t("会清空打卡、记录和理由。登录时会覆盖云端。输入「重置」确认。", "Clears check-ins, the log, and reasons. Signing in overwrites the cloud copy. Type \"reset\" to confirm."))
+          TextField(model.t("重置", "reset"), text: $resetText)
             .padding(10)
             .background(ZFColor.field)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-          PrimaryButton(title: "确认重置") {
-            if resetText.trimmingCharacters(in: .whitespacesAndNewlines) != "重置" {
-              model.show("请输入「重置」")
+          PrimaryButton(title: model.t("确认重置", "Reset")) {
+            let expected = model.language == .en ? "reset" : "重置"
+            if resetText.trimmingCharacters(in: .whitespacesAndNewlines) != expected {
+              model.show(model.t("请输入「重置」", "Type \"reset\""))
             } else {
               model.resetAll()
               showReset = false
@@ -508,9 +510,9 @@ struct DataPage: View {
           Spacer()
         }
         .padding(16)
-        .navigationTitle("重置本机数据？")
+        .navigationTitle(model.t("重置本机数据？", "Reset on this device?"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showReset = false } } }
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button(model.t("取消", "Cancel")) { showReset = false } } }
       }
       .presentationDetents([.medium])
       .zfSheetGlass()
