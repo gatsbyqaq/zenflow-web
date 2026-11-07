@@ -162,8 +162,11 @@ function session(expired) {
     await page.waitForFunction(function () {
       var mask = document.getElementById('connectTimeout');
       var title = document.getElementById('connectTimeoutTitle');
+      var face = document.getElementById('connectFace');
+      var spin = document.getElementById('connectSpin');
       return mask && !mask.classList.contains('hidden') && title && title.textContent === '连接超时' &&
-        !document.getElementById('connectFace').classList.contains('hidden');
+        face && !face.classList.contains('connect-face-hold') &&
+        spin && spin.classList.contains('hidden');
     }, { timeout: timeout || 8000 });
   }
 
