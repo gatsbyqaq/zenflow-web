@@ -180,6 +180,7 @@
           var item = { mood: Math.round(c.mood), ts: +c.ts || 0 };
           if (c.note) item.note = String(c.note).slice(0, 500);
           if (typeof c.editedAt === 'number' && isFinite(c.editedAt) && c.editedAt > 0) item.editedAt = c.editedAt;
+          item.updatedAt = (typeof c.updatedAt === 'number' && isFinite(c.updatedAt) && c.updatedAt > 0) ? c.updatedAt : (item.editedAt || item.ts || 0);
           s.checkins[k] = item;
         }
       });
@@ -195,13 +196,28 @@
           types: normalizeTypes(r.types)
         };
         if (typeof r.editedAt === 'number' && isFinite(r.editedAt) && r.editedAt > 0) row.editedAt = r.editedAt;
+        row.updatedAt = (typeof r.updatedAt === 'number' && isFinite(r.updatedAt) && r.updatedAt > 0) ? r.updatedAt : (row.editedAt || row.ts || 0);
         return row;
       });
     }
     if (Array.isArray(o.urges)) {
-      s.urges = o.urges.filter(function (u) { return u && typeof u.ts === 'number'; }).map(function (u) { return { id: String(u.id || uid()), ts: u.ts }; });
+      s.urges = o.urges.filter(function (u) { return u && typeof u.ts === 'number'; }).map(function (u) {
+        return { id: String(u.id || uid()), ts: u.ts, updatedAt: (typeof u.updatedAt === 'number' && u.updatedAt > 0) ? u.updatedAt : (u.ts || 0) };
+      });
     }
-    if (Array.isArray(o.reasons)) s.reasons = o.reasons.map(String).filter(Boolean).slice(0, 50);
+    if (Array.isArray(o.reasons)) {
+      var seenReason = {};
+      s.reasons = [];
+      o.reasons.forEach(function (raw) {
+        var text = raw && typeof raw === 'object' ? String(raw.text || raw.id || '') : String(raw || '');
+        var id = raw && typeof raw === 'object' ? String(raw.id || text) : text;
+        if (!text || !id || seenReason[id]) return;
+        seenReason[id] = 1;
+        var updated = raw && typeof raw === 'object' ? (+raw.updatedAt || +raw.editedAt || 0) : 0;
+        s.reasons.push({ id: id.slice(0, 80), text: text.slice(0, 60), updatedAt: updated });
+      });
+      s.reasons = s.reasons.slice(0, 50);
+    }
     var g = Math.round(+o.goalDays);
     s.goalDays = (g >= 1 && g <= 3650) ? g : 30;
     s.goalSetAt = (typeof o.goalSetAt === 'number' && isFinite(o.goalSetAt) && o.goalSetAt > 0) ? o.goalSetAt : 0;
@@ -227,7 +243,12 @@
     var rm = o.removed && typeof o.removed === 'object' ? o.removed : {};
     ['ids', 'reasons', 'checkins'].forEach(function (k) {
       var src = rm[k] && typeof rm[k] === 'object' ? rm[k] : {};
-      Object.keys(src).slice(0, 5000).forEach(function (key) { if (typeof src[key] === 'number' && isFinite(src[key])) s.removed[k][String(key).slice(0, 200)] = src[key]; });
+      var tombCutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+      Object.keys(src).forEach(function (key) {
+        if (typeof src[key] !== 'number' || !isFinite(src[key])) return;
+        if (Math.abs(src[key]) < tombCutoff) return;
+        s.removed[k][String(key).slice(0, 200)] = src[key];
+      });
     });
     return s;
   }
@@ -295,7 +316,8 @@
       id: uid(), ts: opts.ts, triggers: opts.triggers || [], types: opts.types,
       other: opts.other || '', note: opts.note || '',
       streakMs: endedStreakMs(opts.ts, opts.types),
-      editedAt: Date.now()
+      editedAt: Date.now(),
+      updatedAt: Date.now()
     };
     state.relapses.push(row);
     var changed = applyStreak(true);
@@ -1404,7 +1426,7 @@
     $('urgeStreakNow').innerHTML = '<span class="gauge-days">' + esc(n) + '</span>' + (unit ? '<span class="gauge-unit">' + esc(unit) + '</span>' : '');
     $('urgeStreakNow').setAttribute('aria-label', t('urge.streakNow', { n: n }));
     $('reasonsView').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r) { return '<li><span>' + esc(r) + '</span></li>'; }).join('')
+      ? state.reasons.map(function (r) { return '<li><span>' + esc(r.text || r) + '</span></li>'; }).join('')
       : '<li class="reasons-empty"><span class="muted">' + esc(t('urge.reasonsEmpty')) + '</span><button type="button" class="reason-add" id="btnGoAddReason">' + esc(t('urge.addReason')) + '</button></li>';
   }
 
@@ -1635,7 +1657,7 @@
       delete state.checkins[fromKey];
       state.removed.checkins[fromKey] = Date.now();
     }
-    var row = { mood: mood, ts: ts, editedAt: Date.now() };
+    var row = { mood: mood, ts: ts, editedAt: Date.now(), updatedAt: Date.now() };
     if (note) row.note = note;
     state.checkins[k] = row;
     if (state.removed.checkins[k] > 0) state.removed.checkins[k] = -Date.now();
@@ -1675,6 +1697,7 @@
         r.note = note;
         r.streakMs = endedStreakMs(ts, types, r.id);
         r.editedAt = Date.now();
+        r.updatedAt = Date.now();
         changed = applyStreak(true);
         if (mood) writeMood(k, mood, ts, note, null);
         save();
@@ -2357,7 +2380,7 @@
     renderResetToggles();
     renderThemeControl();
     $('reasonsEdit').innerHTML = state.reasons.length
-      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r) + '</span><button data-i="' + i + '"' + ariaAttr('a11y.reason.delete') + '>' + ic('x') + '</button></li>'; }).join('')
+      ? state.reasons.map(function (r, i) { return '<li><span>' + esc(r.text || r) + '</span><button data-i="' + i + '"' + ariaAttr('a11y.reason.delete') + '>' + ic('x') + '</button></li>'; }).join('')
       : '<li class="muted"><span>还没有理由</span></li>';
     updateSettingsChrome();
   }
@@ -2557,8 +2580,12 @@
   function addReason() {
     var v = $('reasonInput').value.trim();
     if (!v) { toast('请输入内容'); return; }
-    state.reasons.push(v);
-    if (state.removed.reasons[v] > 0) state.removed.reasons[v] = -Date.now();
+    var reasonId = uid();
+    state.reasons.push({ id: reasonId, text: v, updatedAt: Date.now() });
+    if (state.removed.reasons[reasonId] > 0 || state.removed.reasons[v] > 0) {
+      state.removed.reasons[reasonId] = -Date.now();
+      if (state.removed.reasons[v] > 0) state.removed.reasons[v] = -Date.now();
+    }
     save();
     $('reasonInput').value = ''; renderSettings(); toast('已添加');
   }
@@ -2575,7 +2602,8 @@
       danger: true,
       onOk: function () {
         var gone = state.reasons.splice(i, 1)[0];
-        if (gone != null && state.reasons.indexOf(gone) < 0) state.removed.reasons[gone] = Date.now();
+        var goneId = gone && gone.id ? gone.id : String(gone || '');
+        if (goneId && !state.reasons.some(function (r) { return (r.id || r) === goneId; })) state.removed.reasons[goneId] = Date.now();
         save();
         renderSettings();
       }
@@ -2979,6 +3007,7 @@
       if (n && n !== 1) document.documentElement.setAttribute('data-motion-scale', String(n));
       else document.documentElement.removeAttribute('data-motion-scale');
     },
+    showSettings: showSettings,
     playCeremony: function () {
       ceremonyHeld = false;
       try { sessionStorage.removeItem('zf-hold-ceremony'); } catch (e) {}
