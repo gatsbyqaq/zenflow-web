@@ -330,21 +330,29 @@ function session(expired) {
     await release(reduced);
     await reduced.close();
 
-    var prod = await open({
+    var localSim = await open({
       mode: 'auth400',
-      timeoutMs: 10000,
+      timeoutMs: 450,
       session: session(true),
       search: '?simulate=timeout&branch=cursor/login-timeout-v47'
     });
-    var prodT = Date.now();
-    await prod.waitForFunction(function () {
+    var localEarly = await localSim.evaluate(function () {
       var mask = document.getElementById('connectTimeout');
-      return document.body.classList.contains('auth-gated') && mask && mask.classList.contains('hidden') &&
-        !document.body.classList.contains('auth-booting');
-    }, { timeout: 4000 });
-    note(Date.now() - prodT < 3500, 'production ignores simulate=timeout', String(Date.now() - prodT));
-    await release(prod);
-    await prod.close();
+      return {
+        booting: document.body.classList.contains('auth-booting'),
+        text: document.getElementById('authBootText').textContent,
+        cardHidden: mask.classList.contains('hidden'),
+        gated: document.body.classList.contains('auth-gated')
+      };
+    });
+    note(localEarly.booting && localEarly.text === '正在登录' && localEarly.cardHidden && !localEarly.gated, 'local simulate starts on 正在登录', JSON.stringify(localEarly));
+    await waitCard(localSim, 4000);
+    var localDone = await localSim.evaluate(function () {
+      return window.ZFCloud.status().localMode === true && !document.body.classList.contains('auth-gated');
+    });
+    note(localDone, 'local host honors simulate=timeout without preview flag');
+    await release(localSim);
+    await localSim.close();
 
     var sim = await open({
       mode: 'auth400',
